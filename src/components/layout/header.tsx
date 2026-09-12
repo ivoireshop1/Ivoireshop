@@ -9,7 +9,7 @@ function SearchIcon() {
 }
 
 export function Header() {
-  const { totalItems, isLoaded } = useCart();
+  const { totalItems, isLoaded, addEventId } = useCart();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -38,7 +38,7 @@ export function Header() {
           <Link aria-label="Search products" className="hidden text-forest-green sm:inline-flex" href="/shop"><SearchIcon /></Link>
           <Link aria-label="Wishlist" className="hidden text-forest-green sm:inline-flex" href="/wishlist">Wishlist</Link>
           {isAuthenticated ? <Link aria-label="Account" className="text-forest-green" href="/account">Account</Link> : <><Link aria-label="Sign in" className="text-forest-green" href="/login">Sign in</Link><Link aria-label="Create account" className="hidden text-forest-green sm:inline-flex" href="/signup">Create account</Link></>}
-          <Link aria-label={`Shopping cart${isLoaded ? `, ${totalItems} items` : ""}`} className="rounded-full border border-forest-green/20 px-3 py-1.5 text-forest-green" href="/cart">Cart {isLoaded && totalItems > 0 && <span className="ml-1 rounded-full bg-gold px-1.5 py-0.5 text-xs text-forest-green">{totalItems > 99 ? "99+" : totalItems}</span>}</Link>
+          <Link aria-label={`Shopping cart${isLoaded ? `, ${totalItems} items` : ""}`} className="rounded-full border border-forest-green/20 px-3 py-1.5 text-forest-green" href="/cart"><span className={addEventId ? "cart-icon-pulse inline-flex" : ""} key={addEventId}>Cart {isLoaded && totalItems > 0 && <span className="ml-1 rounded-full bg-gold px-1.5 py-0.5 text-xs text-forest-green">{totalItems > 99 ? "99+" : totalItems}</span>}</span></Link>
           <button aria-controls="mobile-navigation" aria-expanded={menuOpen} aria-label={menuOpen ? "Close menu" : "Open menu"} className="text-forest-green md:hidden" onClick={() => setMenuOpen((open) => !open)} type="button">{menuOpen ? "Close" : "Menu"}</button>
         </div>
       </div>

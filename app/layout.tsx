@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import { siteConfig } from "@/src/lib/site";
 import { CartProvider } from "@/src/lib/cart/cart-context";
+import { CartFeedback } from "@/src/components/cart/cart-feedback";
 import { WishlistProvider } from "@/src/lib/wishlist/wishlist-context";
 import { NavigationTracker } from "@/src/components/navigation/navigation-tracker";
 import "./globals.css";
@@ -31,7 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><CartProvider><WishlistProvider><Suspense fallback={null}><NavigationTracker /></Suspense>{children}</WishlistProvider></CartProvider></body>
+      <body className="min-h-full flex flex-col"><CartProvider><WishlistProvider><Suspense fallback={null}><NavigationTracker /></Suspense>{children}<CartFeedback /></WishlistProvider></CartProvider></body>
     </html>
   );
 }

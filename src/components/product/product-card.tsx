@@ -10,10 +10,11 @@ import { ProductBadge } from "./product-badge";
 import { buildProductPath } from "@/src/lib/navigation/smart-navigation";
 
 export function ProductCard({ product, returnTo }: { product: Product; returnTo?: string }) {
-  const { addItem } = useCart();
+  const { addItem, items } = useCart();
   const [added, setAdded] = useState(false);
   const badge = product.isNew ? "New" : product.isPopular ? "Popular" : product.isFeatured ? "Featured" : null;
-  function add() { addItem({ productId: product.id, slug: product.slug, name: product.name, price: product.price, image: product.image, quantity: 1 }); setAdded(true); setTimeout(() => setAdded(false), 1200); }
+  const cartItem = items.find((item) => item.productId === product.id);
+  function add() { addItem({ productId: product.id, slug: product.slug, name: product.name, price: product.price, image: product.image, quantity: 1 }); setAdded(true); setTimeout(() => setAdded(false), 1600); }
   return <article className="group rounded-xl bg-surface p-3 text-foreground shadow-sm">
     <Link className="relative block aspect-[4/5] overflow-hidden rounded-2xl bg-[#eadfce]" href={buildProductPath(product.slug, returnTo)}>
       <Image alt={product.name} className="object-cover transition duration-300 group-hover:scale-105" fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" src={product.image} />
@@ -23,7 +24,8 @@ export function ProductCard({ product, returnTo }: { product: Product; returnTo?
       <p className="text-xs text-muted">{product.category} · {product.weight}</p>
       <Link className="mt-1 block font-semibold text-foreground hover:text-forest-green" href={buildProductPath(product.slug, returnTo)}>{product.name}</Link>
       <div className="mt-2 flex items-center gap-2 text-xs text-gold" aria-label="Rated 5 out of 5 stars">★★★★★ <span className="text-muted">(24)</span></div>
-      <div className="mt-3 flex items-center justify-between gap-2"><span className="font-semibold text-forest-green">${product.price.toFixed(2)}</span><div className="flex items-center gap-2"><WishlistButton productId={product.id} productName={product.name} /><button aria-label={`Add ${product.name} to cart`} className="text-sm font-semibold text-forest-green underline underline-offset-4" onClick={add} type="button">{added ? "Added" : "Add to cart"}</button></div></div>
+      <div className="mt-3 flex items-center justify-between gap-2"><span className="font-semibold text-forest-green">${product.price.toFixed(2)}</span><div className="flex items-center gap-2"><WishlistButton productId={product.id} productName={product.name} />{cartItem ? <><span className="text-sm font-semibold text-forest-green">{added ? "✓ Added" : `✓ In cart (${cartItem.quantity})`}</span><button aria-label={`Add another ${product.name} to cart`} className="text-sm font-semibold text-forest-green underline underline-offset-4" onClick={add} type="button">+ Add another</button></> : <button aria-label={`Add ${product.name} to cart`} className="text-sm font-semibold text-forest-green underline underline-offset-4" onClick={add} type="button">Add to cart</button>}</div></div>
+      {cartItem && <div className="mt-2 flex justify-end"><Link className="text-xs font-semibold text-muted underline underline-offset-4" href="/cart">View cart</Link></div>}
     </div>
   </article>;
 }
