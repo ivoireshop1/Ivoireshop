@@ -6,7 +6,10 @@ export function loadCart(): CartItem[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(CART_STORAGE_KEY);
-    return raw ? normalizeCart(JSON.parse(raw)) : [];
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    return normalizeCart(parsed);
   } catch {
     return [];
   }
@@ -14,7 +17,11 @@ export function loadCart(): CartItem[] {
 
 export function saveCart(items: CartItem[]) {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({ items })); } catch { /* storage is optional */ }
+  try {
+    window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+  } catch {
+    /* storage is optional */
+  }
 }
 
 export function clearStoredCart() {

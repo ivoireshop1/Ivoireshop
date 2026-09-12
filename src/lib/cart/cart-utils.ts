@@ -1,8 +1,9 @@
 import type { CartItem } from "@/src/types/cart";
 
 export function normalizeCart(items: unknown): CartItem[] {
-  if (!Array.isArray(items)) return [];
-  return items.filter(isCartItem).map((item) => ({ ...item, quantity: Math.max(1, Math.floor(item.quantity)) }));
+  const value = Array.isArray(items) ? items : Array.isArray((items as { items?: unknown })?.items) ? (items as { items: unknown[] }).items : [];
+
+  return value.filter(isCartItem).map((item) => ({ ...item, quantity: Math.max(1, Math.floor(item.quantity)) }));
 }
 
 function isCartItem(item: unknown): item is CartItem {

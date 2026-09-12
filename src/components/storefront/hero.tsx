@@ -2,31 +2,64 @@ import Link from "next/link";
 import Image from "next/image";
 import { demoImages } from "@/src/lib/demo-images";
 
+const trustPillars = ["Freshly sourced", "Fast local delivery", "Secure checkout"];
+
 export function Hero() {
   return (
-    <section className="mx-auto grid max-w-7xl gap-4 px-5 py-8 sm:py-12 lg:grid-cols-[1.1fr_1fr_0.7fr] lg:px-8 lg:py-14">
-      <div aria-label="Customer shopping at Ivoire Shop" className="relative min-h-[330px] overflow-hidden rounded-2xl bg-[#e9ddc9] sm:min-h-[430px] lg:min-h-[500px]">
-        <Image alt="A shopper holding groceries from Ivoire Shop" className="object-cover" fill priority sizes="(max-width: 1024px) 100vw, 38vw" src={demoImages.heroCustomer} />
-        <p className="absolute bottom-5 left-5 max-w-24 font-serif text-2xl italic leading-tight text-forest-green">Better food, brighter days.</p>
-      </div>
-      <div className="flex flex-col justify-center px-2 py-6 lg:px-7">
-        <p className="mb-5 text-xs font-semibold uppercase tracking-[0.22em] text-gold">African &amp; global products</p>
-        <h1 className="max-w-xl font-serif text-5xl font-semibold leading-[1.03] tracking-tight text-forest-green sm:text-6xl">Your Favorite Products,<br />All in One Place.</h1>
-        <p className="mt-6 max-w-lg text-base leading-7 text-muted">Shop quality African and international products, fresh groceries, pantry essentials, and everyday favorites — all from one trusted place.</p>
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Link className="rounded-lg bg-forest-green px-6 py-3.5 text-center text-sm font-semibold text-white transition hover:bg-forest-green/90" href="/shop">Shop now <span aria-hidden="true">→</span></Link>
-          <Link className="rounded-lg border border-forest-green px-6 py-3.5 text-center text-sm font-semibold text-forest-green transition hover:bg-forest-green/5" href="#categories">Explore categories</Link>
+    <section className="relative isolate overflow-hidden bg-[#efe7dc]">
+      <div className="relative min-h-[560px] md:min-h-[640px] lg:min-h-[720px]">
+        <Image
+          alt="A shopper with fresh produce from Ivoire Shop"
+          className="object-cover"
+          fill
+          priority
+          sizes="100vw"
+          src={demoImages.heroCustomer}
+        />
+
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(23,63,53,0.74)_0%,rgba(23,63,53,0.52)_28%,rgba(23,63,53,0.12)_58%,rgba(23,63,53,0.12)_100%)]" />
+
+        <div className="relative z-10 mx-auto flex h-full max-w-7xl items-center px-5 py-10 sm:px-8 lg:px-8">
+          <div className="max-w-xl text-white">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#f0d694]">African &amp; global essentials</p>
+            <h1 className="mt-5 font-serif text-5xl font-semibold leading-[0.96] tracking-[-0.04em] text-white sm:text-6xl lg:text-[5.25rem]">
+              Better
+              <span className="block text-[#f5efdf]">food, brighter</span>
+              <span className="block">days.</span>
+            </h1>
+
+            <p className="mt-6 max-w-lg text-base leading-7 text-white/80 sm:text-lg">
+              Fresh groceries, pantry staples, and trusted flavors from around the world — all in one place for everyday joy.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link
+                className="rounded-lg bg-white px-6 py-3.5 text-center text-sm font-semibold text-forest-green shadow-[0_15px_35px_rgba(0,0,0,0.18)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#f7f3ee]"
+                href="/shop"
+              >
+                Shop now <span aria-hidden="true">→</span>
+              </Link>
+              <Link
+                className="rounded-lg border border-white/40 bg-white/10 px-6 py-3.5 text-center text-sm font-semibold text-white backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:bg-white/15"
+                href="#categories"
+              >
+                Explore categories
+              </Link>
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-2">
+              {trustPillars.map((pillar) => (
+                <span
+                  key={pillar}
+                  className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/90 backdrop-blur-sm"
+                >
+                  {pillar}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
-      <aside className="flex flex-col justify-center rounded-2xl border border-black/10 bg-surface p-6 shadow-sm lg:p-7">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Welcome to</p>
-        <h2 className="mt-2 font-serif text-3xl font-semibold leading-tight text-forest-green">Ivoire Shop</h2>
-        <p className="mt-3 text-sm leading-6 text-muted">Sign in to save your favorites, or browse freely as a guest.</p>
-        <Link className="mt-6 rounded-lg bg-forest-green px-4 py-3 text-center text-sm font-semibold text-white" href="/login">Sign in</Link>
-        <Link className="mt-2 rounded-lg border border-forest-green/30 px-4 py-3 text-center text-sm font-semibold text-forest-green" href="/signup">Create account</Link>
-        <div className="my-5 flex items-center gap-3 text-xs text-muted"><span className="h-px flex-1 bg-black/10" />OR<span className="h-px flex-1 bg-black/10" /></div>
-        <Link className="rounded-lg border border-black/15 px-4 py-3 text-center text-sm font-semibold text-forest-green" href="/shop">Shop as guest <span aria-hidden="true">→</span></Link>
-      </aside>
     </section>
   );
 }
