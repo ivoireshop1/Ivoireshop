@@ -19,5 +19,5 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/login?error=auth_callback", siteConfig.url));
   }
 
-  return NextResponse.redirect(new URL(sanitizeReturnPath(next, "/account"), siteConfig.url));
+  return NextResponse.redirect(new URL(sanitizeReturnPath(next, "/shop"), siteConfig.url));
 }

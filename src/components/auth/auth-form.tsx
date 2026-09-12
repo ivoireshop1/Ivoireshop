@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { createClient } from "@/src/lib/supabase/browser";
 import { useRouter } from "next/navigation";
-import { sanitizeReturnPath } from "@/src/lib/navigation/smart-navigation";
+import { resolveAuthRedirectTarget, sanitizeReturnPath } from "@/src/lib/navigation/smart-navigation";
 
 type AuthMode = "login" | "signup" | "reset" | "update-password";
 
@@ -22,6 +22,8 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const redirectTarget = resolveAuthRedirectTarget(searchParams, "/shop");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,6 +31,7 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
     setMessage("");
 
     const supabase = createClient();
+    const nextTarget = resolveAuthRedirectTarget(searchParams, "/shop");
     const result =
       mode === "login"
         ? await supabase.auth.signInWithPassword({ email, password })
@@ -36,11 +39,14 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
           ? await supabase.auth.signUp({
               email,
               password,
-              options: { data: { full_name: fullName } },
+              options: {
+                data: { full_name: fullName },
+                emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextTarget)}`,
+              },
             })
           : mode === "reset"
             ? await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/auth/callback?next=/update-password`,
+                redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/update-password")}`,
               })
             : await supabase.auth.updateUser({ password });
 
@@ -51,12 +57,17 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
     }
 
     if (mode === "login") {
-      const returnTo = new URLSearchParams(window.location.search).get("returnTo");
-      router.push(sanitizeReturnPath(returnTo, "/account"));
+      router.push(sanitizeReturnPath(searchParams.get("next") ?? searchParams.get("returnTo") ?? redirectTarget, "/shop"));
       return;
     }
+
+    if (mode === "signup") {
+      setMessage("Welcome to Ivoire Shop. Check your email to confirm your account and continue.");
+      return;
+    }
+
     setMessage(
-      mode === "signup" || mode === "reset"
+      mode === "reset"
         ? "Check your email to continue."
         : mode === "update-password"
           ? "Your password has been updated."

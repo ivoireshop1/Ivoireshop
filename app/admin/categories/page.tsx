@@ -8,34 +8,73 @@ export default async function AdminCategoriesPage({
 }) {
   const params = await searchParams;
   const { supabase } = await requireAdmin();
-  const { data: categories, error } = await supabase.from("categories").select("id, name, slug, description, is_active").order("name");
+  const [{ data: categories, error }, { data: productCounts }] = await Promise.all([
+    supabase.from("categories").select("id, name, slug, description, image_url, is_active").order("name"),
+    supabase.from("products").select("category_id"),
+  ]);
+
   if (error) throw new Error("Unable to load categories.");
+
+  const counts = new Map<string, number>();
+  (productCounts ?? []).forEach((product) => {
+    const key = product.category_id ?? "";
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  });
+
   return (
-    <>
-      <h1 className="text-3xl font-semibold text-forest-green">Categories</h1>
-      {params.error && <p className="mt-4 rounded-lg bg-red-100 px-4 py-3 text-sm text-red-800">The category could not be saved. Check the values and try again.</p>}
-      {params.success && <p className="mt-4 rounded-lg bg-gold/15 px-4 py-3 text-sm text-forest-green">Category changes saved.</p>}
-      <form action={createCategory} className="mt-6 grid gap-4 rounded-2xl bg-surface p-6 shadow-sm md:grid-cols-4">
-        <input className="rounded-lg border border-black/15 px-4 py-3" name="name" placeholder="Category name" required />
-        <input className="rounded-lg border border-black/15 px-4 py-3" name="slug" placeholder="Slug (optional)" />
-        <input className="rounded-lg border border-black/15 px-4 py-3" name="description" placeholder="Description (optional)" />
-        <button className="rounded-lg bg-forest-green px-4 py-3 font-medium text-white" type="submit">Add category</button>
+    <div className="space-y-6">
+      <div>
+        <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#b8964c]">Organization</p>
+        <h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Categories</h1>
+      </div>
+
+      {params.error && (
+        <p className="rounded-2xl border border-[#7f1d1d]/20 bg-[#7f1d1d]/5 px-4 py-3 text-sm text-[#7f1d1d]">
+          {params.error === "category_in_use" ? "This category still has products assigned to it. Move or reassign them before deleting it." : "The category could not be saved. Check the values and try again."}
+        </p>
+      )}
+      {params.success && (
+        <p className="rounded-2xl border border-[#173f35]/15 bg-[#173f35]/5 px-4 py-3 text-sm text-[#173f35]">
+          Category changes saved.
+        </p>
+      )}
+
+      <form action={createCategory} className="grid gap-4 rounded-[28px] border border-[#173f35]/10 bg-white p-6 shadow-[0_12px_32px_rgba(23,63,53,0.04)] lg:grid-cols-5">
+        <input className="rounded-xl border border-[#173f35]/15 px-4 py-3" name="name" placeholder="Category name" required />
+        <input className="rounded-xl border border-[#173f35]/15 px-4 py-3" name="slug" placeholder="Slug (optional)" />
+        <input className="rounded-xl border border-[#173f35]/15 px-4 py-3" name="image_url" placeholder="Image URL (optional)" />
+        <input className="rounded-xl border border-[#173f35]/15 px-4 py-3 lg:col-span-1" name="description" placeholder="Description" />
+        <div className="flex items-center justify-end gap-3">
+          <label className="flex items-center gap-2 text-sm text-[#173f35]">
+            <input defaultChecked name="is_active" type="checkbox" />
+            Active
+          </label>
+          <button className="rounded-xl bg-[#173f35] px-4 py-3 text-sm font-medium text-white" type="submit">Add category</button>
+        </div>
       </form>
-      <div className="mt-6 space-y-4">
+
+      <div className="space-y-4">
         {(categories ?? []).map((category) => (
-          <form action={updateCategory} className="grid gap-3 rounded-2xl bg-surface p-5 shadow-sm md:grid-cols-[1fr_1fr_2fr_auto_auto]" key={category.id}>
+          <form action={updateCategory} className="grid gap-3 rounded-[24px] border border-[#173f35]/10 bg-white p-5 shadow-[0_10px_25px_rgba(23,63,53,0.04)] lg:grid-cols-[1.2fr_1.2fr_1.2fr_1.5fr_auto_auto_auto]" key={category.id}>
             <input name="id" type="hidden" value={category.id} />
-            <input className="rounded-lg border border-black/15 px-3 py-2" name="name" defaultValue={category.name} required />
-            <input className="rounded-lg border border-black/15 px-3 py-2" name="slug" defaultValue={category.slug} required />
-            <input className="rounded-lg border border-black/15 px-3 py-2" name="description" defaultValue={category.description ?? ""} />
-            <label className="flex items-center gap-2 text-sm"><input defaultChecked={category.is_active} name="is_active" type="checkbox" />Active</label>
+            <input className="rounded-xl border border-[#173f35]/15 px-3 py-2" name="name" defaultValue={category.name} required />
+            <input className="rounded-xl border border-[#173f35]/15 px-3 py-2" name="slug" defaultValue={category.slug} required />
+            <input className="rounded-xl border border-[#173f35]/15 px-3 py-2" name="image_url" defaultValue={category.image_url ?? ""} placeholder="Image URL" />
+            <input className="rounded-xl border border-[#173f35]/15 px-3 py-2" name="description" defaultValue={category.description ?? ""} placeholder="Description" />
+            <label className="flex items-center gap-2 text-sm text-[#173f35]">
+              <input defaultChecked={category.is_active} name="is_active" type="checkbox" />
+              Active
+            </label>
+            <div className="flex items-center justify-center text-sm text-[#6b6b6b]">
+              {counts.get(category.id) ?? 0} products
+            </div>
             <div className="flex items-center gap-3">
-              <button className="text-sm font-medium text-forest-green underline" type="submit">Save</button>
-              <button className="text-sm font-medium text-red-700 underline" formAction={deleteCategory} type="submit">Delete</button>
+              <button className="text-sm font-medium text-[#173f35] underline-offset-2 hover:underline" type="submit">Save</button>
+              <button className="text-sm font-medium text-[#7f1d1d] underline-offset-2 hover:underline" formAction={deleteCategory} type="submit">Delete</button>
             </div>
           </form>
         ))}
       </div>
-    </>
+    </div>
   );
 }

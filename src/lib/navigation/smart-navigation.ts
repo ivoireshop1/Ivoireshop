@@ -15,6 +15,16 @@ export function sanitizeReturnPath(value: string | null | undefined, fallbackHre
   return value;
 }
 
+export function resolveAuthRedirectTarget(
+  params: URLSearchParams | null | undefined,
+  fallbackHref = DEFAULT_FALLBACK,
+) {
+  if (!params) return fallbackHref;
+
+  const rawNext = params.get("next") ?? params.get("returnTo");
+  return sanitizeReturnPath(rawNext, fallbackHref);
+}
+
 export function getBackButtonLabel(returnPath: string, fallbackLabel: string) {
   if (returnPath === "/shop") return "Back to Shop";
   const category = new URLSearchParams(returnPath.split("?")[1] ?? "").get("category");

@@ -34,6 +34,7 @@ export async function createCategory(formData: FormData) {
     name,
     slug,
     description: textValue(formData, "description") || null,
+    image_url: textValue(formData, "image_url") || null,
     is_active: formData.get("is_active") === "on",
   });
 
@@ -62,6 +63,7 @@ export async function updateCategory(formData: FormData) {
       name,
       slug,
       description: textValue(formData, "description") || null,
+      image_url: textValue(formData, "image_url") || null,
       is_active: formData.get("is_active") === "on",
     })
     .eq("id", id);
@@ -81,6 +83,20 @@ export async function deleteCategory(formData: FormData) {
 
   if (!id) {
     redirect("/admin/categories?error=category_delete_failed");
+  }
+
+  const { data: productUsage, error: usageError } = await supabase
+    .from("products")
+    .select("id")
+    .eq("category_id", id)
+    .limit(1);
+
+  if (usageError) {
+    redirect("/admin/categories?error=category_delete_failed");
+  }
+
+  if (productUsage && productUsage.length > 0) {
+    redirect("/admin/categories?error=category_in_use");
   }
 
   const { error } = await supabase.from("categories").delete().eq("id", id);
@@ -104,6 +120,8 @@ export async function saveProduct(formData: FormData) {
   const compareAtPriceValue = textValue(formData, "compare_at_price")
     ? positiveNumber(textValue(formData, "compare_at_price"))
     : null;
+  const status = textValue(formData, "status") || "active";
+  const isFeatured = formData.get("is_featured") === "on";
 
   if (
     !name ||
@@ -118,6 +136,9 @@ export async function saveProduct(formData: FormData) {
     redirect("/admin/products/new?error=product_required");
   }
 
+  const isActive = status !== "hidden";
+  const normalizedStockQuantity = status === "sold_out" ? 0 : stockQuantityValue;
+
   const values = {
     name,
     slug,
@@ -127,9 +148,9 @@ export async function saveProduct(formData: FormData) {
     price,
     compare_at_price: compareAtPriceValue,
     sku: textValue(formData, "sku") || null,
-    stock_quantity: stockQuantityValue,
-    is_active: formData.get("is_active") === "on",
-    is_featured: formData.get("is_featured") === "on",
+    stock_quantity: normalizedStockQuantity,
+    is_active: isActive,
+    is_featured: isFeatured,
   };
 
   const query = id
@@ -144,6 +165,138 @@ export async function saveProduct(formData: FormData) {
   revalidatePath("/admin/products");
   revalidatePath("/");
   redirect("/admin/products?success=product_saved");
+}
+
+export async function updateProductStatus(formData: FormData) {
+  const { supabase } = await requireAdmin();
+  const id = textValue(formData, "id");
+  const status = textValue(formData, "status");
+
+  if (!id || !["active", "sold_out", "hidden"].includes(status)) {
+    redirect("/admin/products?error=product_status_failed");
+  }
+
+  const { data: product, error: fetchError } = await supabase
+    .from("products")
+    .select("id, stock_quantity, is_active")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fetchError || !product) {
+    redirect("/admin/products?error=product_status_failed");
+  }
+
+  const nextValues = {
+    is_active: status !== "hidden",
+    stock_quantity: status === "sold_out" ? 0 : Number(product.stock_quantity ?? 0),
+  };
+
+  const { error } = await supabase.from("products").update(nextValues).eq("id", id);
+  if (error) {
+    redirect("/admin/products?error=product_status_failed");
+  }
+
+  revalidatePath("/admin/products");
+  revalidatePath("/");
+  redirect("/admin/products?success=product_status_updated");
+}
+
+export async function toggleFeatured(formData: FormData) {
+  const { supabase } = await requireAdmin();
+  const id = textValue(formData, "id");
+
+  if (!id) {
+    redirect("/admin/products?error=product_feature_failed");
+  }
+
+  const { data: product, error: fetchError } = await supabase
+    .from("products")
+    .select("id, is_featured")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fetchError || !product) {
+    redirect("/admin/products?error=product_feature_failed");
+  }
+
+  const { error } = await supabase
+    .from("products")
+    .update({ is_featured: !product.is_featured })
+    .eq("id", id);
+
+  if (error) {
+    redirect("/admin/products?error=product_feature_failed");
+  }
+
+  revalidatePath("/admin/products");
+  revalidatePath("/");
+  redirect("/admin/products?success=product_feature_updated");
+}
+
+export async function duplicateProduct(formData: FormData) {
+  const { supabase } = await requireAdmin();
+  const id = textValue(formData, "id");
+
+  if (!id) {
+    redirect("/admin/products?error=product_duplicate_failed");
+  }
+
+  const { data: product, error: fetchError } = await supabase
+    .from("products")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fetchError || !product) {
+    redirect("/admin/products?error=product_duplicate_failed");
+  }
+
+  const baseName = `${product.name} Copy`;
+  const slugBase = slugify(`${product.slug}-copy`);
+  const suffix = crypto.randomUUID().slice(0, 8);
+  const nextSlug = `${slugBase}-${suffix}`;
+
+  const { data: duplicatedProduct, error: insertError } = await supabase
+    .from("products")
+    .insert({
+      name: baseName,
+      slug: nextSlug,
+      description: product.description ?? "",
+      short_description: product.short_description,
+      price: product.price,
+      compare_at_price: product.compare_at_price,
+      category_id: product.category_id,
+      sku: product.sku ? `${product.sku}-copy` : null,
+      stock_quantity: product.stock_quantity ?? 0,
+      is_active: product.is_active,
+      is_featured: false,
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !duplicatedProduct) {
+    redirect("/admin/products?error=product_duplicate_failed");
+  }
+
+  const { data: images } = await supabase
+    .from("product_images")
+    .select("image_url, alt_text, position")
+    .eq("product_id", id)
+    .order("position", { ascending: true });
+
+  if (images?.length) {
+    const rows = images.map((image, index) => ({
+      product_id: duplicatedProduct.id,
+      image_url: image.image_url,
+      alt_text: image.alt_text,
+      position: index,
+    }));
+    await supabase.from("product_images").insert(rows);
+  }
+
+  revalidatePath("/admin/products");
+  revalidatePath("/");
+  redirect("/admin/products?success=product_duplicated");
 }
 
 export async function deleteProduct(formData: FormData) {
