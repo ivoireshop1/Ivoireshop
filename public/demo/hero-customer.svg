@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900">
+  <rect width="900" height="900" fill="#dbe5d8"/>
+  <circle cx="700" cy="190" r="180" fill="#c3d0ba"/>
+  <path d="M180 900c30-190 150-290 315-290s285 100 325 290z" fill="#173f35"/>
+  <path d="M300 390c0-120 80-210 190-210s190 90 190 210v115c0 118-83 205-190 205s-190-87-190-205z" fill="#8d573f"/>
+  <path d="M294 400c-20-150 67-276 202-276 119 0 209 91 198 248-50-53-92-85-174-93-70 74-139 102-226 121z" fill="#252520"/>
+  <path d="M420 524c34 27 75 27 110 0" fill="none" stroke="#5d3026" stroke-linecap="round" stroke-width="9"/>
+  <circle cx="415" cy="444" r="8" fill="#252520"/>
+  <circle cx="565" cy="444" r="8" fill="#252520"/>
+  <path d="M337 710c45-60 97-91 153-91s108 31 153 91l-37 190H374z" fill="#c98746"/>
+  <path d="M620 690c87-74 160-68 198 8l-48 75-139-34z" fill="#f7f1e8"/>
+  <path d="M692 742c38-33 91-28 125 10" fill="none" stroke="#b8964c" stroke-width="10"/>
+  <text x="64" y="820" fill="#173f35" font-family="Arial, sans-serif" font-size="24" letter-spacing="5">SHOP YOUR WAY</text>
+</svg>
