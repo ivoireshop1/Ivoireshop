@@ -154,12 +154,35 @@ export async function saveProduct(formData: FormData) {
   };
 
   const query = id
-    ? supabase.from("products").update(values).eq("id", id)
-    : supabase.from("products").insert(values);
-  const { error } = await query;
+    ? supabase.from("products").update(values).eq("id", id).select("id").single()
+    : supabase.from("products").insert(values).select("id").single();
+  const { data: savedProduct, error } = await query;
 
   if (error) {
     redirect(`${id ? `/admin/products/${id}` : "/admin/products/new"}?error=product_save_failed`);
+  }
+
+  const imageUrls = [textValue(formData, "image_url"), ...textValue(formData, "gallery_images").split("\n")]
+    .map((url) => url.trim())
+    .filter(Boolean);
+  if (imageUrls.length > 0 && savedProduct) {
+    const { error: deleteImagesError } = await supabase
+      .from("product_images")
+      .delete()
+      .eq("product_id", savedProduct.id);
+    const { error: insertImagesError } = deleteImagesError
+      ? { error: deleteImagesError }
+      : await supabase.from("product_images").insert(
+          imageUrls.map((image_url, position) => ({
+            product_id: savedProduct.id,
+            image_url,
+            alt_text: name,
+            position,
+          })),
+        );
+    if (insertImagesError) {
+      redirect(`${id ? `/admin/products/${id}` : "/admin/products/new"}?error=product_save_failed`);
+    }
   }
 
   revalidatePath("/admin/products");
@@ -315,4 +338,46 @@ export async function deleteProduct(formData: FormData) {
   revalidatePath("/admin/products");
   revalidatePath("/");
   redirect("/admin/products?success=product_deleted");
+}
+
+export async function updateInventory(formData: FormData) {
+  const { supabase } = await requireAdmin();
+  const id = textValue(formData, "id");
+  const stockQuantity = positiveNumber(textValue(formData, "stock_quantity"));
+
+  if (!id || stockQuantity === null || !Number.isInteger(stockQuantity)) {
+    redirect("/admin/inventory?error=invalid_stock");
+  }
+
+  const { error } = await supabase
+    .from("products")
+    .update({ stock_quantity: stockQuantity })
+    .eq("id", id);
+
+  if (error) redirect("/admin/inventory?error=stock_update_failed");
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/inventory");
+  revalidatePath("/admin/products");
+  revalidatePath("/");
+  redirect("/admin/inventory?success=stock_updated");
+}
+
+export async function updateOrderStatus(formData: FormData) {
+  const { supabase } = await requireAdmin();
+  const id = textValue(formData, "id");
+  const status = textValue(formData, "status");
+  const validStatuses = ["pending", "confirmed", "processing", "ready_for_pickup", "shipped", "delivered", "cancelled"];
+
+  if (!id || !validStatuses.includes(status)) {
+    redirect("/admin/orders?error=invalid_status");
+  }
+
+  const { error } = await supabase.from("orders").update({ status }).eq("id", id);
+  if (error) redirect(`/admin/orders/${id}?error=status_update_failed`);
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+  redirect(`/admin/orders/${id}?success=status_updated`);
 }

@@ -43,7 +43,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     itemCount: itemCount(items),
     subtotal: subtotal(items),
     addItem: (item: CartInput, quantity = 1) => {
-      const complete: CartItem = { productId: item.productId, slug: item.slug ?? "", name: item.name, price: item.price, image: item.image ?? "", quantity: "quantity" in item && item.quantity ? item.quantity : quantity };
+      const complete: CartItem = {
+        productId: item.productId,
+        slug: item.slug ?? "",
+        name: item.name,
+        price: item.price,
+        compareAtPrice: item.compareAtPrice,
+        image: item.image ?? "",
+        quantity: "quantity" in item && item.quantity ? item.quantity : quantity,
+      };
       setItems((current) => mergeItem(current, complete));
       setLastAddedItem(complete);
       setAddEventId((eventId) => eventId + 1);

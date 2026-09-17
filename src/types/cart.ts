@@ -3,6 +3,7 @@ export type CartItem = {
   slug: string;
   name: string;
   price: number;
+  compareAtPrice?: number;
   image: string;
   quantity: number;
 };

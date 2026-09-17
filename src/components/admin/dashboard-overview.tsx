@@ -83,12 +83,20 @@ export async function DashboardOverview() {
           </div>
 
           <div className="mt-5 space-y-3">
-            <Link href="/admin/store" className="flex items-center justify-between rounded-2xl border border-[#173f35]/10 bg-white px-4 py-3 text-sm font-medium text-[#173f35] transition hover:border-[#173f35]/20">
-              <span>Update store controls</span>
+            <Link href="/" className="flex items-center justify-between rounded-2xl border border-[#173f35]/10 bg-white px-4 py-3 text-sm font-medium text-[#173f35] transition hover:border-[#173f35]/20">
+              <span>View storefront</span>
               <span aria-hidden="true">→</span>
             </Link>
-            <Link href="/admin/content" className="flex items-center justify-between rounded-2xl border border-[#173f35]/10 bg-white px-4 py-3 text-sm font-medium text-[#173f35] transition hover:border-[#173f35]/20">
-              <span>Edit homepage</span>
+            <Link href="/admin/categories" className="flex items-center justify-between rounded-2xl border border-[#173f35]/10 bg-white px-4 py-3 text-sm font-medium text-[#173f35] transition hover:border-[#173f35]/20">
+              <span>Manage categories</span>
+              <span aria-hidden="true">→</span>
+            </Link>
+            <Link href="/admin/payments" className="flex items-center justify-between rounded-2xl border border-[#173f35]/10 bg-white px-4 py-3 text-sm font-medium text-[#173f35] transition hover:border-[#173f35]/20">
+              <span>Review payment providers</span>
+              <span aria-hidden="true">→</span>
+            </Link>
+            <Link href="/admin/fulfillment" className="flex items-center justify-between rounded-2xl border border-[#173f35]/10 bg-white px-4 py-3 text-sm font-medium text-[#173f35] transition hover:border-[#173f35]/20">
+              <span>Open fulfillment queue</span>
               <span aria-hidden="true">→</span>
             </Link>
           </div>
@@ -141,8 +149,16 @@ export async function DashboardOverview() {
               <span>Manage Inventory</span>
               <span aria-hidden="true">→</span>
             </Link>
-            <Link href="/admin/content" className="flex items-center justify-between rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] px-4 py-3 text-sm text-[#173f35] transition hover:bg-white">
-              <span>Edit Homepage</span>
+            <Link href="/admin/fulfillment" className="flex items-center justify-between rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] px-4 py-3 text-sm text-[#173f35] transition hover:bg-white">
+              <span>Fulfillment Queue</span>
+              <span aria-hidden="true">→</span>
+            </Link>
+            <Link href="/admin/categories" className="flex items-center justify-between rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] px-4 py-3 text-sm text-[#173f35] transition hover:bg-white">
+              <span>Manage Categories</span>
+              <span aria-hidden="true">→</span>
+            </Link>
+            <Link href="/admin/payments" className="flex items-center justify-between rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] px-4 py-3 text-sm text-[#173f35] transition hover:bg-white">
+              <span>Manage Payments</span>
               <span aria-hidden="true">→</span>
             </Link>
           </div>
@@ -177,7 +193,7 @@ export async function DashboardOverview() {
           )}
         </AdminCard>
 
-        <AdminCard title="Best sellers" action={<Link href="/admin/analytics" className="text-sm text-[#173f35] underline-offset-2 hover:underline">View analytics</Link>}>
+        <AdminCard title="Best sellers" action={<Link href="/admin/products" className="text-sm text-[#173f35] underline-offset-2 hover:underline">View products</Link>}>
           {dashboard.bestSellers.length > 0 ? (
             <div className="space-y-3">
               {dashboard.bestSellers.map((product) => (

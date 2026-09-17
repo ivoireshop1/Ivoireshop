@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { createClient } from "@/src/lib/supabase/server";
+import { CustomerHub } from "@/src/components/customer/customer-hub";
 
 const options = [
   {
@@ -27,7 +29,11 @@ const options = [
   },
 ];
 
-export function GuestShoppingSection() {
+export async function GuestShoppingSection() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) return <CustomerHub />;
+
   return (
     <section className="bg-white/60">
       <div className="mx-auto max-w-7xl px-5 py-16 lg:px-8">

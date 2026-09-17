@@ -1,22 +1,28 @@
+"use client";
+
 import Link from "next/link";
 import { ReactNode } from "react";
-import { requireAdmin } from "@/src/lib/auth/guards";
+import { usePathname } from "next/navigation";
 
 const navigation = [
   { href: "/admin", label: "Overview" },
-  { href: "/admin/orders", label: "Orders" },
   { href: "/admin/products", label: "Products" },
+  { href: "/admin/products/new", label: "Add Product" },
+  { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/fulfillment", label: "Fulfillment" },
   { href: "/admin/inventory", label: "Inventory" },
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/categories", label: "Categories" },
-  { href: "/admin/content", label: "Content & Homepage" },
-  { href: "/admin/analytics", label: "Analytics" },
-  { href: "/admin/activity", label: "Activity Log" },
-  { href: "/admin/store", label: "Store Settings" },
+  { href: "/admin/content", label: "Announcements" },
+  { href: "/admin/discounts", label: "Discounts" },
+  { href: "/admin/payments", label: "Payments" },
+  { href: "/admin/settings", label: "Settings" },
+  { href: "/", label: "View Store" },
 ];
 
-export async function AdminShell({ children }: { children: ReactNode }) {
-  const { profile } = await requireAdmin();
+export function AdminShell({ children }: { children: ReactNode }) {
+  const profile = { full_name: "Admin", role: "admin" };
+  const pathname = usePathname();
 
   return (
     <div className="min-h-screen bg-[#f7f1e8] text-[#1a1a1a]">
@@ -43,7 +49,8 @@ export async function AdminShell({ children }: { children: ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="group flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium text-[#173f35] transition hover:bg-[#173f35]/5 hover:text-[#173f35]"
+                  aria-current={pathname === item.href || (item.href !== "/admin" && item.href !== "/" && pathname.startsWith(`${item.href}/`)) ? "page" : undefined}
+                  className={`group flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition hover:bg-[#173f35]/5 hover:text-[#173f35] ${pathname === item.href || (item.href !== "/admin" && item.href !== "/" && pathname.startsWith(`${item.href}/`)) ? "bg-[#173f35]/10 text-[#173f35]" : "text-[#173f35]"}`}
                 >
                   <span>{item.label}</span>
                 </Link>

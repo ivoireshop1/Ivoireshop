@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { DeleteProductForm } from "@/src/components/admin/delete-product-form";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import {
   deleteProduct,
@@ -242,12 +243,7 @@ export default async function AdminProductsPage({
                         Duplicate
                       </button>
                     </form>
-                    <form action={deleteProduct}>
-                      <input name="id" type="hidden" value={product.id} />
-                      <button className="text-sm text-[#7f1d1d] underline-offset-2 hover:underline" type="submit">
-                        Delete
-                      </button>
-                    </form>
+                    <DeleteProductForm action={deleteProduct} id={product.id} />
                   </div>
                 </article>
               );

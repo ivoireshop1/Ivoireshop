@@ -40,7 +40,7 @@ export function CartPage() {
             ))}
           </section>
 
-          <CartSummary subtotal={subtotal} />
+          <CartSummary items={items} subtotal={subtotal} />
         </div>
       )}
     </main>

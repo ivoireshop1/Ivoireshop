@@ -54,7 +54,7 @@ export async function getAdminDashboardData() {
   sevenDaysAgo.setDate(now.getDate() - 6);
   sevenDaysAgo.setHours(0, 0, 0, 0);
 
-  const [todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult] =
+  const [todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult] =
     await Promise.all([
       supabase
         .from("orders")
@@ -72,6 +72,7 @@ export async function getAdminDashboardData() {
         .order("created_at", { ascending: false })
         .limit(5),
       supabase.from("order_items").select("product_id, product_name, quantity, product_price"),
+      supabase.from("orders").select("id, status, payment_status, total"),
     ]);
 
   const todayOrders = todayOrdersResult.data ?? [];
@@ -79,6 +80,7 @@ export async function getAdminDashboardData() {
   const products = productResult.data ?? [];
   const recentOrders = recentOrdersResult.data ?? [];
   const orderItems = orderItemsResult.data ?? [];
+  const allOrders = allOrdersResult.data ?? [];
 
   const revenueToday = todayOrders
     .filter((order) => order.payment_status === "paid")
@@ -171,19 +173,19 @@ export async function getAdminDashboardData() {
 
   const metrics: AdminDashboardMetric[] = [
     {
-      label: "Revenue today",
-      value: formatCurrency(revenueToday),
-      detail: `${todayOrders.length} orders processed`,
+      label: "Total products",
+      value: String(products.length),
+      detail: `${products.filter((product) => product.is_active).length} active`,
       tone: "positive",
     },
     {
-      label: "Orders today",
-      value: String(orderCountToday),
-      detail: "Customer orders received",
+      label: "Total orders",
+      value: String(allOrders.length),
+      detail: `${allOrders.filter((order) => ["pending", "confirmed", "processing"].includes(order.status)).length} need review`,
       tone: "neutral",
     },
     {
-      label: "New customers",
+      label: "New customers today",
       value: String(newCustomersToday),
       detail: "Profiles created today",
       tone: "positive",
@@ -206,6 +208,8 @@ export async function getAdminDashboardData() {
     outOfStockCount: outOfStockProducts.length,
     lowStockCount: lowStockProducts.length,
     todayOrderCount: orderCountToday,
+    totalOrderCount: allOrders.length,
+    pendingOrderCount: allOrders.filter((order) => ["pending", "confirmed", "processing"].includes(order.status)).length,
     todaysRevenue: revenueToday,
     averageOrderValue: orderCountToday > 0 ? revenueToday / orderCountToday : 0,
   };
@@ -250,12 +254,4 @@ function dayLabel(offset: number) {
   date.setHours(0, 0, 0, 0);
   date.setDate(date.getDate() - (6 - offset));
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value);
 }

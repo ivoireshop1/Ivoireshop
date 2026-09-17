@@ -1,6 +1,4 @@
 import { createClient } from "@/src/lib/supabase/server";
-import { demoCategories } from "./demo-categories";
-import { demoProducts, getDemoProduct } from "./demo-products";
 import type { CatalogCategory, Product } from "@/src/types/catalog";
 
 type ProductRow = {
@@ -14,23 +12,20 @@ type ProductRow = {
   category_id: string;
   is_active: boolean;
   is_featured: boolean;
+  stock_quantity: number | null;
   categories: { name: string }[] | null;
+  product_images?: { image_url: string; position: number }[] | null;
 };
 
-function fallbackCategories(): CatalogCategory[] {
-  return demoCategories.map((category, index) => ({
-    id: `demo-category-${index + 1}`,
-    name: category.name,
-    slug: category.filter.toLowerCase().replaceAll(" ", "-").replaceAll("&", "and"),
-    description: category.description,
-    imageUrl: category.image,
-    isActive: true,
-  }));
+function resolveCategoryName(name: string | null | undefined): Product["category"] {
+  if (!name) return "African Foods";
+  return (name as Product["category"]) || "African Foods";
 }
 
 function mapProduct(row: ProductRow): Product {
-  const category = row.categories?.[0]?.name;
-  const knownCategory = demoProducts.find((product) => product.category === category)?.category ?? "African Foods";
+  const category = resolveCategoryName(row.categories?.[0]?.name);
+  const image = row.product_images?.slice().sort((a, b) => a.position - b.position)[0]?.image_url ?? "/demo-products/premium-jasmine-rice.jpg";
+
   return {
     id: row.id,
     slug: row.slug,
@@ -39,9 +34,9 @@ function mapProduct(row: ProductRow): Product {
     shortDescription: row.short_description ?? row.description,
     price: Number(row.price),
     compareAtPrice: row.compare_at_price === null ? undefined : Number(row.compare_at_price),
-    category: knownCategory,
-    image: "/demo-products/premium-jasmine-rice.jpg",
-    weight: "",
+    category,
+    image,
+    weight: row.stock_quantity !== null ? `${row.stock_quantity} in stock` : "",
     isFeatured: row.is_featured,
     isNew: false,
     isPopular: false,
@@ -58,10 +53,9 @@ export async function getCategories(): Promise<CatalogCategory[]> {
       .order("name");
     if (error) {
       console.error("Catalog categories query failed:", error.message);
-      return fallbackCategories();
+      return [];
     }
-    if (!data?.length) return fallbackCategories();
-    return data.map((category) => ({
+    return (data ?? []).map((category) => ({
       id: category.id,
       name: category.name,
       slug: category.slug,
@@ -71,7 +65,7 @@ export async function getCategories(): Promise<CatalogCategory[]> {
     }));
   } catch (error) {
     console.error("Catalog categories connection failed:", error);
-    return fallbackCategories();
+    return [];
   }
 }
 
@@ -80,18 +74,17 @@ export async function getProducts(): Promise<Product[]> {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, slug, description, short_description, price, compare_at_price, category_id, is_active, is_featured, categories(name)")
+      .select("id, name, slug, description, short_description, price, compare_at_price, category_id, is_active, is_featured, stock_quantity, categories(name), product_images(image_url, position)")
       .eq("is_active", true)
       .order("created_at", { ascending: false });
     if (error) {
       console.error("Catalog products query failed:", error.message);
-      return demoProducts;
+      return [];
     }
-    if (!data?.length) return demoProducts;
-    return (data as ProductRow[]).map(mapProduct);
+    return (data as ProductRow[] | null ?? []).map(mapProduct);
   } catch (error) {
     console.error("Catalog products connection failed:", error);
-    return demoProducts;
+    return [];
   }
 }
 
@@ -100,17 +93,17 @@ export async function getProductBySlug(slug: string): Promise<Product | undefine
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, slug, description, short_description, price, compare_at_price, category_id, is_active, is_featured, categories(name)")
+      .select("id, name, slug, description, short_description, price, compare_at_price, category_id, is_active, is_featured, stock_quantity, categories(name), product_images(image_url, position)")
       .eq("slug", slug)
       .eq("is_active", true)
       .maybeSingle();
     if (error) {
       console.error("Catalog product query failed:", error.message);
-      return getDemoProduct(slug);
+      return undefined;
     }
-    return data ? mapProduct(data as ProductRow) : getDemoProduct(slug);
+    return data ? mapProduct(data as ProductRow) : undefined;
   } catch (error) {
     console.error("Catalog product connection failed:", error);
-    return getDemoProduct(slug);
+    return undefined;
   }
 }

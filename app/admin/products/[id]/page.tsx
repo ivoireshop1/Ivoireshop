@@ -7,7 +7,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const { supabase } = await requireAdmin();
   const [{ data: product, error: productError }, { data: categories, error: categoryError }] = await Promise.all([
-    supabase.from("products").select("*").eq("id", id).maybeSingle(),
+    supabase.from("products").select("*, product_images(image_url, position)").eq("id", id).maybeSingle(),
     supabase.from("categories").select("id, name").order("name"),
   ]);
 
