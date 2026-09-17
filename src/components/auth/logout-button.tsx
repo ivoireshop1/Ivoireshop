@@ -20,7 +20,7 @@ export default function LogoutButton() {
       return;
     }
 
-    router.push("/login");
+    router.push("/");
     router.refresh();
   }
 
