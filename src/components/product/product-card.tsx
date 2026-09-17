@@ -23,7 +23,6 @@ export function ProductCard({ product, returnTo }: { product: Product; returnTo?
     <div className="pt-4">
       <p className="text-xs text-muted">{product.category} · {product.weight}</p>
       <Link className="mt-1 block font-semibold text-foreground hover:text-forest-green" href={buildProductPath(product.slug, returnTo)}>{product.name}</Link>
-      <div className="mt-2 flex items-center gap-2 text-xs text-gold" aria-label="Rated 5 out of 5 stars">★★★★★ <span className="text-muted">(24)</span></div>
       <div className="mt-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex items-center gap-2">
           <span className="font-semibold text-forest-green">${product.price.toFixed(2)}</span>

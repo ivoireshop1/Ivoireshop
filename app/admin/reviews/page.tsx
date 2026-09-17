@@ -1,0 +1,18 @@
+import Link from "next/link";
+import { requireAdmin } from "@/src/lib/auth/guards";
+import { deleteProductReviewAsAdmin, setProductReviewStatus } from "@/src/lib/admin/reviews";
+
+export default async function AdminReviewsPage({ searchParams }: { searchParams: Promise<{ rating?: string; q?: string }> }) {
+  const { supabase } = await requireAdmin();
+  const { rating, q } = await searchParams;
+  const validRating = ["1", "2", "3", "4", "5"].includes(rating ?? "") ? Number(rating) : null;
+  let query = supabase.from("product_reviews").select("id, user_id, rating, review_text, display_name, verified_purchase, status, created_at, product:product_id(id, name, slug)").order("created_at", { ascending: false });
+  if (validRating) query = query.eq("rating", validRating);
+  if (q?.trim()) query = query.ilike("review_text", `%${q.trim()}%`);
+  const { data: reviews } = await query;
+
+  return <div className="space-y-6"><div><p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#b8964c]">Customer feedback</p><h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Product reviews</h1></div>
+    <form className="flex flex-wrap gap-3" method="get"><input aria-label="Search review text" className="rounded-xl border border-[#173f35]/15 bg-white px-3 py-2 text-sm" defaultValue={q} name="q" placeholder="Search review text" /><select aria-label="Filter by rating" className="rounded-xl border border-[#173f35]/15 bg-white px-3 py-2 text-sm" defaultValue={rating ?? ""} name="rating"><option value="">All ratings</option>{[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value} stars</option>)}</select><button className="rounded-xl bg-[#173f35] px-4 py-2 text-sm font-semibold text-white" type="submit">Filter</button></form>
+    <div className="space-y-3">{reviews?.length ? reviews.map((review) => { const product = review.product?.[0]; return <article className="rounded-2xl border border-[#173f35]/10 bg-white p-5" key={review.id}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-gold" aria-label={`${review.rating} out of 5 stars`}>{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</p><h2 className="mt-2 font-semibold text-[#173f35]">{review.display_name}</h2><p className="mt-1 text-sm text-[#6b6b6b]">{new Date(review.created_at).toLocaleDateString()}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${review.status === "published" ? "bg-[#173f35]/10 text-[#173f35]" : "bg-[#7f1d1d]/10 text-[#7f1d1d]"}`}>{review.status}</span></div><p className="mt-4 text-sm leading-6 text-[#4f4f4f]">{review.review_text || "No written review."}</p><p className="mt-3 text-sm font-medium text-[#173f35]">Product: <Link className="underline underline-offset-4" href={`/product/${product?.slug}`}>{product?.name ?? "Deleted product"}</Link>{review.verified_purchase ? " · Verified purchase" : ""}</p><div className="mt-4 flex flex-wrap gap-3"><form action={setProductReviewStatus}><input name="id" type="hidden" value={review.id} /><input name="status" type="hidden" value={review.status === "published" ? "hidden" : "published"} /><button className="text-sm font-semibold text-[#173f35] underline underline-offset-4" type="submit">{review.status === "published" ? "Hide" : "Publish"}</button></form><form action={deleteProductReviewAsAdmin}><input name="id" type="hidden" value={review.id} /><button className="text-sm font-semibold text-[#7f1d1d] underline underline-offset-4" type="submit">Delete</button></form></div></article> }) : <p className="rounded-2xl border border-dashed border-[#173f35]/20 bg-white p-6 text-sm text-[#6b6b6b]">No reviews match these filters.</p>}</div>
+  </div>;
+}

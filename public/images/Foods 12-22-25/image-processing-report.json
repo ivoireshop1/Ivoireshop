@@ -1,0 +1,2304 @@
+﻿{
+    "root":  "C:\\Users\\Badge\\Documents\\ivoireshop\\ivoire-shop\\public\\images\\Foods 12-22-25",
+    "totalImages":  578,
+    "renamed":  401,
+    "renamedFiles":  [
+                         {
+                             "from":  "Comestics 12-22-25/33% Gratis Vagon 268ml.jpeg",
+                             "to":  "Comestics 12-22-25/33-gratis-vagon-268ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/55 H+ Efficacite Extreme Soap 7oz.jpeg",
+                             "to":  "Comestics 12-22-25/55-h-efficacite-extreme-soap-7oz.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/55 H+ Performance Multi-Action 500ml.jpeg",
+                             "to":  "Comestics 12-22-25/55-h-performance-multi-action-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/55 H+ Performance Multi-Action Savon 200g.jpeg",
+                             "to":  "Comestics 12-22-25/55-h-performance-multi-action-savon-200g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/55 H+ Performance Multi-Action.jpeg",
+                             "to":  "Comestics 12-22-25/55-h-performance-multi-action.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/55 H+ Serum Eclaircissant.jpeg",
+                             "to":  "Comestics 12-22-25/55-h-serum-eclaircissant.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/55 H+Harmonie Reparateur Creme.png",
+                             "to":  "Comestics 12-22-25/55-h-harmonie-reparateur-creme.png"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/55 H+Paris Efficacite Extreme Body Lotion 500ml.jpeg",
+                             "to":  "Comestics 12-22-25/55-h-paris-efficacite-extreme-body-lotion-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/55 H+Paris Efficacite Extreme.jpeg",
+                             "to":  "Comestics 12-22-25/55-h-paris-efficacite-extreme.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/55 H+Paris Harmonie Reparateur Gel Creme.png",
+                             "to":  "Comestics 12-22-25/55-h-paris-harmonie-reparateur-gel-creme.png"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/55 H+Paris Harmonie Reparateur Savon.jpeg",
+                             "to":  "Comestics 12-22-25/55-h-paris-harmonie-reparateur-savon.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Abana Huile.jpeg",
+                             "to":  "Comestics 12-22-25/abana-huile.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Aboniki Balm 25g.jpeg",
+                             "to":  "Comestics 12-22-25/aboniki-balm-25g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Argile Verte.jpeg",
+                             "to":  "Comestics 12-22-25/argile-verte.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Camee Eau De Toilette 500ml.jpeg",
+                             "to":  "Comestics 12-22-25/camee-eau-de-toilette-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Clair White Kojic Papaya Cream 500ml.jpeg",
+                             "to":  "Comestics 12-22-25/clair-white-kojic-papaya-cream-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Clair White Kojic Papaya Lotion 500ml.jpeg",
+                             "to":  "Comestics 12-22-25/clair-white-kojic-papaya-lotion-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Clair White Kojic Papaya Serum 50ml.jpeg",
+                             "to":  "Comestics 12-22-25/clair-white-kojic-papaya-serum-50ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Clair White Kojic Papaya Soap 500ml.jpeg",
+                             "to":  "Comestics 12-22-25/clair-white-kojic-papaya-soap-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Confo 3ml.jpeg",
+                             "to":  "Comestics 12-22-25/confo-3ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Dermovate Cream 25g.jpeg",
+                             "to":  "Comestics 12-22-25/dermovate-cream-25g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Dudu Osun Black Soap.jpeg",
+                             "to":  "Comestics 12-22-25/dudu-osun-black-soap.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Epiderm Cream 30g.jpeg",
+                             "to":  "Comestics 12-22-25/epiderm-cream-30g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Fabel Lotion De Gommage.jpeg",
+                             "to":  "Comestics 12-22-25/fabel-lotion-de-gommage.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Flori\u0027s Duo Serum.jpeg",
+                             "to":  "Comestics 12-22-25/flori-s-duo-serum.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Francoise Bedon Carotte Savon.jpeg",
+                             "to":  "Comestics 12-22-25/francoise-bedon-carotte-savon.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Francoise Bedon Lightening Carotte.png",
+                             "to":  "Comestics 12-22-25/francoise-bedon-lightening-carotte.png"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Francoise Bedon Puissance Lait Eclaircissant  500ml.jpeg",
+                             "to":  "Comestics 12-22-25/francoise-bedon-puissance-lait-eclaircissant-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Francoise Bedon Puissance Soap.jpeg",
+                             "to":  "Comestics 12-22-25/francoise-bedon-puissance-soap.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Francoise Bedon Royal Cream.jpeg",
+                             "to":  "Comestics 12-22-25/francoise-bedon-royal-cream.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Francoise Bedon Royal Lait Eclaircissant 500ml.jpeg",
+                             "to":  "Comestics 12-22-25/francoise-bedon-royal-lait-eclaircissant-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Francoise Bedon Royal Soap.jpeg",
+                             "to":  "Comestics 12-22-25/francoise-bedon-royal-soap.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Francoise Bedon Supreme 500ml.jpeg",
+                             "to":  "Comestics 12-22-25/francoise-bedon-supreme-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Francoise Bedon Supreme Cream.jpeg",
+                             "to":  "Comestics 12-22-25/francoise-bedon-supreme-cream.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Francoise Bedon Supreme Savon.jpeg",
+                             "to":  "Comestics 12-22-25/francoise-bedon-supreme-savon.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Francoise Bedon Supreme Serum.jpeg",
+                             "to":  "Comestics 12-22-25/francoise-bedon-supreme-serum.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Gluta C\u0026E Kojic Acid Plus+ Soap.jpeg",
+                             "to":  "Comestics 12-22-25/gluta-c-e-kojic-acid-plus-soap.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Gomage Intense Action.jpeg",
+                             "to":  "Comestics 12-22-25/gomage-intense-action.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Gomask Papay.jpeg",
+                             "to":  "Comestics 12-22-25/gomask-papay.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Grace Duo Serum.jpeg",
+                             "to":  "Comestics 12-22-25/grace-duo-serum.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Haloderm 30g.jpeg",
+                             "to":  "Comestics 12-22-25/haloderm-30g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Haloderm Body Oil.jpeg",
+                             "to":  "Comestics 12-22-25/haloderm-body-oil.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Haloderm Savon 225g.jpeg",
+                             "to":  "Comestics 12-22-25/haloderm-savon-225g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Huile De Passion 72H.jpeg",
+                             "to":  "Comestics 12-22-25/huile-de-passion-72h.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Hydrogel 30g.jpeg",
+                             "to":  "Comestics 12-22-25/hydrogel-30g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Koto 75ml.jpeg",
+                             "to":  "Comestics 12-22-25/koto-75ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Lemonvate Gel 30g.jpeg",
+                             "to":  "Comestics 12-22-25/lemonvate-gel-30g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Magno Classic Original 550ml.jpeg",
+                             "to":  "Comestics 12-22-25/magno-classic-original-550ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Magno Gold  Exclusive 650ml.jpeg",
+                             "to":  "Comestics 12-22-25/magno-gold-exclusive-650ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Mentho Plus Pain Balm 25g.jpeg",
+                             "to":  "Comestics 12-22-25/mentho-plus-pain-balm-25g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Mentholion For Colds.jpeg",
+                             "to":  "Comestics 12-22-25/mentholion-for-colds.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Monsavon Au Lait.jpeg",
+                             "to":  "Comestics 12-22-25/monsavon-au-lait.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Moona Bouquet.jpeg",
+                             "to":  "Comestics 12-22-25/moona-bouquet.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Naomi Creme 30g.jpeg",
+                             "to":  "Comestics 12-22-25/naomi-creme-30g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Neoprosone Gel Forte.jpeg",
+                             "to":  "Comestics 12-22-25/neoprosone-gel-forte.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Nixoderm 17.7g.jpeg",
+                             "to":  "Comestics 12-22-25/nixoderm-17-7g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Parfum Dounia  15ml.jpeg",
+                             "to":  "Comestics 12-22-25/parfum-dounia-15ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Parley Beauuty Cream.jpeg",
+                             "to":  "Comestics 12-22-25/parley-beauuty-cream.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Parley Beauuty Soap.jpeg",
+                             "to":  "Comestics 12-22-25/parley-beauuty-soap.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Parley Goldie Beauty Lotion.jpeg",
+                             "to":  "Comestics 12-22-25/parley-goldie-beauty-lotion.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Parley Goldie Beauty Soap.jpeg",
+                             "to":  "Comestics 12-22-25/parley-goldie-beauty-soap.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Parley Goldie Hand \u0026 Body Cream.jpeg",
+                             "to":  "Comestics 12-22-25/parley-goldie-hand-body-cream.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Parley Goldie Whitening Serum.jpeg",
+                             "to":  "Comestics 12-22-25/parley-goldie-whitening-serum.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Peau De Lune Lotion Florale Plus.jpeg",
+                             "to":  "Comestics 12-22-25/peau-de-lune-lotion-florale-plus.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Peau De Lune Lotion Plante Naturellss.jpeg",
+                             "to":  "Comestics 12-22-25/peau-de-lune-lotion-plante-naturellss.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Peau De Lune Lotion.jpeg",
+                             "to":  "Comestics 12-22-25/peau-de-lune-lotion.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Piment Daux Concentre 250ml.jpeg",
+                             "to":  "Comestics 12-22-25/piment-daux-concentre-250ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Protex Classique.jpeg",
+                             "to":  "Comestics 12-22-25/protex-classique.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Queen Elisabeth Cocoa Butter 500ml.jpeg",
+                             "to":  "Comestics 12-22-25/queen-elisabeth-cocoa-butter-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Queen Elisabeth Cocoa Butter Ever Sheen 500ml.jpeg",
+                             "to":  "Comestics 12-22-25/queen-elisabeth-cocoa-butter-ever-sheen-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Queen Elisabeth Cocoa Butter Hand And Body Lotion 400ml.jpeg",
+                             "to":  "Comestics 12-22-25/queen-elisabeth-cocoa-butter-hand-and-body-lotion-400ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Queen Elisabeth Cocoa Butter Hand And Body Lotion 500ml.jpeg",
+                             "to":  "Comestics 12-22-25/queen-elisabeth-cocoa-butter-hand-and-body-lotion-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Rapid Clain Serum Eclaircissant.jpeg",
+                             "to":  "Comestics 12-22-25/rapid-clain-serum-eclaircissant.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Rapid Clain Super Eclaircissant 700ml.jpeg",
+                             "to":  "Comestics 12-22-25/rapid-clain-super-eclaircissant-700ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Razac Hand \u0026 Body Lotion 474ml.jpeg",
+                             "to":  "Comestics 12-22-25/razac-hand-body-lotion-474ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Robb Original.jpeg",
+                             "to":  "Comestics 12-22-25/robb-original.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Roge Cavailles Lait Corps.jpeg",
+                             "to":  "Comestics 12-22-25/roge-cavailles-lait-corps.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Roge Cavailles L\u0027Hydratant.jpeg",
+                             "to":  "Comestics 12-22-25/roge-cavailles-l-hydratant.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Roge Cavailles Savon Lait De Rose.jpeg",
+                             "to":  "Comestics 12-22-25/roge-cavailles-savon-lait-de-rose.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Roge Cavailles Savon Lait Et Miel.jpeg",
+                             "to":  "Comestics 12-22-25/roge-cavailles-savon-lait-et-miel.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Roge Cavailles Savon.jpeg",
+                             "to":  "Comestics 12-22-25/roge-cavailles-savon.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Rubee Hand \u0026 Body Lotion 473ml.jpeg",
+                             "to":  "Comestics 12-22-25/rubee-hand-body-lotion-473ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Savon BF De Marseille 290g.jpeg",
+                             "to":  "Comestics 12-22-25/savon-bf-de-marseille-290g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Savon BF De Marseille 580g.jpeg",
+                             "to":  "Comestics 12-22-25/savon-bf-de-marseille-580g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Sivoderm Antibacterial Soap.jpeg",
+                             "to":  "Comestics 12-22-25/sivoderm-antibacterial-soap.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Sivoderm Care Cream 25g.jpeg",
+                             "to":  "Comestics 12-22-25/sivoderm-care-cream-25g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Sivoderm Care Pomade 80g.jpeg",
+                             "to":  "Comestics 12-22-25/sivoderm-care-pomade-80g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Sivoderm Creme Purifiante Beaute 180ml.jpeg",
+                             "to":  "Comestics 12-22-25/sivoderm-creme-purifiante-beaute-180ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Sivoderm Lotion Purifiante 220ml.jpeg",
+                             "to":  "Comestics 12-22-25/sivoderm-lotion-purifiante-220ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Super Pepty.jpeg",
+                             "to":  "Comestics 12-22-25/super-pepty.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Tenovate Gel M.C.A 30g.jpeg",
+                             "to":  "Comestics 12-22-25/tenovate-gel-m-c-a-30g.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Tettmosol Cream 1.76oz.jpeg",
+                             "to":  "Comestics 12-22-25/tettmosol-cream-1-76oz.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/Ultra Hydratant Body Milk.jpeg",
+                             "to":  "Comestics 12-22-25/ultra-hydratant-body-milk.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/White Cat 100ml.jpeg",
+                             "to":  "Comestics 12-22-25/white-cat-100ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/White Express Lait Eclaircissant 500ml.jpeg",
+                             "to":  "Comestics 12-22-25/white-express-lait-eclaircissant-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/White Express Serum.jpeg",
+                             "to":  "Comestics 12-22-25/white-express-serum.jpeg"
+                         },
+                         {
+                             "from":  "Comestics 12-22-25/White Express Soap.jpeg",
+                             "to":  "Comestics 12-22-25/white-express-soap.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/2000 Generation Palmnut Cream.jpeg",
+                             "to":  "Foods 12-22-25/2000-generation-palmnut-cream.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/2000 Generation Turkey Berry Pea.jpeg",
+                             "to":  "Foods 12-22-25/2000-generation-turkey-berry-pea.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/3 Ballerina Herbal Tea 53.88g.jpeg",
+                             "to":  "Foods 12-22-25/3-ballerina-herbal-tea-53-88g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/555 Palais Imperial 1000g.jpeg",
+                             "to":  "Foods 12-22-25/555-palais-imperial-1000g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Adja Khady Baobab.jpeg",
+                             "to":  "Foods 12-22-25/adja-khady-baobab.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Adja Khady Bissap Blanc.jpeg",
+                             "to":  "Foods 12-22-25/adja-khady-bissap-blanc.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Adja Khady Bissap Hibiscus.jpeg",
+                             "to":  "Foods 12-22-25/adja-khady-bissap-hibiscus.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Adja Khady Madd In Syrup 420g.jpeg",
+                             "to":  "Foods 12-22-25/adja-khady-madd-in-syrup-420g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Adom Foods Peanut Butter 454g.jpeg",
+                             "to":  "Foods 12-22-25/adom-foods-peanut-butter-454g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Adom Foods Red Hot Pepper.png",
+                             "to":  "Foods 12-22-25/adom-foods-red-hot-pepper.png"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/African Beauty Cocoyam Fufu.jpeg",
+                             "to":  "Foods 12-22-25/african-beauty-cocoyam-fufu.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/African King Mackerel 255g.jpeg",
+                             "to":  "Foods 12-22-25/african-king-mackerel-255g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/African Nutmeg.jpeg",
+                             "to":  "Foods 12-22-25/african-nutmeg.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/African Plantain Fufu 700g.jpeg",
+                             "to":  "Foods 12-22-25/african-plantain-fufu-700g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ak Ginger Sweet.jpeg",
+                             "to":  "Foods 12-22-25/ak-ginger-sweet.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Akeza Ifu Y\u0027ubunyobwa.jpeg",
+                             "to":  "Foods 12-22-25/akeza-ifu-y-ubunyobwa.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Al Haloub Cow Luncheon Loaf 340g.jpeg",
+                             "to":  "Foods 12-22-25/al-haloub-cow-luncheon-loaf-340g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Al Haloub Cow Luncheon Loaf 837g.jpeg",
+                             "to":  "Foods 12-22-25/al-haloub-cow-luncheon-loaf-837g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Albasa Akara Mix.jpeg",
+                             "to":  "Foods 12-22-25/albasa-akara-mix.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Albasa Coconut Rice 390g.jpeg",
+                             "to":  "Foods 12-22-25/albasa-coconut-rice-390g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Albasa Egusi Soup Mix 300g.jpeg",
+                             "to":  "Foods 12-22-25/albasa-egusi-soup-mix-300g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Albasa Fried Rice Seasoning 144g.jpeg",
+                             "to":  "Foods 12-22-25/albasa-fried-rice-seasoning-144g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Albasa Jollof Rice 318g.jpeg",
+                             "to":  "Foods 12-22-25/albasa-jollof-rice-318g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Albasa Moi Moi Mix.jpeg",
+                             "to":  "Foods 12-22-25/albasa-moi-moi-mix.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Albasa Ogbono Soup Mix 198g.jpeg",
+                             "to":  "Foods 12-22-25/albasa-ogbono-soup-mix-198g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Albasa Peppe Sauce Mix.jpeg",
+                             "to":  "Foods 12-22-25/albasa-peppe-sauce-mix.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Albasa Pepper Sauce Mix 68g.jpeg",
+                             "to":  "Foods 12-22-25/albasa-pepper-sauce-mix-68g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Albasa Tomato Stew Mix.jpeg",
+                             "to":  "Foods 12-22-25/albasa-tomato-stew-mix.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Albasa Vegetable Soup Mix 186g.jpeg",
+                             "to":  "Foods 12-22-25/albasa-vegetable-soup-mix-186g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Alpraze African Zomi Palm Oil 1L.jpeg",
+                             "to":  "Foods 12-22-25/alpraze-african-zomi-palm-oil-1l.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Alpraze African Zomi Palm Oil 500ml.jpeg",
+                             "to":  "Foods 12-22-25/alpraze-african-zomi-palm-oil-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Amina Moringa Powder 227g.jpeg",
+                             "to":  "Foods 12-22-25/amina-moringa-powder-227g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Amora Moutarde De Dyon.jpeg",
+                             "to":  "Foods 12-22-25/amora-moutarde-de-dyon.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Atona Food This Way Chocolate Drink.jpeg",
+                             "to":  "Foods 12-22-25/atona-food-this-way-chocolate-drink.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Attieke Dehydrated Cassava Couscous.jpeg",
+                             "to":  "Foods 12-22-25/attieke-dehydrated-cassava-couscous.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ayaschinchin Coconut Chinchin 7.8fl.jpeg",
+                             "to":  "Foods 12-22-25/ayaschinchin-coconut-chinchin-7-8fl.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Azur Distribution The De Citronnelle.jpeg",
+                             "to":  "Foods 12-22-25/azur-distribution-the-de-citronnelle.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Bama Mayonnaise 412ml.jpeg",
+                             "to":  "Foods 12-22-25/bama-mayonnaise-412ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Banga Red Palm Oil.jpeg",
+                             "to":  "Foods 12-22-25/banga-red-palm-oil.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Bbeta Flava Plantain Strips.jpeg",
+                             "to":  "Foods 12-22-25/bbeta-flava-plantain-strips.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Bbeta Flava Sweet Plantain Strips.jpeg",
+                             "to":  "Foods 12-22-25/bbeta-flava-sweet-plantain-strips.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Best African Akassan.jpeg",
+                             "to":  "Foods 12-22-25/best-african-akassan.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Best African Dawadawa.jpeg",
+                             "to":  "Foods 12-22-25/best-african-dawadawa.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Best African Ewbo 5lb.jpeg",
+                             "to":  "Foods 12-22-25/best-african-ewbo-5lb.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Best African Hauscl Koko.jpeg",
+                             "to":  "Foods 12-22-25/best-african-hauscl-koko.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Best African Korklui.jpeg",
+                             "to":  "Foods 12-22-25/best-african-korklui.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Best African O.jpeg",
+                             "to":  "Foods 12-22-25/best-african-o.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Best African Oblayo.jpeg",
+                             "to":  "Foods 12-22-25/best-african-oblayo.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Best African Tapioca.jpeg",
+                             "to":  "Foods 12-22-25/best-african-tapioca.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Bicarbonate De Soude.jpeg",
+                             "to":  "Foods 12-22-25/bicarbonate-de-soude.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Binc Food Corps Prekese.jpeg",
+                             "to":  "Foods 12-22-25/binc-food-corps-prekese.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Binc Food Suya Powser.jpeg",
+                             "to":  "Foods 12-22-25/binc-food-suya-powser.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Bird\u0027s Custard Powder.jpeg",
+                             "to":  "Foods 12-22-25/bird-s-custard-powder.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Black Star 250g.jpeg",
+                             "to":  "Foods 12-22-25/black-star-250g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Blessings Foods Cameroon Pepper 4oz.jpeg",
+                             "to":  "Foods 12-22-25/blessings-foods-cameroon-pepper-4oz.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Blue Band 450g.jpeg",
+                             "to":  "Foods 12-22-25/blue-band-450g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Bonvie Double.jpeg",
+                             "to":  "Foods 12-22-25/bonvie-double.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Burger Peanuts Snack.jpeg",
+                             "to":  "Foods 12-22-25/burger-peanuts-snack.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Cafe Touba Bakhdad.jpeg",
+                             "to":  "Foods 12-22-25/cafe-touba-bakhdad.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Calve Mayonnaise 900g.jpeg",
+                             "to":  "Foods 12-22-25/calve-mayonnaise-900g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Chef\u0027s Quality Lime Juice 945ml.jpeg",
+                             "to":  "Foods 12-22-25/chef-s-quality-lime-juice-945ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/China Green Tea Palmier.jpeg",
+                             "to":  "Foods 12-22-25/china-green-tea-palmier.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Dargon 88 Brand Tamarind Seedless 400g.jpeg",
+                             "to":  "Foods 12-22-25/dargon-88-brand-tamarind-seedless-400g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Delicious Banku Special 808g.jpeg",
+                             "to":  "Foods 12-22-25/delicious-banku-special-808g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Delicious Fanti Kenkey 808g.jpeg",
+                             "to":  "Foods 12-22-25/delicious-fanti-kenkey-808g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Delicious GA Kenkey 808g.jpeg",
+                             "to":  "Foods 12-22-25/delicious-ga-kenkey-808g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Dembagnouma Couscous Precuit.jpeg",
+                             "to":  "Foods 12-22-25/dembagnouma-couscous-precuit.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Dembagnouma Fakoye.jpeg",
+                             "to":  "Foods 12-22-25/dembagnouma-fakoye.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Dembagnouma Sorrel -Bissap Red.jpeg",
+                             "to":  "Foods 12-22-25/dembagnouma-sorrel-bissap-red.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Dembagnouma Tiongon Poids Sucre.jpeg",
+                             "to":  "Foods 12-22-25/dembagnouma-tiongon-poids-sucre.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Dry Potato Leave.jpeg",
+                             "to":  "Foods 12-22-25/dry-potato-leave.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ducal Rojos.jpeg",
+                             "to":  "Foods 12-22-25/ducal-rojos.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Eau Aromatisee A\u0027 L\u0027essence 125ml.jpeg",
+                             "to":  "Foods 12-22-25/eau-aromatisee-a-l-essence-125ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Eau Aromatisee A\u0027 L\u0027essence 65ml.jpeg",
+                             "to":  "Foods 12-22-25/eau-aromatisee-a-l-essence-65ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Eau Aromatisee A\u0027 L\u0027essence.jpeg",
+                             "to":  "Foods 12-22-25/eau-aromatisee-a-l-essence.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Essence Banane.jpeg",
+                             "to":  "Foods 12-22-25/essence-banane.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Essence Corossol.jpeg",
+                             "to":  "Foods 12-22-25/essence-corossol.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Essence Fraise.jpeg",
+                             "to":  "Foods 12-22-25/essence-fraise.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Essence Menthe.jpeg",
+                             "to":  "Foods 12-22-25/essence-menthe.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Essence Muscade.jpeg",
+                             "to":  "Foods 12-22-25/essence-muscade.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Exeter Corned Beef 240g.jpeg",
+                             "to":  "Foods 12-22-25/exeter-corned-beef-240g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Fakord Agege Bread 862g.jpeg",
+                             "to":  "Foods 12-22-25/fakord-agege-bread-862g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Gamaican Choice Coconut Milk 400ml.jpeg",
+                             "to":  "Foods 12-22-25/gamaican-choice-coconut-milk-400ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Gamaican Choice Evaporated Coconut Milk 400ml.jpeg",
+                             "to":  "Foods 12-22-25/gamaican-choice-evaporated-coconut-milk-400ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Gana Fresh 800g.jpeg",
+                             "to":  "Foods 12-22-25/gana-fresh-800g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Gana Fresh Palmnut Cream 800g.jpeg",
+                             "to":  "Foods 12-22-25/gana-fresh-palmnut-cream-800g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Gana Pride Black Eye Peas Beans.jpeg",
+                             "to":  "Foods 12-22-25/gana-pride-black-eye-peas-beans.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Gana Pride Kontomire Spinach Leaves.jpeg",
+                             "to":  "Foods 12-22-25/gana-pride-kontomire-spinach-leaves.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Gazelle 250g.jpeg",
+                             "to":  "Foods 12-22-25/gazelle-250g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Geisha Brand Mackerel 255g.jpeg",
+                             "to":  "Foods 12-22-25/geisha-brand-mackerel-255g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Geisha Brand Maquereau 255g.jpeg",
+                             "to":  "Foods 12-22-25/geisha-brand-maquereau-255g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ginger Honey  Crystals.jpeg",
+                             "to":  "Foods 12-22-25/ginger-honey-crystals.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ginger Instant Tea Drink  With Lemon 180g.jpeg",
+                             "to":  "Foods 12-22-25/ginger-instant-tea-drink-with-lemon-180g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ginger Instant Tea Drink With Hibiscus 180g.jpeg",
+                             "to":  "Foods 12-22-25/ginger-instant-tea-drink-with-hibiscus-180g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ginger Instant Tea Drink With Lemongrass 180g.jpeg",
+                             "to":  "Foods 12-22-25/ginger-instant-tea-drink-with-lemongrass-180g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ginger Instant Tea Drink With Mint 180g.jpeg",
+                             "to":  "Foods 12-22-25/ginger-instant-tea-drink-with-mint-180g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Godyia Waakye Leaves.jpeg",
+                             "to":  "Foods 12-22-25/godyia-waakye-leaves.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Gold Kili Honey Ginger Drink.jpeg",
+                             "to":  "Foods 12-22-25/gold-kili-honey-ginger-drink.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Golden Tropics Cocoyam Fufu 680g.jpeg",
+                             "to":  "Foods 12-22-25/golden-tropics-cocoyam-fufu-680g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Golden Tropics Plantain Fufu 680g.jpeg",
+                             "to":  "Foods 12-22-25/golden-tropics-plantain-fufu-680g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Goya Sal Yodada 737g.jpeg",
+                             "to":  "Foods 12-22-25/goya-sal-yodada-737g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Goya Vegetable Oil.jpeg",
+                             "to":  "Foods 12-22-25/goya-vegetable-oil.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Graceco Foods Guinea Corn Powder 500g.jpeg",
+                             "to":  "Foods 12-22-25/graceco-foods-guinea-corn-powder-500g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Graceco Foods White Maize Powder 500g.jpeg",
+                             "to":  "Foods 12-22-25/graceco-foods-white-maize-powder-500g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Grandios Pap Ogi Koko 500g.jpeg",
+                             "to":  "Foods 12-22-25/grandios-pap-ogi-koko-500g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Green Tea With Moringa 60g.jpeg",
+                             "to":  "Foods 12-22-25/green-tea-with-moringa-60g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ground Wede Aba 57g.jpeg",
+                             "to":  "Foods 12-22-25/ground-wede-aba-57g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Heinz Beanz.jpeg",
+                             "to":  "Foods 12-22-25/heinz-beanz.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Heinz Salad Cream Original.jpeg",
+                             "to":  "Foods 12-22-25/heinz-salad-cream-original.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Home Fresh Bean Flour 500g.jpeg",
+                             "to":  "Foods 12-22-25/home-fresh-bean-flour-500g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Home Freshy.jpeg",
+                             "to":  "Foods 12-22-25/home-freshy.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ikenny Sea Salt.jpeg",
+                             "to":  "Foods 12-22-25/ikenny-sea-salt.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Indomie Chicken Flavor.jpeg",
+                             "to":  "Foods 12-22-25/indomie-chicken-flavor.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Indomie Chicken Pepper Soup  Flavor.jpeg",
+                             "to":  "Foods 12-22-25/indomie-chicken-pepper-soup-flavor.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Indomie Crayfish  Flavor.jpeg",
+                             "to":  "Foods 12-22-25/indomie-crayfish-flavor.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Indomie Onion Chicken Flavor.jpeg",
+                             "to":  "Foods 12-22-25/indomie-onion-chicken-flavor.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Iyan Ado 908g.jpeg",
+                             "to":  "Foods 12-22-25/iyan-ado-908g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Jacob\u0027s Cream Crackers 200g.jpeg",
+                             "to":  "Foods 12-22-25/jacob-s-cream-crackers-200g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/JKUB  Peeled Boney Fish 454g.jpeg",
+                             "to":  "Foods 12-22-25/jkub-peeled-boney-fish-454g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/JKUB African White Pepper 71g.jpeg",
+                             "to":  "Foods 12-22-25/jkub-african-white-pepper-71g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/JKUB Cassava Flour 1588g.jpeg",
+                             "to":  "Foods 12-22-25/jkub-cassava-flour-1588g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/JKUB Cassava Flour 794g.jpeg",
+                             "to":  "Foods 12-22-25/jkub-cassava-flour-794g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/JKUB Dry Okazi Leaves 277g.jpeg",
+                             "to":  "Foods 12-22-25/jkub-dry-okazi-leaves-277g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/JKUB Grouna Peanuts.jpeg",
+                             "to":  "Foods 12-22-25/jkub-grouna-peanuts.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/JKUB Ground Wede ABA 113g.jpeg",
+                             "to":  "Foods 12-22-25/jkub-ground-wede-aba-113g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Jube\u0027s Corn Flour.jpeg",
+                             "to":  "Foods 12-22-25/jube-s-corn-flour.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Jumbo Chicken Artificially 1kg.jpeg",
+                             "to":  "Foods 12-22-25/jumbo-chicken-artificially-1kg.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Kabato 1kg.jpeg",
+                             "to":  "Foods 12-22-25/kabato-1kg.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Kadosh Foods Shito 16oz.jpeg",
+                             "to":  "Foods 12-22-25/kadosh-foods-shito-16oz.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Kans Cocoa Powder 226.80g.jpeg",
+                             "to":  "Foods 12-22-25/kans-cocoa-powder-226-80g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Kans Guava Leaves 28.35g.jpeg",
+                             "to":  "Foods 12-22-25/kans-guava-leaves-28-35g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Kans Lemongrass 42.52g.jpeg",
+                             "to":  "Foods 12-22-25/kans-lemongrass-42-52g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Kinkeliba Tea Leave 50g.jpeg",
+                             "to":  "Foods 12-22-25/kinkeliba-tea-leave-50g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Knorr Chicken Seasoning  Cubes.jpeg",
+                             "to":  "Foods 12-22-25/knorr-chicken-seasoning-cubes.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Knorr Seasoning Cubes.png",
+                             "to":  "Foods 12-22-25/knorr-seasoning-cubes.png"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ko Hot Pepper 266.16ml.jpeg",
+                             "to":  "Foods 12-22-25/ko-hot-pepper-266-16ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/La Rose Blanche 500g.jpeg",
+                             "to":  "Foods 12-22-25/la-rose-blanche-500g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Lacosty Unique Proten 16oz.jpeg",
+                             "to":  "Foods 12-22-25/lacosty-unique-proten-16oz.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Lady Custard Powder 2kg.jpeg",
+                             "to":  "Foods 12-22-25/lady-custard-powder-2kg.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Lee Cream Crackers 340g.jpeg",
+                             "to":  "Foods 12-22-25/lee-cream-crackers-340g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Liberian Fresh Palm Cream 800g.jpeg",
+                             "to":  "Foods 12-22-25/liberian-fresh-palm-cream-800g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Lion Curry Powder.jpeg",
+                             "to":  "Foods 12-22-25/lion-curry-powder.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Maeri Fish Powder 180g.jpeg",
+                             "to":  "Foods 12-22-25/maeri-fish-powder-180g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Maeri Shrimp Powder 170g.jpeg",
+                             "to":  "Foods 12-22-25/maeri-shrimp-powder-170g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Maggi Chickent Flavour 60 Tablet.jpeg",
+                             "to":  "Foods 12-22-25/maggi-chickent-flavour-60-tablet.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Maggi Cube Bouillon 100Cube.jpeg",
+                             "to":  "Foods 12-22-25/maggi-cube-bouillon-100cube.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Maggi Shrimp Crevette 60 Tablets.jpeg",
+                             "to":  "Foods 12-22-25/maggi-shrimp-crevette-60-tablets.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Maggi Star Seasoning 100Cube.jpeg",
+                             "to":  "Foods 12-22-25/maggi-star-seasoning-100cube.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Malta Guinness.jpeg",
+                             "to":  "Foods 12-22-25/malta-guinness.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Maman Sucre Vanille.jpeg",
+                             "to":  "Foods 12-22-25/maman-sucre-vanille.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Mama\u0027S Choice Fufu Mix Cocoyam 624g.jpeg",
+                             "to":  "Foods 12-22-25/mama-s-choice-fufu-mix-cocoyam-624g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Mama\u0027S Choice Fufu Mix Plantain 624g.jpeg",
+                             "to":  "Foods 12-22-25/mama-s-choice-fufu-mix-plantain-624g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Mango Loose Leaf Tea 56.70g.jpeg",
+                             "to":  "Foods 12-22-25/mango-loose-leaf-tea-56-70g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Mbinzo Chenilles Sechees 200g.jpeg",
+                             "to":  "Foods 12-22-25/mbinzo-chenilles-sechees-200g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Mc Vitie\u0027s Butter Shortbread 200g.jpeg",
+                             "to":  "Foods 12-22-25/mc-vitie-s-butter-shortbread-200g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Mc Vitie\u0027s Digestives Original 250g.jpeg",
+                             "to":  "Foods 12-22-25/mc-vitie-s-digestives-original-250g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Member\u0027s Jasmine Rice 50lb.jpeg",
+                             "to":  "Foods 12-22-25/member-s-jasmine-rice-50lb.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Mikeat Plantain Green Non Sweet.jpeg",
+                             "to":  "Foods 12-22-25/mikeat-plantain-green-non-sweet.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Mikeat Plantain Sweet.jpeg",
+                             "to":  "Foods 12-22-25/mikeat-plantain-sweet.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Munchys Vege Crackers 390g.jpeg",
+                             "to":  "Foods 12-22-25/munchys-vege-crackers-390g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/My Foy Best Quality.jpeg",
+                             "to":  "Foods 12-22-25/my-foy-best-quality.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nakadi Dry Potato Leave.jpeg",
+                             "to":  "Foods 12-22-25/nakadi-dry-potato-leave.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nana\u0027S Kitchen African Chilli Sauce.jpeg",
+                             "to":  "Foods 12-22-25/nana-s-kitchen-african-chilli-sauce.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Natunal Food Made.jpeg",
+                             "to":  "Foods 12-22-25/natunal-food-made.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Natural Food Sankhal.jpeg",
+                             "to":  "Foods 12-22-25/natural-food-sankhal.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nayama Natural Attieke.jpeg",
+                             "to":  "Foods 12-22-25/nayama-natural-attieke.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nayass Africa Locust Beans.jpeg",
+                             "to":  "Foods 12-22-25/nayass-africa-locust-beans.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nayass Koko Haus Millet Powder.jpeg",
+                             "to":  "Foods 12-22-25/nayass-koko-haus-millet-powder.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nayass Koko Haus.jpeg",
+                             "to":  "Foods 12-22-25/nayass-koko-haus.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Neat Plantain Fufu 700g.jpeg",
+                             "to":  "Foods 12-22-25/neat-plantain-fufu-700g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nestle Cerelac  Wheat Ble With Milk 400g.jpeg",
+                             "to":  "Foods 12-22-25/nestle-cerelac-wheat-ble-with-milk-400g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nestle Cerelac Maize With Milk 400g.jpeg",
+                             "to":  "Foods 12-22-25/nestle-cerelac-maize-with-milk-400g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nestle Cerelac Mixed Fruits \u0026 Wheat Fruits Ble 400g.jpeg",
+                             "to":  "Foods 12-22-25/nestle-cerelac-mixed-fruits-wheat-fruits-ble-400g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nestle Classic 200g.jpeg",
+                             "to":  "Foods 12-22-25/nestle-classic-200g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nestle Classic 50g.jpeg",
+                             "to":  "Foods 12-22-25/nestle-classic-50g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nestle Golden Morn.jpeg",
+                             "to":  "Foods 12-22-25/nestle-golden-morn.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nestle Ideal Original 100g.jpeg",
+                             "to":  "Foods 12-22-25/nestle-ideal-original-100g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nestle Ideal Original.jpeg",
+                             "to":  "Foods 12-22-25/nestle-ideal-original.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nestle Milo 400g.jpeg",
+                             "to":  "Foods 12-22-25/nestle-milo-400g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nestle Milo 40g.jpeg",
+                             "to":  "Foods 12-22-25/nestle-milo-40g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Abacha Afrca Saad.jpeg",
+                             "to":  "Foods 12-22-25/nina-abacha-afrca-saad.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Alum 114g.jpeg",
+                             "to":  "Foods 12-22-25/nina-alum-114g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Atama Leaves 28.5g.jpeg",
+                             "to":  "Foods 12-22-25/nina-atama-leaves-28-5g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Black Pepper 28.5g.jpeg",
+                             "to":  "Foods 12-22-25/nina-black-pepper-28-5g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Dried Chillies 57g.jpeg",
+                             "to":  "Foods 12-22-25/nina-dried-chillies-57g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Gari Precooked Cassava 20lb.jpeg",
+                             "to":  "Foods 12-22-25/nina-gari-precooked-cassava-20lb.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Ground Crayfish 57g 2.jpeg",
+                             "to":  "Foods 12-22-25/nina-ground-crayfish-57g-2.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Ground Crayfish 57g.jpeg",
+                             "to":  "Foods 12-22-25/nina-ground-crayfish-57g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Ground Dry  Ginger 57g.jpeg",
+                             "to":  "Foods 12-22-25/nina-ground-dry-ginger-57g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Ground Ogbono 57g.jpeg",
+                             "to":  "Foods 12-22-25/nina-ground-ogbono-57g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Herrings Fish Powder 85g.jpeg",
+                             "to":  "Foods 12-22-25/nina-herrings-fish-powder-85g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Kablai Teaja 28.5g.jpeg",
+                             "to":  "Foods 12-22-25/nina-kablai-teaja-28-5g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Koobi Salted Dry Tilapia.jpeg",
+                             "to":  "Foods 12-22-25/nina-koobi-salted-dry-tilapia.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Nchanwu Nunum Leaves 28.5g.jpeg",
+                             "to":  "Foods 12-22-25/nina-nchanwu-nunum-leaves-28-5g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Nketekete Osukone 28.5g.jpeg",
+                             "to":  "Foods 12-22-25/nina-nketekete-osukone-28-5g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Ogbono 57g.jpeg",
+                             "to":  "Foods 12-22-25/nina-ogbono-57g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Oha Leaves 28.5g.jpeg",
+                             "to":  "Foods 12-22-25/nina-oha-leaves-28-5g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Peeled Smoked Herrings  85g.jpeg",
+                             "to":  "Foods 12-22-25/nina-peeled-smoked-herrings-85g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Pepper Soup Seasoning 42g.jpeg",
+                             "to":  "Foods 12-22-25/nina-pepper-soup-seasoning-42g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Red Wesa 28.5g.jpeg",
+                             "to":  "Foods 12-22-25/nina-red-wesa-28-5g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Smoked Herrings 171g.jpeg",
+                             "to":  "Foods 12-22-25/nina-smoked-herrings-171g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Smoked Shrimp 57g.jpeg",
+                             "to":  "Foods 12-22-25/nina-smoked-shrimp-57g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nina Tapioca Precooked Cassava.jpeg",
+                             "to":  "Foods 12-22-25/nina-tapioca-precooked-cassava.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Nissi Aklui Zogbon 8oz.jpeg",
+                             "to":  "Foods 12-22-25/nissi-aklui-zogbon-8oz.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ocho Rios Allspice Pimento 42g.jpeg",
+                             "to":  "Foods 12-22-25/ocho-rios-allspice-pimento-42g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ocho Rios Ground  Cinnamon 3.25oz.jpeg",
+                             "to":  "Foods 12-22-25/ocho-rios-ground-cinnamon-3-25oz.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ola Ola Carotino Cooking Oil 1.1L.jpeg",
+                             "to":  "Foods 12-22-25/ola-ola-carotino-cooking-oil-1-1l.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ola Ola Carotino Red Palm Ol 4lb.jpeg",
+                             "to":  "Foods 12-22-25/ola-ola-carotino-red-palm-ol-4lb.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ola Ola Iyaninstant 5lb.jpeg",
+                             "to":  "Foods 12-22-25/ola-ola-iyaninstant-5lb.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Oloye Oat Fufu.jpeg",
+                             "to":  "Foods 12-22-25/oloye-oat-fufu.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Oloye Oge 453g.jpeg",
+                             "to":  "Foods 12-22-25/oloye-oge-453g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Omega Organic Honey.jpeg",
+                             "to":  "Foods 12-22-25/omega-organic-honey.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Omega Pure Red Palm Oil.jpeg",
+                             "to":  "Foods 12-22-25/omega-pure-red-palm-oil.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Omni Red Palm Oil 1L.jpeg",
+                             "to":  "Foods 12-22-25/omni-red-palm-oil-1l.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Omni Red Palm Oil 500ml.jpeg",
+                             "to":  "Foods 12-22-25/omni-red-palm-oil-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Onga Chicken Poulet 50g.jpeg",
+                             "to":  "Foods 12-22-25/onga-chicken-poulet-50g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Onga Shrimp Crevette 64 Tablet.jpeg",
+                             "to":  "Foods 12-22-25/onga-shrimp-crevette-64-tablet.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Orie Roasted Peanuts 680g.jpeg",
+                             "to":  "Foods 12-22-25/orie-roasted-peanuts-680g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Original Ginger Chews 113g.jpeg",
+                             "to":  "Foods 12-22-25/original-ginger-chews-113g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ovaltine 400g.jpeg",
+                             "to":  "Foods 12-22-25/ovaltine-400g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Oxford Brand Sweetened Cabin.jpeg",
+                             "to":  "Foods 12-22-25/oxford-brand-sweetened-cabin.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Par Excellence Premium Long Grain Rice.jpeg",
+                             "to":  "Foods 12-22-25/par-excellence-premium-long-grain-rice.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Pastilles Valda 25g.jpeg",
+                             "to":  "Foods 12-22-25/pastilles-valda-25g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Pnton Pate De Sardinelle.jpeg",
+                             "to":  "Foods 12-22-25/pnton-pate-de-sardinelle.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Pocas Ginger Milk Tea Real Ginger 360g.jpeg",
+                             "to":  "Foods 12-22-25/pocas-ginger-milk-tea-real-ginger-360g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Pocas honey Ginger Tea 360g.jpeg",
+                             "to":  "Foods 12-22-25/pocas-honey-ginger-tea-360g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Pocas Honey Ginger Tea Lemon Flavor 360g.jpeg",
+                             "to":  "Foods 12-22-25/pocas-honey-ginger-tea-lemon-flavor-360g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Pocas Honey Ginger Tea Original Flavor 360g.jpeg",
+                             "to":  "Foods 12-22-25/pocas-honey-ginger-tea-original-flavor-360g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Praise Palm Cream 800g.jpeg",
+                             "to":  "Foods 12-22-25/praise-palm-cream-800g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Praise Palm Oil Regular 1L.jpeg",
+                             "to":  "Foods 12-22-25/praise-palm-oil-regular-1l.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Praise Palm Oil Regular 500ml.jpeg",
+                             "to":  "Foods 12-22-25/praise-palm-oil-regular-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Praise Palm Oil Zomi 500ml.jpeg",
+                             "to":  "Foods 12-22-25/praise-palm-oil-zomi-500ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Princesse Sariness 125g.jpeg",
+                             "to":  "Foods 12-22-25/princesse-sariness-125g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Pure Cocoa 250g.jpeg",
+                             "to":  "Foods 12-22-25/pure-cocoa-250g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Quaker White Oats 500g.jpeg",
+                             "to":  "Foods 12-22-25/quaker-white-oats-500g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Remie Chicken 50g.jpeg",
+                             "to":  "Foods 12-22-25/remie-chicken-50g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Remie Stew 10g.jpeg",
+                             "to":  "Foods 12-22-25/remie-stew-10g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Royal Chicken 845g.jpeg",
+                             "to":  "Foods 12-22-25/royal-chicken-845g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Royal Red Stew Extra Hot 454g.jpeg",
+                             "to":  "Foods 12-22-25/royal-red-stew-extra-hot-454g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Saf Instant Levure Instantanee.jpeg",
+                             "to":  "Foods 12-22-25/saf-instant-levure-instantanee.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Safi Tomato Paste 400g.jpeg",
+                             "to":  "Foods 12-22-25/safi-tomato-paste-400g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Saint Louis Sucre En Morceaux 1kg.jpeg",
+                             "to":  "Foods 12-22-25/saint-louis-sucre-en-morceaux-1kg.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Salsa Tomato Paste 400g.jpeg",
+                             "to":  "Foods 12-22-25/salsa-tomato-paste-400g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Sankarani Market Zekene Soumph.jpeg",
+                             "to":  "Foods 12-22-25/sankarani-market-zekene-soumph.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Sina Akabanga Chili Oil 3.4oz.jpeg",
+                             "to":  "Foods 12-22-25/sina-akabanga-chili-oil-3-4oz.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Societe Djama Djigui Cassava Powder.jpeg",
+                             "to":  "Foods 12-22-25/societe-djama-djigui-cassava-powder.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Sonia Piment Extra Fort.jpeg",
+                             "to":  "Foods 12-22-25/sonia-piment-extra-fort.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Soro Wisa.jpeg",
+                             "to":  "Foods 12-22-25/soro-wisa.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Special Gunpowder 500g.jpeg",
+                             "to":  "Foods 12-22-25/special-gunpowder-500g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Star Kist Tuna Flakes.jpeg",
+                             "to":  "Foods 12-22-25/star-kist-tuna-flakes.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Starling Ginger Flavor.jpeg",
+                             "to":  "Foods 12-22-25/starling-ginger-flavor.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Starling Hot Ginger Flavor.jpeg",
+                             "to":  "Foods 12-22-25/starling-hot-ginger-flavor.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Starling Saveur Bissap.jpeg",
+                             "to":  "Foods 12-22-25/starling-saveur-bissap.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Starling Saveur The Citron.jpeg",
+                             "to":  "Foods 12-22-25/starling-saveur-the-citron.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Starling Saveur The Vert Menthe Nanah.jpeg",
+                             "to":  "Foods 12-22-25/starling-saveur-the-vert-menthe-nanah.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Starling Wildfruits Flavor.jpeg",
+                             "to":  "Foods 12-22-25/starling-wildfruits-flavor.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Stash Foods Suya Khebab Pepper.jpeg",
+                             "to":  "Foods 12-22-25/stash-foods-suya-khebab-pepper.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/The Koutam 250g.jpeg",
+                             "to":  "Foods 12-22-25/the-koutam-250g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Tom Tom Menthol Candy.jpeg",
+                             "to":  "Foods 12-22-25/tom-tom-menthol-candy.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Trofai Palmnut Concentrate 800g.jpeg",
+                             "to":  "Foods 12-22-25/trofai-palmnut-concentrate-800g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Tropiway Plantain Fufu 700g.jpeg",
+                             "to":  "Foods 12-22-25/tropiway-plantain-fufu-700g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido All In One Seasoning 269g.jpeg",
+                             "to":  "Foods 12-22-25/valido-all-in-one-seasoning-269g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Bay Leaves 28g.jpeg",
+                             "to":  "Foods 12-22-25/valido-bay-leaves-28g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Black Pepper 198g.jpeg",
+                             "to":  "Foods 12-22-25/valido-black-pepper-198g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Chicken Seasoning 303.jpeg",
+                             "to":  "Foods 12-22-25/valido-chicken-seasoning-303.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Cinnamon Ground 198.5g.jpeg",
+                             "to":  "Foods 12-22-25/valido-cinnamon-ground-198-5g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Crushed Pepper 141g.jpeg",
+                             "to":  "Foods 12-22-25/valido-crushed-pepper-141g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Curry Powder 198g.jpeg",
+                             "to":  "Foods 12-22-25/valido-curry-powder-198g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Fish Seasoning 312g.jpeg",
+                             "to":  "Foods 12-22-25/valido-fish-seasoning-312g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido FJamaican Curry Powder 198g.jpeg",
+                             "to":  "Foods 12-22-25/valido-fjamaican-curry-powder-198g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Fried Rice Seasoning 312g.jpeg",
+                             "to":  "Foods 12-22-25/valido-fried-rice-seasoning-312g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Garlic Granulated 255g.jpeg",
+                             "to":  "Foods 12-22-25/valido-garlic-granulated-255g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Ginger Pure Ground 198g.jpeg",
+                             "to":  "Foods 12-22-25/valido-ginger-pure-ground-198g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Ground White Pepper 198g.png",
+                             "to":  "Foods 12-22-25/valido-ground-white-pepper-198g.png"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Jollof Rice Seasoning 312g.jpeg",
+                             "to":  "Foods 12-22-25/valido-jollof-rice-seasoning-312g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Lemon Pepper 226g.jpeg",
+                             "to":  "Foods 12-22-25/valido-lemon-pepper-226g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Moi Moi Seasoning.jpeg",
+                             "to":  "Foods 12-22-25/valido-moi-moi-seasoning.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Nutmeg Ground 141g.jpeg",
+                             "to":  "Foods 12-22-25/valido-nutmeg-ground-141g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Oxtail Seasoning 312g.jpeg",
+                             "to":  "Foods 12-22-25/valido-oxtail-seasoning-312g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Pepper Soup Mix 272g.jpeg",
+                             "to":  "Foods 12-22-25/valido-pepper-soup-mix-272g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Rosemary Leaves 113g.jpeg",
+                             "to":  "Foods 12-22-25/valido-rosemary-leaves-113g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Smoked Sweet Paprika 184g.jpeg",
+                             "to":  "Foods 12-22-25/valido-smoked-sweet-paprika-184g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Stew Seasoning.jpeg",
+                             "to":  "Foods 12-22-25/valido-stew-seasoning.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Suya Mix 240g.jpeg",
+                             "to":  "Foods 12-22-25/valido-suya-mix-240g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Thyme 113g.jpeg",
+                             "to":  "Foods 12-22-25/valido-thyme-113g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Valido Turmeric Powder 198g.jpeg",
+                             "to":  "Foods 12-22-25/valido-turmeric-powder-198g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Victoria Mor Gynostemma 75g.jpeg",
+                             "to":  "Foods 12-22-25/victoria-mor-gynostemma-75g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Victoria Mor Skinny Body 75g.jpeg",
+                             "to":  "Foods 12-22-25/victoria-mor-skinny-body-75g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Walkers Pure Butter Shortbread 150g.jpeg",
+                             "to":  "Foods 12-22-25/walkers-pure-butter-shortbread-150g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Yagg Sii Tenn Sauce Kani Hot Sauce 600g.jpeg",
+                             "to":  "Foods 12-22-25/yagg-sii-tenn-sauce-kani-hot-sauce-600g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Zeina Syrup  Tropical Fruit Syrup 750ml.jpeg",
+                             "to":  "Foods 12-22-25/zeina-syrup-tropical-fruit-syrup-750ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Zeina Syrup Baobab Syrup 750ml.jpeg",
+                             "to":  "Foods 12-22-25/zeina-syrup-baobab-syrup-750ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Zeina Syrup Ditakh Syrup 750ml.jpeg",
+                             "to":  "Foods 12-22-25/zeina-syrup-ditakh-syrup-750ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Zeina Syrup Ginger Syrup 750ml.jpeg",
+                             "to":  "Foods 12-22-25/zeina-syrup-ginger-syrup-750ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Zeina Syrup Hibiscus Syrup 750ml.jpeg",
+                             "to":  "Foods 12-22-25/zeina-syrup-hibiscus-syrup-750ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Zeina Syrup Mint Syrup 750ml.jpeg",
+                             "to":  "Foods 12-22-25/zeina-syrup-mint-syrup-750ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Zeina Syrup Strawberry Syrup 750ml.jpeg",
+                             "to":  "Foods 12-22-25/zeina-syrup-strawberry-syrup-750ml.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Zena Feuillea De Bissap Pilees.jpeg",
+                             "to":  "Foods 12-22-25/zena-feuillea-de-bissap-pilees.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ziyad Luncheon Loaf 340g.jpeg",
+                             "to":  "Foods 12-22-25/ziyad-luncheon-loaf-340g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ziyad Medhm Couscous.jpeg",
+                             "to":  "Foods 12-22-25/ziyad-medhm-couscous.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ziyad Prmium  Vermicelli.jpeg",
+                             "to":  "Foods 12-22-25/ziyad-prmium-vermicelli.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ziyad Turkey Luncheon Loaf 340g.jpeg",
+                             "to":  "Foods 12-22-25/ziyad-turkey-luncheon-loaf-340g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Ziyad Viande A Luncheon Loaf 340g.jpeg",
+                             "to":  "Foods 12-22-25/ziyad-viande-a-luncheon-loaf-340g.jpeg"
+                         },
+                         {
+                             "from":  "Foods 12-22-25/Zwan Chicken Luncheon Loaf 340g.jpeg",
+                             "to":  "Foods 12-22-25/zwan-chicken-luncheon-loaf-340g.jpeg"
+                         }
+                     ],
+    "skipped":  169,
+    "skippedFiles":  [
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-(3).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 - 2022-12-18T161113.782.jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 - 2022-12-18T161307.971.jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 - 2022-12-18T162703.245.jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 - 2022-12-18T163838.779.jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 - 2022-12-18T164242.160.jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 - 2022-12-18T164435.095.jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 - 2022-12-18T164553.800.jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 - 2022-12-18T164702.534.jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 - 2022-12-18T164902.663.jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 - 2022-12-18T165033.216.jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 - 2022-12-18T165417.296.jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (1).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (10).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (100).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (101).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (102).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (103).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (104).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (105).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (106).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (107).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (108).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (109).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (11).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (110).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (111).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (112).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (113).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (114).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (115).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (116).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (117).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (118).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (119).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (12).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (120).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (121).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (122).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (123).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (124).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (125).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (126).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (127).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (128).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (129).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (13).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (130).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (131).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (132).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (133).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (134).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (135).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (136).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (137).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (138).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (139).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (14).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (140).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (141).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (142).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (143).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (144).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (145).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (146).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (147).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (148).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (149).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (15).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (150).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (151).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (152).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (153).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (154).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (16).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (17).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (18).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (19).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (2).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (20).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (21).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (22).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (23).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (24).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (25).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (26).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (27).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (28).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (29).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (3).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (30).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (31).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (32).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (33).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (34).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (35).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (36).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (37).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (38).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (39).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (4).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (40).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (41).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (42).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (43).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (44).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (45).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (46).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (47).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (48).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (49).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (5).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (50).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (51).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (52).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (53).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (54).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (55).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (56).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (57).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (58).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (59).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (6).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (60).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (61).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (62).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (63).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (64).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (65).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (66).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (67).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (68).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (69).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (7).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (70).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (71).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (72).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (73).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (74).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (75).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (76).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (77).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (78).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (8).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (80).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (81).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (82).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (83).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (84).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (85).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (86).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (87).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (88).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (89).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (9).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (90).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (91).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (92).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (93).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (94).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (95).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (96).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (97).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (98).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 (99).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1 .jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-1.jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/My project-10).jpg",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         },
+                         {
+                             "file":  "Ivoire Market Pictre2/P1034773.JPG",
+                             "reason":  "Flagged for visual product identification before renaming."
+                         }
+                     ],
+    "classifications":  [
+                            {
+                                "folder":  "Comestics 12-22-25",
+                                "count":  100
+                            },
+                            {
+                                "folder":  "Foods 12-22-25",
+                                "count":  309
+                            },
+                            {
+                                "folder":  "Ivoire Market Pictre2",
+                                "count":  169
+                            }
+                        ]
+}
