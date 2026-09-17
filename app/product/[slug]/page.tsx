@@ -22,6 +22,9 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
 
   if (!productRow) notFound();
 
+  const primaryImage = productRow.product_images?.slice().sort((a, b) => a.position - b.position)[0]?.image_url;
+  if (!primaryImage) notFound();
+
   const product = {
     id: productRow.id,
     slug: productRow.slug,
@@ -30,8 +33,8 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     shortDescription: productRow.short_description ?? productRow.description,
     price: Number(productRow.price),
     compareAtPrice: productRow.compare_at_price === null ? undefined : Number(productRow.compare_at_price),
-    category: productRow.categories?.[0]?.name ?? "African Foods",
-    image: productRow.product_images?.slice().sort((a, b) => a.position - b.position)[0]?.image_url ?? "/demo-products/premium-jasmine-rice.jpg",
+    category: productRow.categories?.[0]?.name ?? "Uncategorized",
+    image: primaryImage,
     weight: productRow.stock_quantity !== null ? `${productRow.stock_quantity} in stock` : "",
     isFeatured: Boolean(productRow.is_featured),
     isNew: false,
@@ -56,7 +59,9 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     ? await supabase.from("product_reviews").select("rating, review_text").eq("product_id", product.id).eq("user_id", user.id).maybeSingle()
     : { data: null };
 
-  const related = (relatedRows ?? []).map((item) => ({
+  const related = (relatedRows ?? []).map((item) => {
+    const image = item.product_images?.slice().sort((a, b) => a.position - b.position)[0]?.image_url;
+    return image ? {
     id: item.id,
     slug: item.slug,
     name: item.name,
@@ -64,13 +69,14 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     shortDescription: item.short_description ?? item.description,
     price: Number(item.price),
     compareAtPrice: item.compare_at_price === null ? undefined : Number(item.compare_at_price),
-    category: item.categories?.[0]?.name ?? "African Foods",
-    image: item.product_images?.slice().sort((a, b) => a.position - b.position)[0]?.image_url ?? "/demo-products/premium-jasmine-rice.jpg",
+    category: item.categories?.[0]?.name ?? "Uncategorized",
+    image,
     weight: item.stock_quantity !== null ? `${item.stock_quantity} in stock` : "",
     isFeatured: Boolean(item.is_featured),
     isNew: false,
     isPopular: false,
-  }));
+  } : null;
+  }).filter((item): item is NonNullable<typeof item> => item !== null);
 
   const currentProductPath = buildProductPath(product.slug);
   return <main className="mx-auto max-w-7xl px-5 py-10 lg:px-8"><SmartBackButton /><nav aria-label="Breadcrumb" className="mt-2 text-sm text-muted"><Link href="/">Home</Link> <span className="mx-2">/</span> <Link href="/shop">Shop</Link> <span className="mx-2">/</span> <span>{product.name}</span></nav>

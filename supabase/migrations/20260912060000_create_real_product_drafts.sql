@@ -1,4 +1,5 @@
 ﻿alter table public.products
+  alter column description drop not null,
   alter column price drop not null,
   alter column stock_quantity drop not null,
   add column if not exists needs_pricing boolean not null default false;
@@ -51,7 +52,7 @@ values
   ('Francoise Bedon Supreme Serum', 'francoise-bedon-supreme-serum', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/francoise-bedon-supreme-serum.jpeg'),
   ('Gluta C E Kojic Acid Plus Soap', 'gluta-c-e-kojic-acid-plus-soap', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/gluta-c-e-kojic-acid-plus-soap.jpeg'),
   ('Gomage Intense Action', 'gomage-intense-action', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/gomage-intense-action.jpeg'),
-  ('Gomask Papay', 'gomask-papay', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/gomask-papay.jpeg'),
+  ('Gomask Papaya', 'gomask-papaya', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/gomask-papay.jpeg'),
   ('Grace Duo Serum', 'grace-duo-serum', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/grace-duo-serum.jpeg'),
   ('Haloderm 30G', 'haloderm-30g', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/haloderm-30g.jpeg'),
   ('Haloderm Body Oil', 'haloderm-body-oil', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/haloderm-body-oil.jpeg'),
@@ -71,7 +72,7 @@ values
   ('Neoprosone Gel Forte', 'neoprosone-gel-forte', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/neoprosone-gel-forte.jpeg'),
   ('Nixoderm 17 7G', 'nixoderm-17-7g', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/nixoderm-17-7g.jpeg'),
   ('Parfum Dounia 15ML', 'parfum-dounia-15ml', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/parfum-dounia-15ml.jpeg'),
-  ('Parley Beauuty Cream', 'parley-beauuty-cream', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/parley-beauuty-cream.jpeg'),
+  ('Parley Beauty Cream', 'parley-beauty-cream', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/parley-beauuty-cream.jpeg'),
   ('Parley Beauuty Soap', 'parley-beauuty-soap', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/parley-beauuty-soap.jpeg'),
   ('Parley Goldie Beauty Lotion', 'parley-goldie-beauty-lotion', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/parley-goldie-beauty-lotion.jpeg'),
   ('Parley Goldie Beauty Soap', 'parley-goldie-beauty-soap', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/parley-goldie-beauty-soap.jpeg'),
@@ -86,7 +87,7 @@ values
   ('Queen Elisabeth Cocoa Butter Ever Sheen 500ML', 'queen-elisabeth-cocoa-butter-ever-sheen-500ml', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/queen-elisabeth-cocoa-butter-ever-sheen-500ml.jpeg'),
   ('Queen Elisabeth Cocoa Butter Hand And Body Lotion 400ML', 'queen-elisabeth-cocoa-butter-hand-and-body-lotion-400ml', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/queen-elisabeth-cocoa-butter-hand-and-body-lotion-400ml.jpeg'),
   ('Queen Elisabeth Cocoa Butter Hand And Body Lotion 500ML', 'queen-elisabeth-cocoa-butter-hand-and-body-lotion-500ml', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/queen-elisabeth-cocoa-butter-hand-and-body-lotion-500ml.jpeg'),
-  ('Rapid Clain Serum Eclaircissant', 'rapid-clain-serum-eclaircissant', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/rapid-clain-serum-eclaircissant.jpeg'),
+  ('Rapid Clair Serum Eclaircissant', 'rapid-clair-serum-eclaircissant', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/rapid-clain-serum-eclaircissant.jpeg'),
   ('Rapid Clain Super Eclaircissant 700ML', 'rapid-clain-super-eclaircissant-700ml', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/rapid-clain-super-eclaircissant-700ml.jpeg'),
   ('Razac Hand Body Lotion 474ML', 'razac-hand-body-lotion-474ml', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/razac-hand-body-lotion-474ml.jpeg'),
   ('Robb Original', 'robb-original', 'Beauty & Personal Care', '/images/Foods%2012-22-25/Comestics%2012-22-25/robb-original.jpeg'),
@@ -160,7 +161,7 @@ values
   ('Best African Ewbo 5LB', 'best-african-ewbo-5lb', 'African Foods', '/images/Foods%2012-22-25/Foods%2012-22-25/best-african-ewbo-5lb.jpeg'),
   ('Best African Hauscl Koko', 'best-african-hauscl-koko', 'African Foods', '/images/Foods%2012-22-25/Foods%2012-22-25/best-african-hauscl-koko.jpeg'),
   ('Best African Korklui', 'best-african-korklui', 'African Foods', '/images/Foods%2012-22-25/Foods%2012-22-25/best-african-korklui.jpeg'),
-  ('Best African O', 'best-african-o', 'African Foods', '/images/Foods%2012-22-25/Foods%2012-22-25/best-african-o.jpeg'),
+  ('Best African Oblayo White Corn', 'best-african-oblayo-white-corn', 'African Foods', '/images/Foods%2012-22-25/Foods%2012-22-25/best-african-o.jpeg'),
   ('Best African Oblayo', 'best-african-oblayo', 'African Foods', '/images/Foods%2012-22-25/Foods%2012-22-25/best-african-oblayo.jpeg'),
   ('Best African Tapioca', 'best-african-tapioca', 'Rice & Grains', '/images/Foods%2012-22-25/Foods%2012-22-25/best-african-tapioca.jpeg'),
   ('Bicarbonate De Soude', 'bicarbonate-de-soude', 'African Foods', '/images/Foods%2012-22-25/Foods%2012-22-25/bicarbonate-de-soude.jpeg'),
@@ -425,12 +426,28 @@ values
 ),
 inserted_products as (
   insert into public.products (name, slug, description, short_description, price, category_id, stock_quantity, is_active, is_featured, needs_pricing)
-  select source.name, source.slug, 'Product details pending pricing and inventory review.', null, null, categories.id, null, false, false, true
+  select source.name, source.slug, null, null, null, categories.id, null, false, false, true
   from source_products source
   join public.categories categories on categories.name = source.category_name
   on conflict (slug) do update
-  set is_active = false, needs_pricing = true
+  set name = excluded.name,
+      description = null,
+      short_description = null,
+      price = null,
+      category_id = excluded.category_id,
+      stock_quantity = null,
+      is_active = false,
+      is_featured = false,
+      needs_pricing = true
   returning id, slug
+),
+removed_non_primary_images as (
+  delete from public.product_images images
+  using inserted_products products
+  join source_products source on source.slug = products.slug
+  where images.product_id = products.id
+    and images.image_url <> source.image_url
+  returning images.id
 )
 insert into public.product_images (product_id, image_url, alt_text, position)
 select products.id, source.image_url, source.name, 0

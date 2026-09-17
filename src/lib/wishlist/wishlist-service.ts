@@ -1,7 +1,6 @@
 import { createClient } from "@/src/lib/supabase/browser";
 import type { WishlistItem } from "@/src/types/wishlist";
-import type { Product, ProductCategory } from "@/src/types/catalog";
-import { productCategories } from "@/src/types/catalog";
+import type { Product } from "@/src/types/catalog";
 
 type WishlistRow = {
   id: string;
@@ -35,8 +34,8 @@ export async function getWishlist(): Promise<WishlistItem[]> {
   return (data as WishlistRow[] | null ?? []).map((row) => {
     const productRow = row.products?.[0];
     const categoryName = productRow?.categories?.[0]?.name;
-    const category: ProductCategory = productCategories.includes(categoryName as ProductCategory) ? categoryName as ProductCategory : "African Foods";
-    const image = productRow?.product_images?.slice().sort((a: { position: number }, b: { position: number }) => a.position - b.position)[0]?.image_url ?? "/demo-products/premium-jasmine-rice.jpg";
+    const category = categoryName ?? "Uncategorized";
+    const image = productRow?.product_images?.slice().sort((a: { position: number }, b: { position: number }) => a.position - b.position)[0]?.image_url;
     const product: Product | undefined = productRow ? {
       id: productRow.id,
       slug: productRow.slug,
@@ -46,7 +45,7 @@ export async function getWishlist(): Promise<WishlistItem[]> {
       price: Number(productRow.price),
       compareAtPrice: productRow.compare_at_price === null ? undefined : Number(productRow.compare_at_price),
       category,
-      image,
+      image: image ?? "",
       weight: "",
       isFeatured: productRow.is_featured,
       isNew: false,

@@ -29,7 +29,7 @@ export function Hero() {
             </h1>
 
             <p className="mt-6 max-w-lg text-base leading-7 text-white/80 sm:text-lg">
-              Fresh groceries, pantry staples, and trusted flavors from around the world — all in one place for everyday joy.
+              Discover Ivoire Shop and explore the collection as products become available.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">

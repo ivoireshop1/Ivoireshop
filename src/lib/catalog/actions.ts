@@ -115,35 +115,41 @@ export async function saveProduct(formData: FormData) {
   const slug = slugify(textValue(formData, "slug") || name);
   const categoryId = textValue(formData, "category_id");
   const description = textValue(formData, "description");
-  const price = positiveNumber(textValue(formData, "price"));
-  const stockQuantityValue = positiveNumber(textValue(formData, "stock_quantity"));
+  const priceInput = textValue(formData, "price");
+  const stockQuantityInput = textValue(formData, "stock_quantity");
+  const price = priceInput ? positiveNumber(priceInput) : null;
+  const stockQuantityValue = stockQuantityInput ? positiveNumber(stockQuantityInput) : null;
   const compareAtPriceValue = textValue(formData, "compare_at_price")
     ? positiveNumber(textValue(formData, "compare_at_price"))
     : null;
   const status = textValue(formData, "status") || "active";
   const isFeatured = formData.get("is_featured") === "on";
+  const isDraft = formData.get("save_as_draft") === "true";
+  const hasCompletePricing = price !== null && stockQuantityValue !== null && Number.isInteger(stockQuantityValue);
 
   if (
     !name ||
     !slug ||
     !categoryId ||
-    !description ||
-    price === null ||
-    stockQuantityValue === null ||
-    !Number.isInteger(stockQuantityValue) ||
+    (priceInput && price === null) ||
+    (stockQuantityInput && (stockQuantityValue === null || !Number.isInteger(stockQuantityValue))) ||
     (textValue(formData, "compare_at_price") && compareAtPriceValue === null)
   ) {
-    redirect("/admin/products/new?error=product_required");
+    redirect(`${id ? `/admin/products/${id}` : "/admin/products/new"}?error=product_required`);
   }
 
-  const isActive = status !== "hidden";
+  if (!isDraft && status !== "hidden" && !hasCompletePricing) {
+    redirect(`${id ? `/admin/products/${id}` : "/admin/products/new"}?error=product_required`);
+  }
+
+  const isActive = !isDraft && status !== "hidden";
   const normalizedStockQuantity = status === "sold_out" ? 0 : stockQuantityValue;
 
   const values = {
     name,
     slug,
     category_id: categoryId,
-    description,
+    description: description || null,
     short_description: textValue(formData, "short_description") || null,
     price,
     compare_at_price: compareAtPriceValue,
@@ -151,6 +157,7 @@ export async function saveProduct(formData: FormData) {
     stock_quantity: normalizedStockQuantity,
     is_active: isActive,
     is_featured: isFeatured,
+    needs_pricing: !hasCompletePricing,
   };
 
   const query = id
@@ -188,72 +195,6 @@ export async function saveProduct(formData: FormData) {
   revalidatePath("/admin/products");
   revalidatePath("/");
   redirect("/admin/products?success=product_saved");
-}
-
-export async function updateProductStatus(formData: FormData) {
-  const { supabase } = await requireAdmin();
-  const id = textValue(formData, "id");
-  const status = textValue(formData, "status");
-
-  if (!id || !["active", "sold_out", "hidden"].includes(status)) {
-    redirect("/admin/products?error=product_status_failed");
-  }
-
-  const { data: product, error: fetchError } = await supabase
-    .from("products")
-    .select("id, stock_quantity, is_active")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (fetchError || !product) {
-    redirect("/admin/products?error=product_status_failed");
-  }
-
-  const nextValues = {
-    is_active: status !== "hidden",
-    stock_quantity: status === "sold_out" ? 0 : Number(product.stock_quantity ?? 0),
-  };
-
-  const { error } = await supabase.from("products").update(nextValues).eq("id", id);
-  if (error) {
-    redirect("/admin/products?error=product_status_failed");
-  }
-
-  revalidatePath("/admin/products");
-  revalidatePath("/");
-  redirect("/admin/products?success=product_status_updated");
-}
-
-export async function toggleFeatured(formData: FormData) {
-  const { supabase } = await requireAdmin();
-  const id = textValue(formData, "id");
-
-  if (!id) {
-    redirect("/admin/products?error=product_feature_failed");
-  }
-
-  const { data: product, error: fetchError } = await supabase
-    .from("products")
-    .select("id, is_featured")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (fetchError || !product) {
-    redirect("/admin/products?error=product_feature_failed");
-  }
-
-  const { error } = await supabase
-    .from("products")
-    .update({ is_featured: !product.is_featured })
-    .eq("id", id);
-
-  if (error) {
-    redirect("/admin/products?error=product_feature_failed");
-  }
-
-  revalidatePath("/admin/products");
-  revalidatePath("/");
-  redirect("/admin/products?success=product_feature_updated");
 }
 
 export async function duplicateProduct(formData: FormData) {

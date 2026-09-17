@@ -1,13 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
-import { DeleteProductForm } from "@/src/components/admin/delete-product-form";
+import { AdminProductRow } from "@/src/components/admin/admin-product-row";
 import { requireAdmin } from "@/src/lib/auth/guards";
-import {
-  deleteProduct,
-  duplicateProduct,
-  toggleFeatured,
-  updateProductStatus,
-} from "@/src/lib/catalog/actions";
+import { deleteProduct, duplicateProduct } from "@/src/lib/catalog/actions";
 
 export default async function AdminProductsPage({
   searchParams,
@@ -26,7 +20,7 @@ export default async function AdminProductsPage({
     supabase.from("categories").select("id, name").eq("is_active", true).order("name"),
     supabase
       .from("products")
-      .select("id, name, slug, price, stock_quantity, is_active, is_featured, created_at, category_id, categories(name), product_images(image_url, position)")
+      .select("id, name, slug, price, stock_quantity, is_active, is_featured, needs_pricing, created_at, category_id, categories(name), product_images(image_url, position)")
       .order("created_at", { ascending: false }),
   ]);
 
@@ -41,12 +35,12 @@ export default async function AdminProductsPage({
     const statusMatches =
       statusFilter === "all" ||
       (statusFilter === "active" && productStatus === "Active") ||
-      (statusFilter === "sold_out" && productStatus === "Sold Out") ||
-      (statusFilter === "hidden" && productStatus === "Hidden");
+      (statusFilter === "draft" && productStatus === "Draft");
     const inventoryMatches =
       inventoryFilter === "all" ||
+      (inventoryFilter === "needs_pricing" && (product.needs_pricing || product.price === null)) ||
+      (inventoryFilter === "needs_stock" && product.stock_quantity === null) ||
       (inventoryFilter === "in_stock" && Number(product.stock_quantity) > 0) ||
-      (inventoryFilter === "low_stock" && Number(product.stock_quantity) > 0 && Number(product.stock_quantity) <= 5) ||
       (inventoryFilter === "out_of_stock" && Number(product.stock_quantity) === 0);
     const featuredMatches =
       featuredFilter === "all" ||
@@ -112,8 +106,7 @@ export default async function AdminProductsPage({
             <select className="w-full rounded-xl border border-[#173f35]/15 bg-[#f9f7f3] px-3 py-2.5 text-[#173f35] outline-none transition focus:border-[#173f35]/35" defaultValue={statusFilter} name="status">
               <option value="all">All Products</option>
               <option value="active">Active</option>
-              <option value="sold_out">Sold Out</option>
-              <option value="hidden">Hidden</option>
+              <option value="draft">Draft</option>
             </select>
           </label>
 
@@ -121,8 +114,9 @@ export default async function AdminProductsPage({
             <span className="mb-2 block text-[11px] font-medium uppercase tracking-[0.2em] text-[#6b6b6b]">Inventory</span>
             <select className="w-full rounded-xl border border-[#173f35]/15 bg-[#f9f7f3] px-3 py-2.5 text-[#173f35] outline-none transition focus:border-[#173f35]/35" defaultValue={inventoryFilter} name="inventory">
               <option value="all">All Inventory</option>
+              <option value="needs_pricing">Needs pricing</option>
+              <option value="needs_stock">Needs stock</option>
               <option value="in_stock">In Stock</option>
-              <option value="low_stock">Low Stock</option>
               <option value="out_of_stock">Out of Stock</option>
             </select>
           </label>
@@ -178,74 +172,26 @@ export default async function AdminProductsPage({
               const categoryName = Array.isArray(nestedCategories)
                 ? nestedCategories[0]?.name ?? "Uncategorized"
                 : nestedCategories?.name ?? "Uncategorized";
-              const imageUrl = Array.isArray(nestedImages)
-                ? nestedImages[0]?.image_url ?? "/demo-products/premium-jasmine-rice.jpg"
-                : "/demo-products/premium-jasmine-rice.jpg";
-              const inventoryLabel = Number(product.stock_quantity) === 0 ? "Out of stock" : Number(product.stock_quantity) <= 5 ? "Low stock" : "In stock";
+              const imageUrl = Array.isArray(nestedImages) ? nestedImages[0]?.image_url ?? null : null;
 
               return (
-                <article key={product.id} className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-3 md:grid md:grid-cols-[1.6fr_0.8fr_0.7fr_0.8fr_0.9fr_0.7fr_0.8fr] md:items-center md:gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="h-14 w-14 overflow-hidden rounded-xl border border-[#173f35]/10 bg-white">
-                      <Image alt={product.name} className="h-full w-full object-cover" height={56} src={imageUrl} unoptimized width={56} />
-                    </div>
-                    <div className="min-w-0">
-                      <Link className="block truncate font-medium text-[#173f35] hover:underline" href={`/admin/products/${product.id}`}>
-                        {product.name}
-                      </Link>
-                      <p className="mt-1 text-xs text-[#6b6b6b]">Updated {new Date(product.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 text-sm text-[#6b6b6b] md:mt-0">{categoryName}</div>
-                  <div className="mt-3 text-sm font-medium text-[#173f35] md:mt-0">${Number(product.price).toFixed(2)}</div>
-                  <div className="mt-3 md:mt-0">
-                    <p className="text-sm font-medium text-[#173f35]">Stock: {product.stock_quantity}</p>
-                    <p className="text-xs text-[#6b6b6b]">{inventoryLabel}</p>
-                  </div>
-                  <div className="mt-4 md:mt-0">
-                    <form action={updateProductStatus}>
-                      <input name="id" type="hidden" value={product.id} />
-                      <select
-                        className="w-full rounded-lg border border-[#173f35]/15 bg-white px-2 py-1.5 text-sm text-[#173f35]"
-                        defaultValue={
-                          product.is_active ? (Number(product.stock_quantity) === 0 ? "sold_out" : "active") : "hidden"
-                        }
-                        name="status"
-                      >
-                        <option value="active">Active</option>
-                        <option value="sold_out">Sold Out</option>
-                        <option value="hidden">Hidden</option>
-                      </select>
-                      <button className="mt-2 w-full rounded-lg bg-[#173f35] px-2 py-1.5 text-xs font-medium text-white" type="submit">
-                        Update
-                      </button>
-                    </form>
-                  </div>
-                  <div className="mt-4 md:mt-0">
-                    <form action={toggleFeatured}>
-                      <input name="id" type="hidden" value={product.id} />
-                      <button className={`w-full rounded-lg px-2 py-1.5 text-xs font-medium ${product.is_featured ? "bg-[#b8964c]/15 text-[#7c5d1a]" : "bg-[#173f35]/5 text-[#173f35]"}`} type="submit">
-                        {product.is_featured ? "Featured" : "Not Featured"}
-                      </button>
-                    </form>
-                  </div>
-                  <div className="mt-4 flex flex-wrap items-center gap-2 md:mt-0">
-                    <Link className="text-sm text-[#173f35] underline-offset-2 hover:underline" href={`/admin/products/${product.id}`}>
-                      Edit
-                    </Link>
-                    <Link className="text-sm text-[#173f35] underline-offset-2 hover:underline" href={`/product/${product.slug}`} target="_blank">
-                      View
-                    </Link>
-                    <form action={duplicateProduct}>
-                      <input name="id" type="hidden" value={product.id} />
-                      <button className="text-sm text-[#173f35] underline-offset-2 hover:underline" type="submit">
-                        Duplicate
-                      </button>
-                    </form>
-                    <DeleteProductForm action={deleteProduct} id={product.id} />
-                  </div>
-                </article>
+                <AdminProductRow
+                  deleteAction={deleteProduct}
+                  duplicateAction={duplicateProduct}
+                  key={product.id}
+                  product={{
+                    id: product.id,
+                    name: product.name,
+                    slug: product.slug,
+                    createdAt: product.created_at,
+                    categoryName,
+                    imageUrl,
+                    price: product.needs_pricing ? null : product.price,
+                    stockQuantity: product.stock_quantity,
+                    isActive: product.is_active,
+                    isFeatured: product.is_featured,
+                  }}
+                />
               );
             })}
           </div>
@@ -255,8 +201,6 @@ export default async function AdminProductsPage({
   );
 }
 
-function getProductStatus(product: { stock_quantity: number; is_active: boolean }) {
-  if (!product.is_active) return "Hidden";
-  if (Number(product.stock_quantity) === 0) return "Sold Out";
-  return "Active";
+function getProductStatus(product: { price: number | null; stock_quantity: number | null; is_active: boolean; needs_pricing: boolean }) {
+  return product.is_active ? "Active" : "Draft";
 }

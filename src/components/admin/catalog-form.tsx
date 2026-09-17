@@ -8,10 +8,10 @@ type ProductValues = {
   category_id?: string;
   description?: string;
   short_description?: string | null;
-  price?: number | string;
+  price?: number | string | null;
   compare_at_price?: number | string | null;
   sku?: string | null;
-  stock_quantity?: number;
+  stock_quantity?: number | null;
   is_active?: boolean;
   is_featured?: boolean;
   product_images?: Array<{ image_url?: string | null }>;
@@ -48,7 +48,7 @@ export function ProductForm({
             <Field label="SKU" name="sku" value={product?.sku ?? undefined} />
             <label className="block text-sm font-medium text-[#173f35]">
               Description
-              <textarea className="mt-2 min-h-36 w-full rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-[#173f35] outline-none transition focus:border-[#173f35]/35" name="description" required defaultValue={product?.description} />
+              <textarea className="mt-2 min-h-36 w-full rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-[#173f35] outline-none transition focus:border-[#173f35]/35" name="description" defaultValue={product?.description} />
             </label>
             <Field label="Short description" name="short_description" value={product?.short_description ?? undefined} />
           </section>
@@ -56,7 +56,7 @@ export function ProductForm({
           <section className="space-y-4 rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-5">
             <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#b8964c]">Pricing</p>
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="Regular Price" name="price" required type="number" step="0.01" value={product?.price} />
+              <Field label="Regular Price" name="price" type="number" step="0.01" value={product?.price} />
               <Field label="Sale Price" name="compare_at_price" type="number" step="0.01" value={product?.compare_at_price ?? undefined} />
             </div>
           </section>
@@ -64,7 +64,7 @@ export function ProductForm({
           <section className="space-y-4 rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-5">
             <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#b8964c]">Inventory</p>
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="Stock Quantity" name="stock_quantity" required type="number" min="0" step="1" value={product?.stock_quantity} />
+              <Field label="Stock Quantity" name="stock_quantity" type="number" min="0" step="1" value={product?.stock_quantity} />
               <Field label="Low Stock Threshold" name="low_stock_threshold" type="number" min="0" step="1" value={product?.stock_quantity && product.stock_quantity <= 5 ? "5" : "5"} />
             </div>
           </section>
@@ -105,7 +105,7 @@ export function ProductForm({
           </section>
 
           <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
-            <button className="rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-sm font-medium text-[#173f35]" type="button">
+            <button className="rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-sm font-medium text-[#173f35]" name="save_as_draft" type="submit" value="true">
               Save Draft
             </button>
             <button className="rounded-xl bg-[#173f35] px-4 py-3 text-sm font-medium text-white" type="submit">

@@ -18,13 +18,12 @@ type ProductRow = {
 };
 
 function resolveCategoryName(name: string | null | undefined): Product["category"] {
-  if (!name) return "African Foods";
-  return (name as Product["category"]) || "African Foods";
+  return name || "Uncategorized";
 }
 
 function mapProduct(row: ProductRow): Product {
   const category = resolveCategoryName(row.categories?.[0]?.name);
-  const image = row.product_images?.slice().sort((a, b) => a.position - b.position)[0]?.image_url ?? "/demo-products/premium-jasmine-rice.jpg";
+  const image = row.product_images?.slice().sort((a, b) => a.position - b.position)[0]?.image_url;
 
   return {
     id: row.id,
@@ -35,7 +34,7 @@ function mapProduct(row: ProductRow): Product {
     price: Number(row.price),
     compareAtPrice: row.compare_at_price === null ? undefined : Number(row.compare_at_price),
     category,
-    image,
+    image: image ?? "",
     weight: row.stock_quantity !== null ? `${row.stock_quantity} in stock` : "",
     isFeatured: row.is_featured,
     isNew: false,
@@ -81,7 +80,7 @@ export async function getProducts(): Promise<Product[]> {
       console.error("Catalog products query failed:", error.message);
       return [];
     }
-    return (data as ProductRow[] | null ?? []).map(mapProduct);
+    return (data as ProductRow[] | null ?? []).filter((product) => product.product_images?.length).map(mapProduct);
   } catch (error) {
     console.error("Catalog products connection failed:", error);
     return [];

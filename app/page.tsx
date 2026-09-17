@@ -8,7 +8,7 @@ import { Hero } from "@/src/components/storefront/hero";
 import { GuestShoppingSection } from "@/src/components/storefront/guest-shopping-section";
 import { ProductSection } from "@/src/components/storefront/product-section";
 
-export default function Home() {
+export default async function Home() {
   return (
     <div className="min-h-screen bg-background">
       <AnnouncementBar />

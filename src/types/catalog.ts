@@ -20,18 +20,6 @@ export type CatalogProduct = {
   isActive: boolean;
 };
 
-export const productCategories = [
-  "Rice & Grains",
-  "African Foods",
-  "Fresh Produce",
-  "Oils & Cooking",
-  "Spices & Seasoning",
-  "Drinks",
-  "Snacks",
-] as const;
-
-export type ProductCategory = (typeof productCategories)[number];
-
 export interface Product {
   id: string;
   slug: string;
@@ -40,7 +28,7 @@ export interface Product {
   shortDescription: string;
   price: number;
   compareAtPrice?: number;
-  category: ProductCategory;
+  category: string;
   image: string;
   weight: string;
   isFeatured: boolean;

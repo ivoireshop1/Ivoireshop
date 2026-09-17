@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -51,7 +50,7 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "" }: 
         return;
       }
 
-      setProducts((data as ProductRow[]).map((row) => ({
+      setProducts((data as ProductRow[]).filter((row) => row.product_images?.length).map((row) => ({
         id: row.id,
         slug: row.slug,
         name: row.name,
@@ -59,8 +58,8 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "" }: 
         shortDescription: row.short_description ?? row.description,
         price: Number(row.price),
         compareAtPrice: row.compare_at_price === null ? undefined : Number(row.compare_at_price),
-        category: (row.categories?.[0]?.name ?? "African Foods") as Product["category"],
-        image: row.product_images?.slice().sort((a: { position: number }, b: { position: number }) => a.position - b.position)[0]?.image_url ?? "/demo-products/premium-jasmine-rice.jpg",
+        category: row.categories?.[0]?.name ?? "Uncategorized",
+        image: row.product_images?.slice().sort((a: { position: number }, b: { position: number }) => a.position - b.position)[0]?.image_url ?? "",
         weight: row.stock_quantity !== null ? `${row.stock_quantity} in stock` : "",
         isFeatured: Boolean(row.is_featured),
         isNew: false,
@@ -71,6 +70,7 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "" }: 
     void loadProducts();
   }, []);
 
+  const activeCategories = useMemo(() => [...new Set(products.map((product) => product.category))].sort(), [products]);
   const normalizedProducts = useMemo(() => products.filter((product) => {
     const matchesCategory = category === "All" || product.category === category;
     const text = `${product.name} ${product.category}`.toLowerCase();
@@ -82,8 +82,10 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "" }: 
     if (category !== "All") params.set("category", category);
     if (query.trim()) params.set("search", query.trim());
     const queryString = params.toString();
-    router.replace(queryString ? `/shop?${queryString}` : "/shop", { scroll: false });
-  }, [category, query, router]);
+    if (queryString !== searchParams.toString()) {
+      router.replace(queryString ? `/shop?${queryString}` : "/shop", { scroll: false });
+    }
+  }, [category, query, router, searchParams]);
 
   function clearFilters() {
     setQuery("");
@@ -92,12 +94,10 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "" }: 
 
   return <main className="mx-auto max-w-7xl px-5 py-12 lg:px-8">
     <Link aria-label="Back to home" className="mb-5 inline-flex min-h-10 items-center rounded-lg px-3 py-2 text-sm font-medium text-forest-green transition hover:bg-forest-green/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold" href="/"><span aria-hidden="true" className="mr-2 text-lg">←</span>Back to home</Link>
-    <div className="relative isolate overflow-hidden rounded-3xl bg-forest-green px-6 py-14 sm:px-10 sm:py-20">
-      <Image alt="" className="absolute inset-0 -z-10 object-cover opacity-75" fill priority sizes="(max-width: 1280px) 100vw, 1200px" src="/demo-products/premium-jasmine-rice.jpg" />
-      <div className="absolute inset-0 -z-10 bg-forest-green/35" />
-      <div className="relative max-w-2xl"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">The Ivoire collection</p><h1 className="mt-3 font-serif text-4xl font-semibold text-white sm:text-5xl">Shop everyday essentials</h1><p className="mt-4 max-w-xl leading-7 text-white/80">Browse active products from the store, with category and search filters applied to the live catalog.</p></div>
+    <div className="rounded-3xl bg-forest-green px-6 py-14 sm:px-10 sm:py-20">
+      <div className="max-w-2xl"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">The Ivoire collection</p><h1 className="mt-3 font-serif text-4xl font-semibold text-white sm:text-5xl">Shop the live catalog</h1><p className="mt-4 max-w-xl leading-7 text-white/80">Browse products currently available from the store.</p></div>
     </div>
-    <div className="mt-10 space-y-4"><ProductSearch value={query} onChange={setQuery} /><CategoryFilter value={category} onChange={setCategory} /></div>
-    {normalizedProducts.length > 0 ? <div className="mt-10"><ProductGrid products={normalizedProducts} returnTo={`${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`} /></div> : <div className="py-24 text-center"><h2 className="text-2xl font-semibold text-forest-green">No products found</h2><p className="mt-3 text-muted">Try adjusting your search or browsing another category.</p><button className="mt-6 rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white" onClick={clearFilters} type="button">Clear filters</button></div>}
+    <div className="mt-10 space-y-4"><ProductSearch value={query} onChange={setQuery} />{activeCategories.length > 0 && <CategoryFilter categories={activeCategories} value={category} onChange={setCategory} />}</div>
+    {normalizedProducts.length > 0 ? <div className="mt-10"><ProductGrid products={normalizedProducts} returnTo={`${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`} /></div> : <div className="py-24 text-center"><h2 className="text-2xl font-semibold text-forest-green">Products are being prepared</h2><p className="mt-3 text-muted">Check back soon for products available to shop.</p>{(query || category !== "All") && <button className="mt-6 rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white" onClick={clearFilters} type="button">Clear filters</button>}</div>}
   </main>;
 }
