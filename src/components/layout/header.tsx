@@ -37,7 +37,7 @@ export function Header() {
         <div className="flex items-center gap-4 text-sm">
           <Link aria-label="Search products" className="hidden text-forest-green sm:inline-flex" href="/shop"><SearchIcon /></Link>
           <Link aria-label="Wishlist" className="hidden text-forest-green sm:inline-flex" href="/wishlist">Wishlist</Link>
-          {isAuthenticated ? <Link aria-label="Account" className="text-forest-green" href="/account">Account</Link> : <><Link aria-label="Sign in" className="text-forest-green" href="/login">Sign in</Link><Link aria-label="Create account" className="hidden text-forest-green sm:inline-flex" href="/signup">Create account</Link></>}
+          {isAuthenticated ? <Link aria-label="Account" className="hidden text-forest-green sm:inline-flex" href="/account">Account</Link> : <><Link aria-label="Sign in" className="hidden text-forest-green sm:inline-flex" href="/login">Sign in</Link><Link aria-label="Create account" className="hidden text-forest-green sm:inline-flex" href="/signup">Create account</Link></>}
           <Link aria-label={`Shopping cart${isLoaded ? `, ${totalItems} items` : ""}`} className="rounded-full border border-forest-green/20 px-3 py-1.5 text-forest-green" href="/cart"><span className={addEventId ? "cart-icon-pulse inline-flex" : ""} key={addEventId}>Cart {isLoaded && totalItems > 0 && <span className="ml-1 rounded-full bg-gold px-1.5 py-0.5 text-xs text-forest-green">{totalItems > 99 ? "99+" : totalItems}</span>}</span></Link>
           <button aria-controls="mobile-navigation" aria-expanded={menuOpen} aria-label={menuOpen ? "Close menu" : "Open menu"} className="text-forest-green md:hidden" onClick={() => setMenuOpen((open) => !open)} type="button">{menuOpen ? "Close" : "Menu"}</button>
         </div>
@@ -50,7 +50,7 @@ export function Header() {
           <Link href="/about" onClick={() => setMenuOpen(false)}>About Us</Link>
           <Link href="/blog" onClick={() => setMenuOpen(false)}>Blog</Link>
           <Link href="/contact" onClick={() => setMenuOpen(false)}>Contact</Link>
-          {!isAuthenticated && <Link href="/signup" onClick={() => setMenuOpen(false)}>Create account</Link>}
+          {isAuthenticated ? <Link href="/account" onClick={() => setMenuOpen(false)}>Account</Link> : <><Link href="/login" onClick={() => setMenuOpen(false)}>Sign in</Link><Link href="/signup" onClick={() => setMenuOpen(false)}>Create account</Link></>}
           <Link href="/wishlist" onClick={() => setMenuOpen(false)}>Wishlist</Link>
         </div>
       </nav>}
