@@ -2,14 +2,15 @@ import { pageMetadata } from "@/src/lib/page-metadata";
 import { CheckoutPage } from "@/src/components/cart/checkout-page";
 import { Suspense } from "react";
 import { isStoreOpen } from "@/src/lib/store/status";
+import { getPaymentReadiness } from "@/src/lib/payments/readiness";
 
 export const metadata = pageMetadata("Checkout", "Submit your order with your contact and fulfillment details.", "/checkout", false);
 
 export default async function CheckoutRoute() {
-  const storeOpen = await isStoreOpen();
+  const [storeOpen, payments] = await Promise.all([isStoreOpen(), Promise.resolve(getPaymentReadiness())]);
   return (
     <Suspense fallback={<main className="mx-auto w-full max-w-4xl px-5 py-16">Loading checkout...</main>}>
-      <CheckoutPage storeOpen={storeOpen} />
+      <CheckoutPage payments={payments} storeOpen={storeOpen} />
     </Suspense>
   );
 }

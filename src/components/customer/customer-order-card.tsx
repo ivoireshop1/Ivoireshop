@@ -5,6 +5,7 @@ import { fulfillmentLabel } from "@/src/lib/fulfillment/fulfillment";
 export type CustomerOrderSummary = {
   id: string;
   order_number: string;
+  confirmation_code?: string | null;
   status: string;
   payment_status: string;
   total: number | string;
@@ -23,6 +24,9 @@ export function CustomerOrderCard({ order }: { order: CustomerOrderSummary }) {
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xl font-semibold text-forest-green">{order.order_number}</p>
+          {order.confirmation_code ? (
+            <p className="mt-1 font-mono text-sm tracking-[0.14em] text-forest-green">{order.confirmation_code}</p>
+          ) : null}
           <p className="mt-1 text-sm text-muted">
             {new Date(order.created_at).toLocaleDateString()} · {itemCount} item{itemCount === 1 ? "" : "s"}
           </p>

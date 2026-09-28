@@ -27,7 +27,20 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
     if (error) return checkoutFailure(error.code, error.message);
     const row = Array.isArray(data) ? data[0] : null;
     if (!row?.order_id || !row.order_number || !row.status || !Number.isFinite(Number(row.total)) || Number(row.total) < 0) return checkoutFailure();
-    const receipt = { order_id: String(row.order_id), order_number: String(row.order_number), status: String(row.status), total: Number(row.total) };
+    const receipt = {
+      order_id: String(row.order_id),
+      order_number: String(row.order_number),
+      status: String(row.status),
+      total: Number(row.total),
+      confirmation_code: row.confirmation_code ? String(row.confirmation_code) : undefined,
+      guest_access_token: row.guest_access_token ? String(row.guest_access_token) : undefined,
+      payment_status: row.payment_status ? String(row.payment_status) : "pending",
+      fulfillment_method: row.fulfillment_method ? String(row.fulfillment_method) : undefined,
+      customer_email: row.customer_email ? String(row.customer_email) : undefined,
+      customer_name: row.customer_name ? String(row.customer_name) : undefined,
+      payment_method: row.payment_method ? String(row.payment_method) : null,
+      payment_provider: row.payment_provider ? String(row.payment_provider) : null,
+    };
     // A cache failure must not turn a committed order into a claimed checkout failure.
     try {
       for (const path of ["/", "/shop", "/categories", "/admin", "/admin/orders", "/admin/inventory", "/admin/products", "/admin/customers", "/account"]) revalidatePath(path);

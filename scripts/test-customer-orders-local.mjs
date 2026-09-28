@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 import vm from 'node:vm';
 import ts from 'typescript';
 
@@ -24,8 +25,9 @@ function load(file){if(modules.has(file))return modules.get(file);const exports=
  if(name==='next/navigation')return {redirect:url=>{throw Error('redirect:'+url)}};
  if(name==='next/cache')return {revalidatePath:p=>cachePaths.push(p)};
  if(name.startsWith('@/'))return load(name.slice(2)+'.ts');
+ if(name.startsWith('.'))return load(path.resolve(path.dirname(file), name)+'.ts');
  throw Error(name);
-};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require,URL,console,crypto:globalThis.crypto});modules.set(file,exports);return exports;}
+};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require,URL,console,crypto:globalThis.crypto,process});modules.set(file,exports);return exports;}
 const customer=load('src/lib/customer/orders.ts');
 const actions=load('src/lib/catalog/actions.ts');
 const status=load('src/lib/orders/status.ts');

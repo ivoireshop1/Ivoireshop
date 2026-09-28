@@ -1,11 +1,36 @@
-// No provider adapter is installed. Environment key presence alone does not
-// establish working payments, verified webhooks, or a supported currency.
+import {
+  getPaypalConfig,
+  getSquareConfig,
+  hasPaymentAdminClient,
+} from "./config";
+
 export function getPaymentReadiness() {
-  return { enabled: false as const, mode: "separate_collection" as const,
-    message: "Online payment is not available. Payment is collected separately." };
+  const square = getSquareConfig();
+  const paypal = getPaypalConfig();
+  const canRecord = hasPaymentAdminClient();
+  const squareReady = square.configured && canRecord;
+  const paypalReady = paypal.configured && canRecord;
+  const enabled = squareReady || paypalReady;
+  return {
+    enabled,
+    mode: enabled ? ("online" as const) : ("separate_collection" as const),
+    canRecord,
+    square: {
+      configured: square.configured,
+      ready: squareReady,
+      label: square.configured ? "Ready" : "Not configured",
+      public: square.configured ? square.public : null,
+    },
+    paypal: {
+      configured: paypal.configured,
+      ready: paypalReady,
+      label: paypal.configured ? "Ready" : "Not configured",
+      public: paypal.configured ? paypal.public : null,
+    },
+    message: enabled
+      ? "Pay securely with Square or PayPal. The charged amount is always the store-confirmed order total."
+      : "Online payment is not available. Configure Square and/or PayPal sandbox credentials on the server before checkout can collect payment.",
+  };
 }
 
-// Future server-only adapters must load the order and amount from the database,
-// authenticate its owner (or an explicit guest capability), verify signed
-// provider events, and persist unique event IDs before changing payment_status.
-// Never accept a browser amount or treat a redirect as proof of payment.
+export type PublicPaymentConfig = ReturnType<typeof getPaymentReadiness>;

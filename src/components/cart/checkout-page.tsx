@@ -1,52 +1,99 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useRef, useState, useTransition } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { SmartBackButton } from "@/src/components/navigation/smart-back-button";
 import { useCart } from "@/src/lib/cart/cart-context";
 import { useRouter } from "next/navigation";
 import { placeCheckoutOrder } from "@/src/lib/checkout/actions";
-import { validateCheckout } from "@/src/lib/checkout/checkout-validation";
+import { validateCheckout, type CheckoutReceipt } from "@/src/lib/checkout/checkout-validation";
 import { readCheckoutAttempt, storeCheckoutAttempt, forgetCheckoutAttempt, type CheckoutAttempt } from "@/src/lib/checkout/checkout-session";
 import { STORE_CLOSED_MESSAGE } from "@/src/lib/store/constants";
 import { FulfillmentMethodCards } from "@/src/components/checkout/fulfillment-method-cards";
 import { useFulfillmentMethod } from "@/src/lib/fulfillment/use-fulfillment-method";
+import { PaymentMethodCards, type CheckoutPaymentProvider } from "@/src/components/checkout/payment-method-cards";
+import { SquareCardFields } from "@/src/components/checkout/square-card-fields";
+import { PaypalCheckoutButtons } from "@/src/components/checkout/paypal-checkout-buttons";
+import { OrderConfirmationExperience } from "@/src/components/checkout/order-confirmation-experience";
+import { capturePaypalPayment, markPaypalCancelled, payWithSquare, startPaypalPayment } from "@/src/lib/payments/actions";
+import type { PublicPaymentConfig } from "@/src/lib/payments/readiness";
+import type { PaymentEnvironment } from "@/src/lib/payments/public";
 
-
-export function CheckoutPage({ storeOpen }: { storeOpen: boolean }) {
+export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; payments: PublicPaymentConfig }) {
   const { items, subtotal, isLoaded, completePurchase } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [confirmation, setConfirmation] = useState<CheckoutAttempt | null>(null);
+  const [emailSent, setEmailSent] = useState(true);
   const [fulfillmentMethod] = useFulfillmentMethod();
   const [attempt, setAttempt] = useState<CheckoutAttempt | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentProvider | null>(
+    payments.square.ready ? "square" : payments.paypal.ready ? "paypal" : null,
+  );
+  const tokenizeRef = useRef<(() => Promise<string>) | null>(null);
   const submitting = useRef(false);
   const [, startTransition] = useTransition();
   const router = useRouter();
   const recovered = useRef(false);
+  const setTokenize = useCallback((tokenize: () => Promise<string>) => {
+    tokenizeRef.current = tokenize;
+  }, []);
+
   useEffect(() => {
     if (!isLoaded || !confirmation?.receipt || recovered.current) return;
     const timer = window.setTimeout(() => {
       recovered.current = true;
       try { completePurchase(confirmation.items, confirmation.receipt!.order_id); }
-      catch { setError("Your order is confirmed, but cart storage could not be updated. Keep your order number and review your cart before ordering again."); }
+      catch { setError("Your order is confirmed, but cart storage could not be updated. Keep your confirmation code and review your cart before ordering again."); }
     }, 0);
     return () => window.clearTimeout(timer);
   }, [isLoaded, confirmation, completePurchase]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const saved = readCheckoutAttempt();
-      if (saved?.receipt) setConfirmation(saved);
-      else setAttempt(saved);
+      if (saved?.receipt && (saved.receipt.payment_status === "paid" || saved.receipt.payment_status === "pending" && saved.receipt.confirmation_code && saved.receipt.email_sent === false && saved.receipt.payment_provider)) {
+        /* Pending unpaid checkouts resume at payment, not the success screen. */
+      }
+      if (saved?.receipt?.payment_status === "paid") {
+        setConfirmation(saved);
+        setEmailSent(saved.receipt.email_sent !== false);
+      } else if (saved) {
+        setAttempt(saved);
+      }
       setSessionReady(true);
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
+  function persist(next: CheckoutAttempt) {
+    try { storeCheckoutAttempt(next); } catch { /* Pending key remains available for recovery. */ }
+  }
+
+  async function ensureOrder(current: CheckoutAttempt): Promise<{ ok: true; attempt: CheckoutAttempt; receipt: CheckoutReceipt } | { ok: false; error: string; retrySame?: boolean }> {
+    if (current.receipt?.order_id) return { ok: true, attempt: current, receipt: current.receipt };
+    const result = await placeCheckoutOrder(current.request);
+    if (!result.success) return { ok: false, error: result.error, retrySame: result.retrySame };
+    const completed = { ...current, receipt: result.receipt };
+    persist(completed);
+    setAttempt(completed);
+    return { ok: true, attempt: completed, receipt: result.receipt };
+  }
+
+  function showPaid(next: CheckoutAttempt, sent: boolean) {
+    persist({ ...next, receipt: { ...next.receipt!, email_sent: sent, payment_status: next.receipt?.payment_status ?? "paid" } });
+    setEmailSent(sent);
+    setConfirmation(next);
+    try { completePurchase(next.items, next.receipt!.order_id); }
+    catch { setError("Your order is confirmed, but cart storage could not be updated. Review your cart before ordering again."); }
+    router.refresh();
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting.current || confirmation || !sessionReady) return;
+    if (!payments.enabled) { setError("Online payment is not available yet."); return; }
+    if (!paymentMethod) { setError("Choose Square or PayPal."); return; }
     const form = new FormData(event.currentTarget);
     const value = (name: string) => String(form.get(name) ?? "").trim();
     const candidate = attempt?.request ?? {
@@ -68,19 +115,29 @@ export function CheckoutPage({ storeOpen }: { storeOpen: boolean }) {
     setAttempt(pending);
     startTransition(async () => {
       try {
-        const result = await placeCheckoutOrder(pending.request);
-        if (!result.success) {
-          setError(result.error);
-          if (!result.retrySame) { forgetCheckoutAttempt(); setAttempt(null); }
+        if (paymentMethod === "square") {
+          const token = tokenizeRef.current ? await tokenizeRef.current() : "";
+          if (!token) { setError("Enter your card details to pay securely with Square."); return; }
+          const created = await ensureOrder(pending);
+          if (!created.ok) {
+            setError(created.error);
+            if (!created.retrySame) { forgetCheckoutAttempt(); setAttempt(null); }
+            return;
+          }
+          const paid = await payWithSquare({ idempotencyKey: created.attempt.request.idempotencyKey, sourceId: token });
+          if (!paid.success) {
+            setError(paid.error);
+            if (paid.pending && paid.receipt) {
+              const processing = { ...created.attempt, receipt: paid.receipt };
+              persist(processing);
+              setConfirmation(processing);
+            }
+            return;
+          }
+          showPaid({ ...created.attempt, receipt: { ...paid.receipt, email_sent: paid.emailSent } }, paid.emailSent);
           return;
         }
-        const completed = { ...pending, receipt: result.receipt };
-        // Persist the actual RPC receipt before navigation. An uncertain response keeps the same key.
-        try { storeCheckoutAttempt(completed); } catch { /* Pending key remains available for recovery. */ }
-        setConfirmation(completed);
-        try { completePurchase(pending.items, result.receipt.order_id); }
-        catch { setError("Your order is confirmed, but cart storage could not be updated. Review your cart before ordering again."); }
-        router.refresh();
+        setError("Use the PayPal button to pay securely.");
       } catch {
         setError("The connection was interrupted. Your cart is safe. Retry the pending order; it will use the same checkout key.");
       } finally {
@@ -88,6 +145,48 @@ export function CheckoutPage({ storeOpen }: { storeOpen: boolean }) {
         setIsSubmitting(false);
       }
     });
+  }
+
+  async function paypalCreateOrder() {
+    const form = document.querySelector("form");
+    const nativeForm = form instanceof HTMLFormElement ? form : null;
+    const value = (name: string) => String(nativeForm?.elements.namedItem(name) instanceof HTMLInputElement ? (nativeForm.elements.namedItem(name) as HTMLInputElement).value : "").trim();
+    const candidate = attempt?.request ?? {
+      items: items.map(({ productId, quantity }) => ({ product_id: productId, quantity })),
+      customerName: value("customerName"), customerEmail: value("customerEmail"), customerPhone: value("customerPhone"),
+      address: { address_line_1: value("addressLine1"), address_line_2: value("addressLine2"), city: value("city"), state: value("state"), postal_code: value("postalCode"), country: value("country") },
+      fulfillmentMethod, idempotencyKey: crypto.randomUUID(),
+    };
+    const validated = validateCheckout(candidate);
+    if (validated.error) throw new Error(validated.error);
+    const pending: CheckoutAttempt = attempt ?? {
+      request: validated.request!, items: items.map(({ productId, name, quantity }) => ({ productId, name, quantity })), createdAt: Date.now(),
+    };
+    storeCheckoutAttempt(pending);
+    setAttempt(pending);
+    const created = await ensureOrder(pending);
+    if (!created.ok) throw new Error(created.error);
+    const started = await startPaypalPayment({ idempotencyKey: created.attempt.request.idempotencyKey });
+    if (!started.success) throw new Error(started.error);
+    if ("paypalOrderId" in started) return started.paypalOrderId;
+    showPaid({ ...created.attempt, receipt: started.receipt }, started.emailSent);
+    throw new Error("This order is already paid.");
+  }
+
+  async function paypalApprove(paypalOrderId: string) {
+    if (!attempt?.request.idempotencyKey && !confirmation) return;
+    const key = (attempt ?? confirmation)!.request.idempotencyKey;
+    const paid = await capturePaypalPayment({ idempotencyKey: key, paypalOrderId });
+    if (!paid.success) {
+      setError(paid.error);
+      if (paid.pending && paid.receipt && attempt) {
+        const processing = { ...attempt, receipt: paid.receipt };
+        persist(processing);
+        setConfirmation(processing);
+      }
+      return;
+    }
+    showPaid({ ...(attempt ?? confirmation)!, receipt: { ...paid.receipt, email_sent: paid.emailSent } }, paid.emailSent);
   }
 
   if (!isLoaded || !sessionReady) {
@@ -99,35 +198,17 @@ export function CheckoutPage({ storeOpen }: { storeOpen: boolean }) {
   }
 
   if (confirmation?.receipt) {
+    const token = confirmation.receipt.guest_access_token;
     return (
       <main className="mx-auto w-full max-w-4xl px-5 py-10 lg:px-8">
-        <section className="rounded-2xl bg-[#f5f0e6] p-6 sm:p-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Order confirmed</p>
-          <h1 className="mt-2 text-4xl font-semibold text-forest-green">Thank you for your order</h1>
-          <p className="mt-4 leading-7 text-muted">
-            Your order number is <strong className="text-forest-green">{confirmation.receipt.order_number}</strong>.
-          </p>
-          {error && <p role="alert" className="mt-4 text-sm text-red-900">{error}</p>}
-          <div className="mt-6 rounded-xl border border-black/10 bg-white/60 p-4 text-sm text-muted">
-            <div className="flex justify-between gap-4">
-              <span>Status</span>
-              <span className="capitalize text-forest-green">{confirmation.receipt.status.replaceAll("_", " ")}</span>
-            </div>
-            <div className="mt-3 flex justify-between gap-4">
-              <span>Total</span>
-              <span className="font-semibold text-forest-green">${Number(confirmation.receipt.total).toFixed(2)}</span>
-            </div>
-          </div>
-          <div className="mt-6 space-y-3 text-sm text-forest-green">
-            <p>{confirmation.request.fulfillmentMethod === "delivery" ? "Delivery" : "Local pickup"} &middot; No online payment was collected at checkout.</p>
-            <h2 className="font-semibold">Items ordered</h2>
-            {confirmation.items.map((item) => <p key={item.productId}>{item.name} &times; {item.quantity}</p>)}
-            <p className="text-muted">Keep your order number for reference. Your total above was confirmed by the store.</p>
-          </div>
-          <Link onClick={() => { forgetCheckoutAttempt(); }} className="mt-8 inline-flex rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white" href="/shop">
-            Continue shopping
-          </Link>
-        </section>
+        {error && <p role="alert" className="mb-4 text-sm text-red-900">{error}</p>}
+        <OrderConfirmationExperience
+          emailSent={emailSent}
+          fulfillmentMethod={confirmation.request.fulfillmentMethod}
+          receipt={confirmation.receipt}
+          viewHref={token ? `/order/confirm/${token}` : "/account"}
+          onContinue={() => { forgetCheckoutAttempt(); }}
+        />
       </main>
     );
   }
@@ -135,6 +216,9 @@ export function CheckoutPage({ storeOpen }: { storeOpen: boolean }) {
   if (!attempt && items.length === 0) {
     return <main className="mx-auto max-w-2xl px-5 py-20 text-center"><h1 className="text-3xl font-semibold text-forest-green">Your cart is empty</h1><p className="mt-4 text-muted">Add products before checking out.</p><Link className="mt-8 inline-flex rounded-lg bg-forest-green px-6 py-3 text-white" href="/shop">Browse the shop</Link></main>;
   }
+
+  const squarePublic = payments.square.public;
+  const paypalPublic = payments.paypal.public;
 
   return (
     <main className="mx-auto w-full max-w-4xl px-5 py-10 lg:px-8">
@@ -144,7 +228,9 @@ export function CheckoutPage({ storeOpen }: { storeOpen: boolean }) {
         <h1 className="mt-2 text-4xl font-semibold text-forest-green">Checkout</h1>
         <p className="mt-4 max-w-lg leading-7 text-muted">
           {storeOpen
-            ? "Choose pickup or delivery, then place your order. Payment will be collected separately."
+            ? payments.enabled
+              ? payments.message
+              : "Checkout is ready for your details, but online payment is not configured yet."
             : STORE_CLOSED_MESSAGE}
         </p>
         {attempt && <div role="status" className="mt-6 space-y-2 rounded-xl border border-gold/40 bg-white p-4 text-sm break-words"><p>A previous order request is awaiting confirmation. Retry it below before starting another order. Your original items and details will be used.</p><p>{attempt.request.customerName} &middot; {attempt.request.customerEmail}</p><p>{attempt.request.fulfillmentMethod === "delivery" ? [attempt.request.address.address_line_1, attempt.request.address.city, attempt.request.address.country].filter(Boolean).join(", ") : "Local pickup"}</p></div>}
@@ -153,8 +239,8 @@ export function CheckoutPage({ storeOpen }: { storeOpen: boolean }) {
           <fieldset className="space-y-4 border-t border-black/10 pt-6">
             <legend className="font-semibold text-forest-green">Your details</legend>
             <div className="grid gap-4 sm:grid-cols-2">
+              <Field hint="We'll send your receipt and pickup/delivery updates here." label="Email address" name="customerEmail" required type="email" />
               <Field label="Full name" name="customerName" required />
-              <Field label="Email address" name="customerEmail" required type="email" />
             </div>
             <Field label="Phone number" name="customerPhone" required type="tel" />
           </fieldset>
@@ -186,6 +272,37 @@ export function CheckoutPage({ storeOpen }: { storeOpen: boolean }) {
 
           </fieldset>
 
+          <fieldset className="space-y-4 border-t border-black/10 pt-6">
+            <legend className="font-semibold text-forest-green">Payment</legend>
+            <PaymentMethodCards
+              paypalReady={payments.paypal.ready}
+              squareReady={payments.square.ready}
+              value={paymentMethod}
+              onChange={setPaymentMethod}
+            />
+            {paymentMethod === "square" && squarePublic?.applicationId && squarePublic.locationId && squarePublic.environment ? (
+              <SquareCardFields
+                applicationId={squarePublic.applicationId}
+                environment={squarePublic.environment as PaymentEnvironment}
+                locationId={squarePublic.locationId}
+                onReady={setTokenize}
+              />
+            ) : null}
+            {paymentMethod === "paypal" && paypalPublic?.clientId && paypalPublic.environment ? (
+              <PaypalCheckoutButtons
+                clientId={paypalPublic.clientId}
+                createOrder={paypalCreateOrder}
+                environment={paypalPublic.environment as PaymentEnvironment}
+                onApprove={paypalApprove}
+                onCancel={async () => {
+                  if (attempt?.request.idempotencyKey) await markPaypalCancelled({ idempotencyKey: attempt.request.idempotencyKey });
+                  setError("PayPal checkout was cancelled.");
+                }}
+                onError={() => setError("Payment couldn't be completed. Please try again.")}
+              />
+            ) : null}
+          </fieldset>
+
           {error ? (
             <p aria-live="polite" className="rounded-lg border border-red-900/15 bg-white/60 px-4 py-3 text-sm text-red-900">
               {error}
@@ -195,7 +312,11 @@ export function CheckoutPage({ storeOpen }: { storeOpen: boolean }) {
           <div className="rounded-xl bg-white/70 p-4 text-sm">
             <h2 className="font-semibold text-forest-green">Order summary</h2>
             {(attempt?.items ?? items).map((item) => <p className="mt-2" key={item.productId}>{item.name} &times; {item.quantity}</p>)}
-            <p className="mt-3 text-muted">Final prices and availability are checked by the store when you place your order. No online payment is collected.</p>
+            <p className="mt-3 text-muted">
+              {payments.enabled
+                ? "Final prices are confirmed by the store, then Square or PayPal is charged that verified total."
+                : "Online payment is not configured, so checkout cannot collect payment yet."}
+            </p>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-4 border-t border-black/10 pt-6">
             <div className="text-sm text-muted">
@@ -204,13 +325,17 @@ export function CheckoutPage({ storeOpen }: { storeOpen: boolean }) {
               </span>
               {attempt ? " — awaiting confirmed total" : ` · $${subtotal.toFixed(2)} estimated subtotal`}
             </div>
-            <button
-              className="rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={!storeOpen || isSubmitting || (!attempt && items.length === 0)}
-              type="submit"
-            >
-              {isSubmitting ? "Confirming order..." : attempt ? "Retry pending order" : "Place order"}
-            </button>
+            {paymentMethod === "paypal" ? (
+              <p className="text-sm font-semibold text-forest-green">Pay securely with PayPal</p>
+            ) : (
+              <button
+                className="rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={!storeOpen || !payments.enabled || isSubmitting || (!attempt && items.length === 0) || paymentMethod !== "square"}
+                type="submit"
+              >
+                {isSubmitting ? "Paying securely..." : attempt ? "Retry payment" : "Pay securely with Square"}
+              </button>
+            )}
           </div>
         </form>
         <div className="mt-6 flex flex-wrap gap-3">
@@ -226,11 +351,12 @@ export function CheckoutPage({ storeOpen }: { storeOpen: boolean }) {
   );
 }
 
-function Field({ label, name, required = false, type = "text" }: { label: string; name: string; required?: boolean; type?: string }) {
+function Field({ label, name, required = false, type = "text", hint }: { label: string; name: string; required?: boolean; type?: string; hint?: string }) {
   return (
     <label className="block text-sm font-medium">
       {label}
       <input className="mt-2 w-full rounded-lg border border-black/15 bg-white px-4 py-3" name={name} required={required} type={type} />
+      {hint ? <span className="mt-2 block text-xs font-normal text-muted">{hint}</span> : null}
     </label>
   );
 }

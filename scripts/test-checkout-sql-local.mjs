@@ -30,6 +30,8 @@ await db.exec(migration('20260923010000_harden_existing_checkout.sql'));
 await db.exec(migration('20260928020000_store_operations.sql'));
 await db.exec(migration('20260928054603_optional_inventory_bulk_categories.sql'));
 trackingReady=true;
+await db.exec(migration('20260928185900_payment_status_cancelled.sql'));
+await db.exec(migration('20260928190000_checkout_confirmation_payments.sql'));
 let passed=0;
 async function test(name,fn){await reset();await fn();passed++;console.log('PASS '+name);}
 await test('quantity > 1 uses database price, ignoring browser price',async()=>{const r=await checkout([{product_id:a,quantity:3,price:0.01}]);assert.equal(Number(r.total),30);assert.equal(await stock(a),7);});
@@ -125,6 +127,31 @@ await test('admin sees checkout customer/items/totals/stock and can update statu
  assert.equal((await db.query('select quantity from order_items where order_id=$1',[order.order_id])).rows[0].quantity,2);
  await db.query("update orders set status='processing' where id=$1",[order.order_id]);
  assert.equal((await db.query('select status from orders where id=$1',[order.order_id])).rows[0].status,'processing');assert.equal(await stock(a),8);
+});
+await test('confirmation codes are unique, non-sequential, and returned from checkout',async()=>{
+  const first=await checkout();
+  const second=await checkout([{product_id:b,quantity:1}]);
+  assert.match(first.confirmation_code,/^IVO-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{5}$/);
+  assert.match(second.confirmation_code,/^IVO-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{5}$/);
+  assert.notEqual(first.confirmation_code,second.confirmation_code);
+  assert.notEqual(first.confirmation_code,'IVO-00001');
+  assert.equal(first.guest_access_token.length,64);
+  await assert.rejects(db.query('update orders set confirmation_code=$1 where id=$2',[first.confirmation_code,second.order_id]));
+});
+await test('guest cannot read orders by confirmation code and token lookup is required',async()=>{
+  const order=await checkout();
+  await db.exec('set role anon');
+  assert.equal((await db.query('select * from orders')).rows.length,0);
+  assert.equal((await db.query('select * from get_checkout_confirmation($1)',[order.confirmation_code])).rows.length,0);
+  const found=(await db.query('select * from get_checkout_confirmation($1)',[order.guest_access_token])).rows;
+  assert.equal(found.length,1);
+  assert.equal(found[0].confirmation_code,order.confirmation_code);
+  await assert.rejects(db.query('select lookup_order_by_confirmation_code($1)',[order.confirmation_code]));
+});
+await test('pickup checkout still generates a confirmation code',async()=>{
+  const order=await checkout(undefined,undefined,{method:'local_pickup',address:'{"fulfillment_method":"local_pickup"}'});
+  assert.match(order.confirmation_code,/^IVO-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{5}$/);
+  assert.equal(order.fulfillment_method,'local_pickup');
 });
 // PGlite is single-session: simultaneous independent-connection row-lock behavior is NOT claimed.
 const sql=migration('20260923010000_harden_existing_checkout.sql');assert.match(sql,/pg_advisory_xact_lock/);assert.match(sql,/for update of p/);assert.match(sql,/order by value ->> 'product_id'/);

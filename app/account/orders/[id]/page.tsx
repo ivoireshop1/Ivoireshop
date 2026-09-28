@@ -19,11 +19,17 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
       <SmartBackButton fallbackHref="/account" fallbackLabel="Back to account" />
       <p className="mt-8 text-xs font-semibold uppercase tracking-[0.2em] text-gold">Order</p>
       <h1 className="mt-2 text-4xl font-semibold text-forest-green">{order.order_number}</h1>
+      {order.confirmation_code ? (
+        <p className="mt-3 font-mono text-2xl tracking-[0.16em] text-forest-green">{order.confirmation_code}</p>
+      ) : null}
       <p className="mt-3 text-muted">
         {new Date(order.created_at).toLocaleDateString()} · {orderStatusLabel(order.status, order.fulfillment_method)} · {fulfillmentLabel(order.fulfillment_method)}
       </p>
 
-      <p className="mt-3 capitalize text-muted">Payment: {order.payment_status}</p>
+      <p className="mt-3 capitalize text-muted">
+        Payment: {order.payment_status}
+        {order.payment_provider ? ` · ${order.payment_provider === "square" ? "Square" : order.payment_provider === "paypal" ? "PayPal" : order.payment_provider}` : ""}
+      </p>
       <section className="mt-8 rounded-2xl border border-black/10 bg-white p-6">
         <h2 className="font-semibold text-forest-green">Items</h2>
         <div className="mt-4 space-y-3">
