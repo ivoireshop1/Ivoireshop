@@ -49,12 +49,19 @@ await test('cache error cannot undo an already committed order',async()=>{cacheF
 await test('guest checkout does not create in-app notifications',async()=>{await placeCheckoutOrder(request());assert.ok(!rpcCalls.some(call=>call.name==='create_customer_order_notification'))});
 await test('signed-in checkout records confirmation and pending-payment notifications',async()=>{
   signedIn=true;
-  await placeCheckoutOrder(request());
+  const r=await placeCheckoutOrder(request());
+  assert.equal(r.success,true);
+  assert.equal(r.receipt.account_order,true);
   const notes=rpcCalls.filter(call=>call.name==='create_customer_order_notification');
   assert.equal(notes.length,2);
   assert.equal(notes[0].args.p_event_type,'order_confirmed');
   assert.equal(notes[1].args.p_event_type,'payment_pending');
   assert.ok(cachePaths.includes('/account/notifications'));
+});
+await test('guest checkout receipt is not an account order',async()=>{
+  const r=await placeCheckoutOrder(request());
+  assert.equal(r.success,true);
+  assert.equal(r.receipt.account_order,false);
 });
 await test('notification failure cannot undo a committed order',async()=>{signedIn=true;throwNotification=true;assert.equal((await placeCheckoutOrder(request())).success,true)});
 await test('duplicate cart lines aggregate and deterministic lock order',()=>{const r=request();r.items=[...r.items,...r.items];assert.equal(validateCheckout(r).request.items[0].quantity,4)});

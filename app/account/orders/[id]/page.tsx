@@ -6,7 +6,7 @@ import { SmartBackButton } from "@/src/components/navigation/smart-back-button";
 import { ReorderButton } from "@/src/components/customer/reorder-button";
 import { CopyConfirmationButton } from "@/src/components/checkout/copy-confirmation-button";
 import { fulfillmentLabel } from "@/src/lib/fulfillment/fulfillment";
-import { markNotificationOrderRead } from "@/src/lib/notifications/actions";
+import { markOrderNotificationsSeen } from "@/src/lib/notifications/queries";
 
 export default async function CustomerOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,7 +14,7 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
   if (result.kind === "unauthenticated") redirect("/login?next=" + encodeURIComponent("/account/orders/" + id));
   if (result.kind === "missing") notFound();
   const { order } = result;
-  await markNotificationOrderRead(order.id);
+  await markOrderNotificationsSeen(order.id);
   const items = order.order_items;
 
   return (

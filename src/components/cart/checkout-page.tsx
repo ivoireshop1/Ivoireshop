@@ -15,6 +15,7 @@ import { PaymentMethodCards, type CheckoutPaymentProvider } from "@/src/componen
 import { SquareCardFields } from "@/src/components/checkout/square-card-fields";
 import { PaypalCheckoutButtons } from "@/src/components/checkout/paypal-checkout-buttons";
 import { OrderConfirmationExperience } from "@/src/components/checkout/order-confirmation-experience";
+import { viewOrderHref } from "@/src/lib/checkout/view-order-href";
 import { capturePaypalPayment, markPaypalCancelled, payWithSquare, startPaypalPayment } from "@/src/lib/payments/actions";
 import type { PublicPaymentConfig } from "@/src/lib/payments/readiness";
 import type { PaymentEnvironment } from "@/src/lib/payments/public";
@@ -62,6 +63,18 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  function withReceipt(current: CheckoutAttempt, receipt: CheckoutReceipt): CheckoutAttempt {
+    return {
+      ...current,
+      receipt: {
+        ...current.receipt,
+        ...receipt,
+        account_order: current.receipt?.account_order === true || receipt.account_order === true,
+        guest_access_token: receipt.guest_access_token || current.receipt?.guest_access_token,
+      },
+    };
+  }
 
   function persist(next: CheckoutAttempt) {
     try { storeCheckoutAttempt(next); } catch { /* Pending key remains available for recovery. */ }
@@ -135,13 +148,13 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
           if (!paid.success) {
             setError(paid.error);
             if (paid.pending && paid.receipt) {
-              const processing = { ...created.attempt, receipt: paid.receipt };
+              const processing = withReceipt(created.attempt, paid.receipt);
               persist(processing);
               setConfirmation(processing);
             }
             return;
           }
-          showConfirmed({ ...created.attempt, receipt: { ...paid.receipt, email_sent: paid.emailSent } }, paid.emailSent);
+          showConfirmed(withReceipt(created.attempt, { ...paid.receipt, email_sent: paid.emailSent }), paid.emailSent);
           return;
         }
         setError("Use the PayPal button to pay securely.");
@@ -176,7 +189,7 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
     const started = await startPaypalPayment({ idempotencyKey: created.attempt.request.idempotencyKey });
     if (!started.success) throw new Error(started.error);
     if ("paypalOrderId" in started) return started.paypalOrderId;
-    showConfirmed({ ...created.attempt, receipt: started.receipt }, started.emailSent);
+    showConfirmed(withReceipt(created.attempt, started.receipt), started.emailSent);
     throw new Error("This order is already paid.");
   }
 
@@ -187,13 +200,13 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
     if (!paid.success) {
       setError(paid.error);
       if (paid.pending && paid.receipt && attempt) {
-        const processing = { ...attempt, receipt: paid.receipt };
+        const processing = withReceipt(attempt, paid.receipt);
         persist(processing);
         setConfirmation(processing);
       }
       return;
     }
-    showConfirmed({ ...(attempt ?? confirmation)!, receipt: { ...paid.receipt, email_sent: paid.emailSent } }, paid.emailSent);
+    showConfirmed(withReceipt((attempt ?? confirmation)!, { ...paid.receipt, email_sent: paid.emailSent }), paid.emailSent);
   }
 
   if (!isLoaded || !sessionReady) {
@@ -205,7 +218,6 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
   }
 
   if (confirmation?.receipt) {
-    const token = confirmation.receipt.guest_access_token;
     return (
       <main className="mx-auto w-full max-w-4xl px-5 py-10 lg:px-8">
         {error && <p role="alert" className="mb-4 text-sm text-red-900">{error}</p>}
@@ -213,7 +225,11 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
           emailSent={emailSent}
           fulfillmentMethod={confirmation.request.fulfillmentMethod}
           receipt={confirmation.receipt}
-          viewHref={token ? `/order/confirm/${token}` : "/account"}
+          viewHref={viewOrderHref({
+            orderId: confirmation.receipt.order_id,
+            guestAccessToken: confirmation.receipt.guest_access_token,
+            accountOrder: confirmation.receipt.account_order === true,
+          })}
           onContinue={() => { forgetCheckoutAttempt(); }}
         />
       </main>

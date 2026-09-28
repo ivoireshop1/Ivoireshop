@@ -25,7 +25,7 @@ export function OrderConfirmationExperience({
   receipt: CheckoutReceipt;
   fulfillmentMethod: "delivery" | "local_pickup" | string;
   emailSent: boolean;
-  viewHref: string;
+  viewHref?: string | null;
   onContinue?: () => void;
 }) {
   const pickup = fulfillmentMethod === "local_pickup";
@@ -76,9 +76,11 @@ export function OrderConfirmationExperience({
           : "We'll keep you updated as your order makes its way to you."}
       </p>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
-        <Link className="min-h-11 rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white" href={viewHref}>
-          View Order
-        </Link>
+        {viewHref ? (
+          <Link className="min-h-11 rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white" href={viewHref}>
+            View Order
+          </Link>
+        ) : null}
         <Link className="min-h-11 rounded-lg border border-forest-green/20 px-5 py-3 text-sm font-semibold text-forest-green" href="/shop" onClick={onContinue}>
           Continue Shopping
         </Link>

@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { pageMetadata } from "@/src/lib/page-metadata";
 import { getGuestOrderConfirmation } from "@/src/lib/checkout/guest-order";
+import { getCustomerOrder } from "@/src/lib/customer/orders";
+import { viewOrderHref } from "@/src/lib/checkout/view-order-href";
 import { OrderConfirmationExperience } from "@/src/components/checkout/order-confirmation-experience";
 import { SiteHeader } from "@/src/components/layout/site-header";
 import { Footer } from "@/src/components/layout/footer";
@@ -12,6 +14,14 @@ export default async function GuestOrderConfirmationPage({ params }: { params: P
   const result = await getGuestOrderConfirmation(token);
   if (result.kind === "missing") notFound();
   const order = result.order;
+  const orderId = String(order.order_id);
+  let accountOrder = false;
+  try {
+    const owned = await getCustomerOrder(orderId);
+    accountOrder = owned.kind === "found";
+  } catch {
+    accountOrder = false;
+  }
   return (
     <>
       <SiteHeader />
@@ -20,7 +30,7 @@ export default async function GuestOrderConfirmationPage({ params }: { params: P
           emailSent={false}
           fulfillmentMethod={order.fulfillment_method}
           receipt={{
-            order_id: String(order.order_id),
+            order_id: orderId,
             order_number: String(order.order_number),
             status: String(order.status),
             total: Number(order.total),
@@ -32,7 +42,11 @@ export default async function GuestOrderConfirmationPage({ params }: { params: P
             payment_method: order.payment_method,
             payment_provider: order.payment_provider,
           }}
-          viewHref={`/order/confirm/${token}`}
+          viewHref={viewOrderHref({
+            orderId,
+            guestAccessToken: token,
+            accountOrder,
+          })}
         />
       </main>
       <Footer />

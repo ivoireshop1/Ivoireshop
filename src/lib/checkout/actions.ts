@@ -29,6 +29,11 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
     if (error) return checkoutFailure(error.code, error.message);
     const row = Array.isArray(data) ? data[0] : null;
     if (!row?.order_id || !row.order_number || !row.status || !Number.isFinite(Number(row.total)) || Number(row.total) < 0) return checkoutFailure();
+    let user = null;
+    try {
+      const auth = await supabase.auth.getUser();
+      user = auth.data.user;
+    } catch { /* The order is already committed; View Order can still use the guest token. */ }
     const receipt: CheckoutReceipt = {
       order_id: String(row.order_id),
       order_number: String(row.order_number),
@@ -43,6 +48,7 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
       payment_method: row.payment_method ? String(row.payment_method) : null,
       payment_provider: row.payment_provider ? String(row.payment_provider) : null,
       email_sent: false,
+      account_order: Boolean(user),
     };
     let emailSent = false;
     try {
@@ -56,7 +62,6 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
     }
     receipt.email_sent = emailSent;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       await recordCheckoutNotifications(supabase, receipt.order_id, receipt.payment_status, emailSent, Boolean(user));
     } catch {
       console.error("[order-notification] confirmation failed", { orderNumber: receipt.order_number });

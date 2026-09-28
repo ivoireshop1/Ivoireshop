@@ -29,3 +29,15 @@ export async function getUnreadNotificationCount() {
   if (error) return 0;
   return count ?? 0;
 }
+
+export async function markOrderNotificationsSeen(orderId: string) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId)) return;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  try {
+    await supabase.rpc("mark_customer_notifications_read", { p_order_id: orderId });
+  } catch {
+    /* Opening the order must not fail because a notification flag could not update. */
+  }
+}
