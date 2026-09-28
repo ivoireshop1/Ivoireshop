@@ -4,7 +4,8 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { createClient } from "@/src/lib/supabase/browser";
 import { useRouter } from "next/navigation";
-import { resolveAuthRedirectTarget, sanitizeReturnPath } from "@/src/lib/navigation/smart-navigation";
+import { resolveAuthRedirectTarget } from "@/src/lib/navigation/smart-navigation";
+import { resolvePostLoginPath } from "@/src/lib/auth/post-login";
 
 type AuthMode = "login" | "signup" | "reset" | "update-password";
 
@@ -23,7 +24,6 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
-  const redirectTarget = resolveAuthRedirectTarget(searchParams, "/account");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,7 +57,14 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
     }
 
     if (mode === "login") {
-      router.push(sanitizeReturnPath(searchParams.get("next") ?? searchParams.get("returnTo") ?? redirectTarget, "/account"));
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const { data: profile } = user
+        ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
+        : { data: null };
+      router.push(resolvePostLoginPath(profile?.role, searchParams.get("next") ?? searchParams.get("returnTo")));
+      router.refresh();
       return;
     }
 
@@ -109,7 +116,8 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
             <label className="block text-sm font-medium">
               Password
               <input
-                className="mt-2 w-full rounded-lg border border-black/15 px-4 py-3"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                className="mt-2 min-h-11 w-full rounded-lg border border-black/15 px-4 py-3"
                 type="password"
                 minLength={8}
                 value={password}

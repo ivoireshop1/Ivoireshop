@@ -25,14 +25,14 @@ export default function LogoutButton() {
   }
 
   return (
-    <div className="mt-8">
+    <div className="mt-4">
       <button
-        className="rounded-lg border border-forest-green px-4 py-2 text-sm font-medium text-forest-green disabled:opacity-60"
+        className="min-h-11 rounded-lg border border-forest-green px-4 py-2 text-sm font-medium text-forest-green disabled:opacity-60"
         disabled={isLoggingOut}
         onClick={handleLogout}
         type="button"
       >
-        {isLoggingOut ? "Logging out..." : "Log out"}
+        {isLoggingOut ? "Logging out..." : "Sign out"}
       </button>
       {errorMessage && <p className="mt-2 text-sm text-red-700">{errorMessage}</p>}
     </div>

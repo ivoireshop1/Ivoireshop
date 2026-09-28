@@ -30,7 +30,7 @@ export default async function AdminCategoriesPage({
 
       {params.error && (
         <p className="rounded-2xl border border-[#7f1d1d]/20 bg-[#7f1d1d]/5 px-4 py-3 text-sm text-[#7f1d1d]">
-          {params.error === "category_in_use" ? "This category still has products assigned to it. Move or reassign them before deleting it." : "The category could not be saved. Check the values and try again."}
+          {params.error === "category_in_use" ? "This category still has products assigned to it. Move or reassign them before deleting it." : params.error === "canonical_duplicate" ? "Cosmetics, Foods, and Ivoire Market already exist. Do not create a duplicate." : params.error === "canonical_locked" ? "The three primary categories cannot be renamed or deleted." : "The category could not be saved. Check the values and try again."}
         </p>
       )}
       {params.success && (

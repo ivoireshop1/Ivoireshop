@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { createClient } from "@/src/lib/supabase/server";
 import type { CatalogCategory, Product } from "@/src/types/catalog";
+import { canonicalSortIndex } from "@/src/lib/catalog/canonical-categories";
 import { toOneRelation } from "@/src/lib/catalog/relation-utils";
 
 type ProductRow = {
@@ -53,14 +54,16 @@ export async function getCategories(): Promise<CatalogCategory[]> {
       console.error("Catalog categories query failed:", error.message);
       return [];
     }
-    return (data ?? []).map((category) => ({
-      id: category.id,
-      name: category.name,
-      slug: category.slug,
-      description: category.description,
-      imageUrl: category.image_url,
-      isActive: category.is_active,
-    }));
+    return (data ?? [])
+      .map((category) => ({
+        id: category.id,
+        name: category.name,
+        slug: category.slug,
+        description: category.description,
+        imageUrl: category.image_url,
+        isActive: category.is_active,
+      }))
+      .sort((a, b) => canonicalSortIndex(a.name) - canonicalSortIndex(b.name) || a.name.localeCompare(b.name));
   } catch (error) {
     console.error("Catalog categories connection failed:", error);
     return [];

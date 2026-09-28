@@ -158,7 +158,7 @@ export default async function AdminProductsPage({
         </form>
       </section>
 
-      <section className="rounded-[28px] border border-[#173f35]/10 bg-white p-4 shadow-[0_12px_32px_rgba(23,63,53,0.04)]">
+      <section className="overflow-x-auto rounded-[28px] border border-[#173f35]/10 bg-white p-4 shadow-[0_12px_32px_rgba(23,63,53,0.04)]">
         <div className="hidden items-center gap-3 border-b border-[#173f35]/10 px-3 pb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-[#6b6b6b] md:grid md:grid-cols-[1.6fr_0.8fr_0.7fr_0.8fr_0.9fr_0.7fr_0.8fr]">
           <span>Product</span>
           <span>Category</span>

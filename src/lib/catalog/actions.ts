@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/src/lib/auth/guards";
+import { canonicalSlugForName, isCanonicalSlug } from "@/src/lib/catalog/canonical-categories";
 import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
 import { nextOrderStatuses } from "@/src/lib/orders/status";
 
@@ -18,9 +19,33 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+function moneyAmount(value: string) {
+  if (!/^\d+(\.\d{1,2})?$/.test(value.trim())) return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? Number(number.toFixed(2)) : null;
+}
+
 function positiveNumber(value: string) {
   const number = Number(value);
   return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
+export type SaveProductResult =
+  | { success: true; id: string }
+  | { success: false; code: string; error: string };
+
+const SAVE_ERRORS: Record<string, string> = {
+  product_required: "Enter a valid name, category, price, and whole-number stock quantity.",
+  missing_name: "Add a product name before publishing.",
+  missing_category: "Add a category before publishing.",
+  missing_price: "Add a valid price before publishing.",
+  missing_stock: "Add a valid stock quantity before publishing.",
+  missing_image: "Add at least one product image before publishing.",
+  product_save_failed: "The product could not be saved. Your entries were kept.",
+};
+
+function saveError(code: string): SaveProductResult {
+  return { success: false, code, error: SAVE_ERRORS[code] ?? SAVE_ERRORS.product_save_failed };
 }
 
 export async function createCategory(formData: FormData) {
@@ -30,6 +55,10 @@ export async function createCategory(formData: FormData) {
 
   if (!name || !slug) {
     redirect("/admin/categories?error=category_required");
+  }
+
+  if (canonicalSlugForName(name, slug)) {
+    redirect("/admin/categories?error=canonical_duplicate");
   }
 
   const { error } = await supabase.from("categories").insert({
@@ -57,6 +86,17 @@ export async function updateCategory(formData: FormData) {
 
   if (!id || !name || !slug) {
     redirect("/admin/categories?error=category_required");
+  }
+
+  const { data: existing } = await supabase.from("categories").select("slug").eq("id", id).maybeSingle();
+  if (existing && isCanonicalSlug(existing.slug) && (slug !== existing.slug || canonicalSlugForName(name, slug) !== existing.slug)) {
+    redirect("/admin/categories?error=canonical_locked");
+  }
+  if (!existing?.slug && canonicalSlugForName(name, slug)) {
+    redirect("/admin/categories?error=canonical_duplicate");
+  }
+  if (existing && !isCanonicalSlug(existing.slug) && canonicalSlugForName(name, slug)) {
+    redirect("/admin/categories?error=canonical_duplicate");
   }
 
   const { error } = await supabase
@@ -87,6 +127,11 @@ export async function deleteCategory(formData: FormData) {
     redirect("/admin/categories?error=category_delete_failed");
   }
 
+  const { data: existing } = await supabase.from("categories").select("slug").eq("id", id).maybeSingle();
+  if (existing && isCanonicalSlug(existing.slug)) {
+    redirect("/admin/categories?error=canonical_locked");
+  }
+
   const { data: productUsage, error: usageError } = await supabase
     .from("products")
     .select("id")
@@ -110,7 +155,7 @@ export async function deleteCategory(formData: FormData) {
   redirect("/admin/categories?success=category_deleted");
 }
 
-export async function saveProduct(formData: FormData) {
+export async function saveProduct(formData: FormData): Promise<SaveProductResult> {
   const { supabase } = await requireAdmin();
   const id = textValue(formData, "id");
   const name = textValue(formData, "name");
@@ -119,10 +164,10 @@ export async function saveProduct(formData: FormData) {
   const description = textValue(formData, "description");
   const priceInput = textValue(formData, "price");
   const stockQuantityInput = textValue(formData, "stock_quantity");
-  const price = priceInput ? positiveNumber(priceInput) : null;
+  const price = priceInput ? moneyAmount(priceInput) : null;
   const stockQuantityValue = stockQuantityInput ? positiveNumber(stockQuantityInput) : null;
   const compareAtPriceValue = textValue(formData, "compare_at_price")
-    ? positiveNumber(textValue(formData, "compare_at_price"))
+    ? moneyAmount(textValue(formData, "compare_at_price"))
     : null;
   const status = textValue(formData, "status") || "active";
   const isFeatured = formData.get("is_featured") === "on";
@@ -136,10 +181,9 @@ export async function saveProduct(formData: FormData) {
     (stockQuantityInput && (stockQuantityValue === null || !Number.isInteger(stockQuantityValue))) ||
     (textValue(formData, "compare_at_price") && compareAtPriceValue === null)
   ) {
-    redirect(`${id ? `/admin/products/${id}` : "/admin/products/new"}?error=product_required`);
+    return saveError("product_required");
   }
 
-  // Parse images from images_json or text inputs
   const imagesJsonRaw = textValue(formData, "images_json");
   let imageUrls: string[] = [];
   if (imagesJsonRaw) {
@@ -158,30 +202,23 @@ export async function saveProduct(formData: FormData) {
       .filter(Boolean);
   }
 
-  // Publishing Requirements validation for active products
   imageUrls = [...new Set(imageUrls.map((url) => url.trim()))];
   if (imageUrls.some((url) => !isPersistentImageUrl(url))) {
-    redirect(`${id ? `/admin/products/${id}` : "/admin/products/new"}?error=missing_image`);
+    return saveError("missing_image");
   }
   const wantsActive = !isDraft && status !== "hidden";
 
   if (!name || !slug) {
-    redirect(`${id ? `/admin/products/${id}` : "/admin/products/new"}?error=missing_name`);
+    return saveError("missing_name");
   }
 
   if (wantsActive) {
-    if (!categoryId) {
-      redirect(`${id ? `/admin/products/${id}` : "/admin/products/new"}?error=missing_category`);
-    }
-    if (price === null || price <= 0) {
-      redirect(`${id ? `/admin/products/${id}` : "/admin/products/new"}?error=missing_price`);
-    }
+    if (!categoryId) return saveError("missing_category");
+    if (price === null || price <= 0) return saveError("missing_price");
     if (stockQuantityValue === null || stockQuantityValue < 0 || !Number.isInteger(stockQuantityValue)) {
-      redirect(`${id ? `/admin/products/${id}` : "/admin/products/new"}?error=missing_stock`);
+      return saveError("missing_stock");
     }
-    if (imageUrls.length === 0) {
-      redirect(`${id ? `/admin/products/${id}` : "/admin/products/new"}?error=missing_image`);
-    }
+    if (imageUrls.length === 0) return saveError("missing_image");
   }
 
   const hasCompletePricing = price !== null && stockQuantityValue !== null && Number.isInteger(stockQuantityValue);
@@ -198,7 +235,6 @@ export async function saveProduct(formData: FormData) {
     compare_at_price: compareAtPriceValue,
     sku: textValue(formData, "sku") || null,
     stock_quantity: normalizedStockQuantity,
-    // Publish only after the persistent image records have been saved.
     is_active: false,
     is_featured: isFeatured,
     needs_pricing: !hasCompletePricing,
@@ -210,8 +246,7 @@ export async function saveProduct(formData: FormData) {
   const { data: savedProduct, error } = await query;
 
   if (error) {
-    console.error("Product save database error:", error);
-    redirect(`${id ? `/admin/products/${id}` : "/admin/products/new"}?error=product_save_failed`);
+    return saveError("product_save_failed");
   }
 
   if (savedProduct) {
@@ -219,7 +254,7 @@ export async function saveProduct(formData: FormData) {
       .from("product_images")
       .select("id")
       .eq("product_id", savedProduct.id);
-    if (readImagesError) redirect(`/admin/products/${savedProduct.id}?error=product_save_failed`);
+    if (readImagesError) return saveError("product_save_failed");
     const { error: insertImagesError } = imageUrls.length
       ? await supabase.from("product_images").insert(
           imageUrls.map((image_url, position) => ({
@@ -231,20 +266,19 @@ export async function saveProduct(formData: FormData) {
         )
       : { error: null };
     if (insertImagesError) {
-      console.error("Product images save error:", insertImagesError);
-      redirect(`${id ? `/admin/products/${id}` : "/admin/products/new"}?error=product_save_failed`);
+      return saveError("product_save_failed");
     }
     if (oldImages?.length) {
       const { error: deleteImagesError } = await supabase.from("product_images")
         .delete().eq("product_id", savedProduct.id).in("id", oldImages.map((image) => image.id));
-      if (deleteImagesError) redirect(`/admin/products/${savedProduct.id}?error=product_save_failed`);
+      if (deleteImagesError) return saveError("product_save_failed");
     }
   }
 
   if (isActive && savedProduct) {
     const { error: publishError } = await supabase.from("products")
       .update({ is_active: true }).eq("id", savedProduct.id);
-    if (publishError) redirect(`/admin/products/${savedProduct.id}?error=product_save_failed`);
+    if (publishError) return saveError("product_save_failed");
   }
 
   revalidatePath("/admin/products");
@@ -254,7 +288,7 @@ export async function saveProduct(formData: FormData) {
   revalidatePath("/shop");
   revalidatePath("/categories");
   if (slug) revalidatePath(`/product/${slug}`);
-  redirect("/admin/products?success=product_saved");
+  return { success: true, id: savedProduct?.id ?? id };
 }
 
 export async function duplicateProduct(formData: FormData) {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/src/lib/supabase/server";
 import { siteConfig } from "@/src/lib/site";
-import { sanitizeReturnPath } from "@/src/lib/navigation/smart-navigation";
+import { resolvePostLoginPath } from "@/src/lib/auth/post-login";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -19,5 +19,12 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/login?error=auth_callback", siteConfig.url));
   }
 
-  return NextResponse.redirect(new URL(sanitizeReturnPath(next, "/account"), siteConfig.url));
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
+    : { data: null };
+
+  return NextResponse.redirect(new URL(resolvePostLoginPath(profile?.role, next), siteConfig.url));
 }

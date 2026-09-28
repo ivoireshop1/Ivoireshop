@@ -31,7 +31,7 @@ export async function requireAdmin() {
     .maybeSingle();
 
   if (error || profile?.role !== "admin") {
-    redirect("/?error=unauthorized");
+    redirect("/account?error=unauthorized");
   }
 
   return { supabase, user, profile };

@@ -8,6 +8,7 @@ import { ProductGrid } from "@/src/components/product/product-grid";
 import { ProductSearch } from "@/src/components/product/product-search";
 import { createClient } from "@/src/lib/supabase/browser";
 import { toOneRelation } from "@/src/lib/catalog/relation-utils";
+import { CANONICAL_CATEGORIES } from "@/src/lib/catalog/canonical-categories";
 import type { Product } from "@/src/types/catalog";
 
 type ShopExperienceProps = {
@@ -76,7 +77,7 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "" }: 
     void loadProducts();
   }, []);
 
-  const activeCategories = useMemo(() => [...new Set(products.map((product) => product.category))].sort(), [products]);
+  const activeCategories = useMemo(() => CANONICAL_CATEGORIES.map((category) => category.name), []);
   const normalizedProducts = useMemo(() => products.filter((product) => {
     const matchesCategory = category === "All" || product.category === category;
     const text = `${product.name} ${product.category}`.toLowerCase();

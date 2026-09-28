@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
-import { useState, useRef, useTransition, type ChangeEvent, type FormEvent } from "react";
+import { useState, useRef, type ChangeEvent, type FormEvent } from "react";
 
 export type CategoryOption = { id: string; name: string };
 
@@ -42,12 +42,11 @@ export function ProductForm({
   categories,
   product,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<{ success: true; id?: string } | { success: false; error: string; code?: string }>;
   categories: CategoryOption[];
   product?: ProductValues;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [, startTransition] = useTransition();
 
   // 1. Basic Info State
   const [name, setName] = useState(product?.name ?? "");
@@ -92,6 +91,7 @@ export function ProductForm({
   // 5. Validation & Submitting State
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
 
   // Auto-slug generator when typing name
   function handleNameChange(e: ChangeEvent<HTMLInputElement>) {
@@ -228,6 +228,7 @@ export function ProductForm({
     }
 
     setIsSaving(true);
+    setSaveMessage("");
 
     const formData = new FormData();
     if (product?.id) {
@@ -256,18 +257,28 @@ export function ProductForm({
       formData.set("gallery_images", allUrls.slice(1).join("\n"));
     }
 
-    startTransition(async () => {
-      try {
-        await action(formData);
-      } finally {
-        setIsSaving(false);
+    try {
+      const result = await action(formData);
+      if (!result.success) {
+        setValidationErrors([result.error]);
+        return;
       }
-    });
+      setSaveMessage("Saved. Price, quantity, category, status, and images were kept.");
+    } catch {
+      setValidationErrors(["The product could not be saved. Your entries were kept."]);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
     <form className="mt-6 max-w-4xl space-y-6" onSubmit={(event) => handleSubmit(event, false)}>
       {/* Validation Errors Alert */}
+      {saveMessage ? (
+        <p aria-live="polite" className="rounded-2xl border border-[#173f35]/15 bg-[#173f35]/5 px-4 py-3 text-sm text-[#173f35]">
+          {saveMessage}
+        </p>
+      ) : null}
       {validationErrors.length > 0 && (
         <div
           aria-live="polite"
@@ -384,11 +395,9 @@ export function ProductForm({
                 <input
                   className="mt-2 w-full rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-[#173f35] outline-none transition focus:border-[#173f35]/35"
                   inputMode="decimal"
-                  min="0"
                   onChange={(e) => setPrice(e.target.value)}
                   placeholder="0.00"
-                  step="0.01"
-                  type="number"
+                  type="text"
                   value={price}
                 />
                 <span className="mt-1 block text-xs text-[#6b6b6b]">
@@ -401,11 +410,9 @@ export function ProductForm({
                 <input
                   className="mt-2 w-full rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-[#173f35] outline-none transition focus:border-[#173f35]/35"
                   inputMode="decimal"
-                  min="0"
                   onChange={(e) => setCompareAtPrice(e.target.value)}
                   placeholder="0.00"
-                  step="0.01"
-                  type="number"
+                  type="text"
                   value={compareAtPrice}
                 />
                 <span className="mt-1 block text-xs text-[#6b6b6b]">

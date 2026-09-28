@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/src/lib/supabase/server";
 import LogoutButton from "@/src/components/auth/logout-button";
+import { ChangePasswordForm } from "@/src/components/auth/change-password-form";
 import { Footer } from "@/src/components/layout/footer";
 import { Header } from "@/src/components/layout/header";
 import { CustomerHero } from "@/src/components/customer/customer-hero";
@@ -74,7 +75,7 @@ export default async function AccountPage() {
           <QuickAction href="/shop" label="Shop" />
           <QuickAction href="/wishlist" label="Wishlist" />
           <QuickAction href="#recent-orders" label="Orders" />
-          <QuickAction href="#addresses" label="Account" />
+          <QuickAction href="#security" label="Security" />
         </section>
 
         <section className="mt-12" id="wishlist-preview">
@@ -192,6 +193,14 @@ export default async function AccountPage() {
             <p className="mt-4 text-sm text-muted">Add a delivery address for faster checkout.</p>
           )}
           <AddAddressForm />
+        </article>
+        <article className="rounded-2xl border border-black/10 bg-white p-6" id="security">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gold">Security</p>
+          <h2 className="mt-2 text-xl font-semibold text-forest-green">Change password</h2>
+          <p className="mt-2 text-sm text-muted">Update the password for this signed-in customer account.</p>
+          <div className="mt-5">
+            <ChangePasswordForm />
+          </div>
         </article>
         <article className="rounded-2xl border border-black/10 bg-white p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gold">Your account</p>
