@@ -6,7 +6,12 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/browser";
 import { getPublicSiteUrl } from "@/src/lib/site";
 import { completePasswordRecovery, revokeServerSession } from "@/src/lib/auth/password";
-import { applyNewPasswordAndRevokeSession, canSetRecoveryPassword } from "@/src/lib/auth/recovery-session";
+import {
+  applyNewPasswordAndRevokeSession,
+  canSetRecoveryPassword,
+  parseRecoveryFragment,
+} from "@/src/lib/auth/recovery-session";
+import { RECOVERY_INVALID_PATH, RECOVERY_SET_PASSWORD_PATH } from "@/src/lib/auth/recovery";
 
 const PRIVACY_MESSAGE = "If an account exists for that email, we've sent password reset instructions.";
 
@@ -28,21 +33,45 @@ export function PasswordRecoveryExperience({
   const [message, setMessage] = useState("");
   const [ready, setReady] = useState(false);
   const [checking, setChecking] = useState(stage === "set");
+  const [consumingLink, setConsumingLink] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
     const hash = typeof window !== "undefined" ? window.location.hash : "";
     const hashParams = new URLSearchParams(hash.replace(/^#/, ""));
     const hashError = hashParams.get("error") || hashParams.get("error_code");
     if (hashError) {
-      router.replace("/reset-password?error=invalid");
+      router.replace(RECOVERY_INVALID_PATH);
       return;
     }
+
+    const fragment = parseRecoveryFragment(hash);
+    const supabase = createClient();
 
     let cancelled = false;
     let invalidTimer: ReturnType<typeof setTimeout> | undefined;
     async function hydrate() {
+      // A fragment grant is handled before anything else so that links already
+      // routed to the invalid page still work.
+      if (fragment) {
+        setConsumingLink(true);
+        setChecking(true);
+        const { data, error } = await supabase.auth.setSession({
+          access_token: fragment.accessToken,
+          refresh_token: fragment.refreshToken,
+        });
+        if (cancelled) return;
+        if (data.session && !error) {
+          window.history.replaceState(null, "", RECOVERY_SET_PASSWORD_PATH);
+          setReady(true);
+          setChecking(false);
+          setConsumingLink(false);
+          return;
+        }
+        setConsumingLink(false);
+        router.replace(RECOVERY_INVALID_PATH);
+        return;
+      }
       if (invalid) {
         setChecking(false);
         return;
@@ -56,7 +85,7 @@ export function PasswordRecoveryExperience({
       }
       if (stage === "set") {
         invalidTimer = setTimeout(() => {
-          if (!cancelled) router.replace("/reset-password?error=invalid");
+          if (!cancelled) router.replace(RECOVERY_INVALID_PATH);
         }, 2500);
         return;
       }
@@ -66,10 +95,18 @@ export function PasswordRecoveryExperience({
     void hydrate();
 
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if (canSetRecoveryPassword({ stage, event, hasSession: Boolean(session) })) {
+      if (
+        canSetRecoveryPassword({
+          stage,
+          event,
+          hasSession: Boolean(session),
+          fromRecoveryLink: Boolean(fragment),
+        })
+      ) {
         if (invalidTimer) clearTimeout(invalidTimer);
         setReady(true);
         setChecking(false);
+        setConsumingLink(false);
       }
     });
     return () => {
@@ -114,7 +151,15 @@ export function PasswordRecoveryExperience({
     router.refresh();
   }
 
-  if (invalid) {
+  if (consumingLink || (checking && stage === "set")) {
+    return (
+      <main className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-6 py-16">
+        <p className="text-sm text-muted">Preparing your password reset...</p>
+      </main>
+    );
+  }
+
+  if (invalid && !ready) {
     return (
       <main className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-6 py-16">
         <section className="w-full rounded-2xl bg-surface p-8 shadow-sm">
@@ -125,14 +170,6 @@ export function PasswordRecoveryExperience({
             Request a new link
           </Link>
         </section>
-      </main>
-    );
-  }
-
-  if (checking && stage === "set") {
-    return (
-      <main className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-6 py-16">
-        <p className="text-sm text-muted">Preparing your password reset...</p>
       </main>
     );
   }

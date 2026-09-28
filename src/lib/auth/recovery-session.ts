@@ -12,10 +12,28 @@ export function canSetRecoveryPassword(input: {
   stage?: string;
   event?: string | null;
   hasSession: boolean;
+  fromRecoveryLink?: boolean;
 }) {
   if (!input.hasSession) return false;
   if (input.event === "PASSWORD_RECOVERY") return true;
+  if (input.fromRecoveryLink) return true;
   return input.stage === "set";
+}
+
+export type RecoveryFragment = { accessToken: string; refreshToken: string };
+
+// Reads the tokens Supabase appends as a URL fragment on a recovery redirect.
+// Returns null for anything that is not a usable recovery grant.
+export function parseRecoveryFragment(hash: string | null | undefined): RecoveryFragment | null {
+  if (!hash) return null;
+  const params = new URLSearchParams(String(hash).replace(/^#/, ""));
+  if (params.get("error") || params.get("error_code")) return null;
+  const type = params.get("type");
+  if (type && type !== "recovery") return null;
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+  if (!accessToken || !refreshToken) return null;
+  return { accessToken, refreshToken };
 }
 
 export async function applyNewPasswordAndRevokeSession(

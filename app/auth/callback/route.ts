@@ -38,8 +38,14 @@ export async function GET(request: NextRequest) {
     if (error) {
       return redirect(sitePath(recovered ? RECOVERY_INVALID_PATH : "/login?error=auth_callback"));
     }
+  } else if (recovered) {
+    // Supabase delivers recovery tokens in the URL fragment when the email link
+    // was not issued through PKCE. A route handler cannot read a fragment, so
+    // hand the request to the reset page, which the browser reaches with the
+    // fragment still attached.
+    return NextResponse.redirect(sitePath(RECOVERY_SET_PASSWORD_PATH));
   } else {
-    return NextResponse.redirect(sitePath(recovered ? RECOVERY_INVALID_PATH : "/login?error=missing_code"));
+    return NextResponse.redirect(sitePath("/login?error=missing_code"));
   }
 
   if (recovered || isPasswordRecoveryPath(next)) {
