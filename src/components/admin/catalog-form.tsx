@@ -394,6 +394,9 @@ export function ProductForm({
                 >
                   {aiBusy ? "✨ Analyzing product..." : "✨ Fill with AI"}
                 </button>
+                <p className="text-xs text-[#6b6b6b]">
+                  AI may suggest name and description in English. Category, price, quantity, and listing status stay as you set them. Review before Save Draft or Activate.
+                </p>
                 {aiMessage ? (
                   <p aria-live="polite" className="text-sm text-[#173f35]">
                     {aiMessage}{" "}
