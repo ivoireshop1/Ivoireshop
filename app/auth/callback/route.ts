@@ -1,15 +1,15 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/src/lib/supabase/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { siteConfig } from "@/src/lib/site";
 import { resolvePostLoginPath } from "@/src/lib/auth/post-login";
 import { isPasswordRecoveryPath, RECOVERY_INVALID_PATH, RECOVERY_SET_PASSWORD_PATH } from "@/src/lib/auth/recovery";
 import { sanitizeReturnPath } from "@/src/lib/navigation/smart-navigation";
+import { createRouteHandlerClient } from "@/src/lib/supabase/route-handler";
 
 function sitePath(path: string) {
   return new URL(path, `${siteConfig.url.replace(/\/$/, "")}/`);
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(sitePath(RECOVERY_INVALID_PATH));
   }
 
-  const supabase = await createClient();
+  const { supabase, redirect } = createRouteHandlerClient(request);
   let recovered = type === "recovery" || isPasswordRecoveryPath(next);
 
   if (tokenHash && type) {
@@ -30,20 +30,20 @@ export async function GET(request: Request) {
       token_hash: tokenHash,
     });
     if (error) {
-      return NextResponse.redirect(sitePath(type === "recovery" || recovered ? RECOVERY_INVALID_PATH : "/login?error=auth_callback"));
+      return redirect(sitePath(type === "recovery" || recovered ? RECOVERY_INVALID_PATH : "/login?error=auth_callback"));
     }
     recovered = recovered || type === "recovery";
   } else if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
-      return NextResponse.redirect(sitePath(recovered ? RECOVERY_INVALID_PATH : "/login?error=auth_callback"));
+      return redirect(sitePath(recovered ? RECOVERY_INVALID_PATH : "/login?error=auth_callback"));
     }
   } else {
     return NextResponse.redirect(sitePath(recovered ? RECOVERY_INVALID_PATH : "/login?error=missing_code"));
   }
 
   if (recovered || isPasswordRecoveryPath(next)) {
-    return NextResponse.redirect(sitePath(RECOVERY_SET_PASSWORD_PATH));
+    return redirect(sitePath(RECOVERY_SET_PASSWORD_PATH));
   }
 
   const {
@@ -53,5 +53,5 @@ export async function GET(request: Request) {
     ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
     : { data: null };
 
-  return NextResponse.redirect(sitePath(resolvePostLoginPath(profile?.role, next)));
+  return redirect(sitePath(resolvePostLoginPath(profile?.role, next)));
 }

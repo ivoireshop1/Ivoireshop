@@ -13,6 +13,7 @@ import { buildProductPath } from "@/src/lib/navigation/smart-navigation";
 import { WishlistButton } from "@/src/components/wishlist/wishlist-button";
 import { ProductReviewForm } from "@/src/components/product/product-review-form";
 import { toOneRelation } from "@/src/lib/catalog/relation-utils";
+import { starDisplay } from "@/src/lib/reviews/public";
 
 const loadProduct = cache(async (slug: string) => {
   const supabase = await createClient();
@@ -22,7 +23,7 @@ const loadProduct = cache(async (slug: string) => {
     .eq("slug", slug)
     .maybeSingle();
 
-  if (error) throw new Error("Product could not be loaded.");
+  if (error) return null;
   return productRow;
 });
 
@@ -82,9 +83,10 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     supabase.auth.getUser(),
   ]);
 
-  const { data: ownReview } = user
+  const ownReviewResult = user
     ? await supabase.from("product_reviews").select("rating, review_text, review_title, status").eq("product_id", product.id).eq("user_id", user.id).maybeSingle()
     : { data: null };
+  const ownReview = ownReviewResult.data;
 
   const related = (relatedRows ?? []).map((item) => {
     const image = item.product_images?.slice().sort((a, b) => a.position - b.position)[0]?.image_url;
@@ -110,7 +112,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const currentProductPath = buildProductPath(product.slug);
   return <><SiteHeader /><main className="mx-auto max-w-7xl px-5 py-10 lg:px-8"><SmartBackButton /><nav aria-label="Breadcrumb" className="mt-2 text-sm text-muted"><Link href="/">Home</Link> <span className="mx-2">/</span> <Link href="/shop">Shop</Link> <span className="mx-2">/</span> <span>{product.name}</span></nav>
     <div className="mt-10 grid gap-10 lg:grid-cols-2 lg:items-start"><div className="relative aspect-square overflow-hidden rounded-3xl bg-[#eadfce]"><ProductImage alt={product.name} className="object-cover" fill loading="eager" priority sizes="(max-width: 1024px) 100vw, 50vw" src={product.image} />{product.isComingSoon ? <span className="absolute left-4 top-4 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white">Coming Soon</span> : null}</div><div className="lg:py-8"><p className="text-sm text-muted">{product.category}</p><div className="flex items-start justify-between gap-4"><h1 className="mt-3 text-4xl font-semibold text-forest-green">{product.name}</h1><WishlistButton productId={product.id} productName={product.name} /></div>{product.isComingSoon ? <p className="mt-4 text-2xl font-semibold text-forest-green">Coming soon</p> : <p className="mt-4 text-2xl font-semibold text-forest-green">${product.price.toFixed(2)}</p>}{product.isComingSoon ? <p className="mt-2 text-sm text-muted">This product is not available to order yet.</p> : <p className="mt-2 text-sm text-muted">{product.weight}</p>}<p className="mt-8 max-w-lg leading-7 text-muted">{product.shortDescription || product.description}</p><div className="mt-10">{product.isComingSoon ? <p className="rounded-xl border border-forest-green/15 bg-[#f5f0e6] px-4 py-3 text-sm text-muted">Ordering will open when this product becomes Active.</p> : <AddToCart product={product} />}</div></div></div>
-    <section className="mt-16 border-t border-black/10 pt-10"><div className="flex flex-wrap items-baseline justify-between gap-3"><h2 className="text-3xl font-semibold text-forest-green">Customer Reviews</h2><p className="text-sm text-muted">{reviewSummary?.review_count ? <><span className="font-semibold text-gold" aria-hidden="true">{"★".repeat(Math.max(0, Math.min(5, Math.round(Number(reviewSummary.average_rating)))))}{"☆".repeat(5 - Math.max(0, Math.min(5, Math.round(Number(reviewSummary.average_rating)))))}</span> {Number(reviewSummary.average_rating).toFixed(1)} · {reviewSummary.review_count} {reviewSummary.review_count === 1 ? "review" : "reviews"}</> : "No reviews yet"}</p></div><div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.75fr)]"><div className="space-y-6">{reviews?.length ? reviews.map((review) => <article className="border-b border-black/10 pb-6" key={review.id}><p className="text-gold" aria-label={`${review.rating} out of 5 stars`}>{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</p>{review.review_title ? <h3 className="mt-2 font-semibold text-forest-green">{review.review_title}</h3> : null}{review.review_text && <p className="mt-3 leading-7 text-foreground">&ldquo;{review.review_text}&rdquo;</p>}<p className="mt-3 text-sm text-muted">{review.display_name}{review.verified_purchase ? " · Verified Purchase" : ""} · {new Date(review.created_at).toLocaleDateString()}</p></article>) : <p className="text-sm text-muted">Be the first to share your experience with this product.</p>}</div><ProductReviewForm isAuthenticated={Boolean(user)} productId={product.id} productSlug={product.slug} review={ownReview} /></div></section>
+    <section className="mt-16 border-t border-black/10 pt-10"><div className="flex flex-wrap items-baseline justify-between gap-3"><h2 className="text-3xl font-semibold text-forest-green">Customer Reviews</h2><p className="text-sm text-muted">{reviewSummary?.review_count ? <><span className="font-semibold text-gold" aria-hidden="true">{(() => { const stars = starDisplay(Number(reviewSummary.average_rating)); return `${"★".repeat(stars.filled)}${"☆".repeat(stars.empty)}`; })()}</span> {Number(reviewSummary.average_rating).toFixed(1)} · {reviewSummary.review_count} {reviewSummary.review_count === 1 ? "review" : "reviews"}</> : "No reviews yet"}</p></div><div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.75fr)]"><div className="space-y-6">{reviews?.length ? reviews.map((review) => { const stars = starDisplay(review.rating); return <article className="border-b border-black/10 pb-6" key={review.id}><p className="text-gold" aria-label={`${stars.filled} out of 5 stars`}>{"★".repeat(stars.filled)}{"☆".repeat(stars.empty)}</p>{review.review_title ? <h3 className="mt-2 font-semibold text-forest-green">{review.review_title}</h3> : null}{review.review_text && <p className="mt-3 leading-7 text-foreground">&ldquo;{review.review_text}&rdquo;</p>}<p className="mt-3 text-sm text-muted">{review.display_name}{review.verified_purchase ? " · Verified Purchase" : ""} · {new Date(review.created_at).toLocaleDateString()}</p></article>; }) : <p className="text-sm text-muted">Be the first to share your experience with this product.</p>}</div><ProductReviewForm isAuthenticated={Boolean(user)} productId={product.id} productSlug={product.slug} review={ownReview} /></div></section>
     <RelatedProducts products={related.length ? related : []} returnTo={returnTo ?? currentProductPath} />
   </main><Footer /></>;
 }

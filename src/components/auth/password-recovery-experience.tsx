@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/browser";
 import { getPublicSiteUrl } from "@/src/lib/site";
-import { changeAuthenticatedPassword } from "@/src/lib/auth/password";
+import { applyNewPasswordAndRevokeSession, canSetRecoveryPassword } from "@/src/lib/auth/recovery-session";
 
 const PRIVACY_MESSAGE = "If an account exists for that email, we've sent password reset instructions.";
 
@@ -25,7 +25,7 @@ export function PasswordRecoveryExperience({
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [message, setMessage] = useState("");
-  const [ready, setReady] = useState(stage === "set");
+  const [ready, setReady] = useState(false);
   const [checking, setChecking] = useState(stage === "set");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -48,7 +48,7 @@ export function PasswordRecoveryExperience({
       }
       const { data: { session } } = await supabase.auth.getSession();
       if (cancelled) return;
-      if (session) {
+      if (canSetRecoveryPassword({ stage, hasSession: Boolean(session) })) {
         setReady(true);
         setChecking(false);
         return;
@@ -59,12 +59,13 @@ export function PasswordRecoveryExperience({
         }, 2500);
         return;
       }
+      setReady(false);
       setChecking(false);
     }
     void hydrate();
 
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && session) {
+      if (canSetRecoveryPassword({ stage, event, hasSession: Boolean(session) })) {
         if (invalidTimer) clearTimeout(invalidTimer);
         setReady(true);
         setChecking(false);
@@ -91,15 +92,20 @@ export function PasswordRecoveryExperience({
     event.preventDefault();
     setIsSubmitting(true);
     setMessage("");
-    const result = await changeAuthenticatedPassword({ nextPassword: password, confirmPassword: confirm });
+    const supabase = createClient();
+    const result = await applyNewPasswordAndRevokeSession(supabase, {
+      nextPassword: password,
+      confirmPassword: confirm,
+    });
     if (!result.success) {
       setIsSubmitting(false);
       setMessage(result.error);
       return;
     }
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login?reset=success");
+    if (!result.signedOut) {
+      await supabase.auth.signOut({ scope: "local" });
+    }
+    router.replace("/login?reset=success");
     router.refresh();
   }
 
@@ -132,6 +138,7 @@ export function PasswordRecoveryExperience({
         <section className="w-full rounded-2xl bg-surface p-8 shadow-sm">
           <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-gold">Ivoire Shop</p>
           <h1 className="text-3xl font-semibold text-forest-green">Choose a new password</h1>
+          <p className="mt-3 text-sm leading-6 text-muted">After you save, you will be signed out and must sign in with the new password.</p>
           <form className="mt-8 space-y-5" onSubmit={setPasswordSubmit}>
             <label className="block text-sm font-medium">
               New password

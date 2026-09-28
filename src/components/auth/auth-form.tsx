@@ -79,7 +79,9 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
       return;
     }
 
-    setMessage("Your password has been updated.");
+    await supabase.auth.signOut({ scope: "global" });
+    router.replace("/login?reset=success");
+    router.refresh();
   }
 
   const copy = content[mode];

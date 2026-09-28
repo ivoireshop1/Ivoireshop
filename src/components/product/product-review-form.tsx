@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { deleteProductReview, initialReviewActionState, saveProductReview } from "@/src/lib/reviews/actions";
+import { REVIEW_SUBMITTED_MESSAGE } from "@/src/lib/reviews/public";
 
 type Review = { rating: number; review_text: string | null; review_title?: string | null; status?: string | null } | null;
 
@@ -36,7 +37,7 @@ export function ProductReviewForm({ productId, productSlug, isAuthenticated, rev
         <textarea className="mt-2 min-h-28 w-full rounded-lg border border-black/15 px-3 py-2" defaultValue={review?.review_text ?? ""} maxLength={1000} name="review_text" />
       </label>
       <button className="rounded-lg bg-forest-green px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60" disabled={rating === 0 || isSaving} type="submit">{isSaving ? "Saving..." : review ? "Update review" : "Submit review"}</button>
-      {(saveState.error || saveState.success) && <p className="text-sm text-muted" role="status">{saveState.error ?? "Your review was submitted for moderation."}</p>}
+      {(saveState.error || saveState.success) && <p className={`text-sm ${saveState.error ? "text-[#7f1d1d]" : "text-muted"}`} role={saveState.error ? "alert" : "status"}>{saveState.error ?? REVIEW_SUBMITTED_MESSAGE}</p>}
     </form>
     {review && <form action={deleteAction} className="mt-3"><input name="product_id" type="hidden" value={productId} /><input name="product_slug" type="hidden" value={productSlug} /><button className="text-sm font-semibold text-muted underline underline-offset-4 disabled:opacity-60" disabled={isDeleting} type="submit">{isDeleting ? "Removing..." : "Delete your review"}</button>{(deleteState.error || deleteState.success) && <p className="mt-2 text-sm text-muted" role="status">{deleteState.error ?? "Your review has been removed."}</p>}</form>}
   </section>;
