@@ -111,9 +111,15 @@ await test("rpc mapping hides privilege noise", () => {
 });
 
 const sql = fs.readFileSync("supabase/migrations/20260928070000_review_submit_safety.sql", "utf8");
+const grantSql = fs.readFileSync("supabase/migrations/20260928072000_review_admin_update.sql", "utf8");
 await test("submit rpc writes pending reviews", () => {
   assert.match(sql, /status = 'pending'|status\)[\s\S]*'pending'/);
   assert.match(sql, /p_review_title/);
+});
+
+await test("admin update grant does not add a customer insert path", () => {
+  assert.match(grantSql, /grant update on table public\.product_reviews to authenticated/i);
+  assert.doesNotMatch(grantSql, /grant insert/i);
 });
 
 console.log(`${n} review tests passed.`);

@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/browser";
 import { getPublicSiteUrl } from "@/src/lib/site";
+import { completePasswordRecovery, revokeServerSession } from "@/src/lib/auth/password";
 import { applyNewPasswordAndRevokeSession, canSetRecoveryPassword } from "@/src/lib/auth/recovery-session";
 
 const PRIVACY_MESSAGE = "If an account exists for that email, we've sent password reset instructions.";
@@ -93,17 +94,21 @@ export function PasswordRecoveryExperience({
     setIsSubmitting(true);
     setMessage("");
     const supabase = createClient();
-    const result = await applyNewPasswordAndRevokeSession(supabase, {
-      nextPassword: password,
-      confirmPassword: confirm,
-    });
+    const { data: { session } } = await supabase.auth.getSession();
+    const result = session
+      ? await applyNewPasswordAndRevokeSession(supabase, {
+          nextPassword: password,
+          confirmPassword: confirm,
+        })
+      : await completePasswordRecovery({ nextPassword: password, confirmPassword: confirm });
     if (!result.success) {
       setIsSubmitting(false);
       setMessage(result.error);
       return;
     }
+    if (session) await revokeServerSession();
     if (!result.signedOut) {
-      await supabase.auth.signOut({ scope: "local" });
+      await supabase.auth.signOut({ scope: "global" });
     }
     router.replace("/login?reset=success");
     router.refresh();
