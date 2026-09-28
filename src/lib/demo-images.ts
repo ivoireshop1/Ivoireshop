@@ -1,5 +1,5 @@
 export const demoImages = {
-  heroCustomer: "/demo/hero-customer.png",
+  heroCustomer: "/demo/hero-customer.svg",
   categories: {
     africanFoods: "/demo/category-pantry.svg",
     riceAndGrains: "/demo/category-grains.svg",

@@ -1,3 +1,13 @@
+export function isNextImageSrc(src: string) {
+  if (src.startsWith("/") && !src.startsWith("//") && !src.includes("\\")) return true;
+  try {
+    const host = new URL(src).hostname;
+    return host.endsWith(".supabase.co") || host === "images.unsplash.com";
+  } catch {
+    return false;
+  }
+}
+
 export function isPersistentImageUrl(value: string): boolean {
   if (value.startsWith("/") && !value.startsWith("//") && !value.includes("\\")) return true;
   try {

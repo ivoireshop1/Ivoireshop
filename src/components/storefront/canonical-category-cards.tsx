@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { CANONICAL_CATEGORIES } from "@/src/lib/catalog/canonical-categories";
+import { isNextImageSrc } from "@/src/lib/catalog/image-url";
 
 export function CanonicalCategoryCards({
   categories,
@@ -29,7 +30,7 @@ export function CanonicalCategoryCards({
           key={category.slug}
         >
           <div className="relative aspect-[4/3] overflow-hidden rounded-[18px] bg-[#dfe8df]">
-            {category.imageUrl ? (
+            {category.imageUrl && isNextImageSrc(category.imageUrl) ? (
               <Image alt={category.name} className="object-cover transition duration-300 group-hover:scale-105" fill sizes="(max-width: 640px) 90vw, 30vw" src={category.imageUrl} unoptimized />
             ) : (
               <div className="flex h-full items-end p-5">
