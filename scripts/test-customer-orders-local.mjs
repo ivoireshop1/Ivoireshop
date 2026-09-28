@@ -27,12 +27,13 @@ function load(file){if(modules.has(file))return modules.get(file);const exports=
  if(name.startsWith('@/'))return load(name.slice(2)+'.ts');
  if(name.startsWith('.'))return load(path.resolve(path.dirname(file), name)+'.ts');
  throw Error(name);
-};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require,URL,console,crypto:globalThis.crypto,process});modules.set(file,exports);return exports;}
+};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require,URL,console,crypto:globalThis.crypto,process,FormData,fetch});modules.set(file,exports);return exports;}
 const customer=load('src/lib/customer/orders.ts');
 const actions=load('src/lib/catalog/actions.ts');
 const status=load('src/lib/orders/status.ts');
 const messages=load('src/lib/communications/order-messages.ts');
 const payments=load('src/lib/payments/readiness.ts');
+const emailActions=load('src/lib/admin/email-actions.ts');
 let count=0;
 async function test(name,fn){user={id:'customer-a'};admin=true;calls=[];writes=[];cachePaths=[];failRead=false;stale=false;order={id,user_id:user.id,status:'pending',fulfillment_method:'delivery',payment_status:'pending'};await fn();count++;console.log('PASS '+name);}
 const form=(next='confirmed',expected='pending')=>new Map([['id',id],['status',next],['expected_status',expected]]);
@@ -51,10 +52,22 @@ await test('terminal cancellation cannot reopen',async()=>{order.status='cancell
 await test('pickup cannot be shipped',async()=>{order.status='processing';order.fulfillment_method='local_pickup';await assert.rejects(actions.updateOrderStatus(form('shipped','processing')),/invalid_transition/)});
 await test('stale form cannot update newer state',async()=>{order.status='confirmed';await assert.rejects(actions.updateOrderStatus(form('processing')),/invalid_transition/)});
 await test('concurrent status race rejects zero-row update',async()=>{stale=true;await assert.rejects(actions.updateOrderStatus(form()),/status_update_failed/);assert.equal(writes.length,0)});
-await test('pickup completion is labelled collected',()=>assert.equal(status.orderStatusLabel('delivered','local_pickup'),'Collected'));
+await test('pickup completion is labelled completed',()=>assert.equal(status.orderStatusLabel('delivered','local_pickup'),'Completed'));
 const messageOrder=()=>({order_number:'IV-TEST',customer_email:'test@example.com',status:'pending',payment_status:'pending',fulfillment_method:'delivery',total:'24',order_items:[{product_name:'<script>alert(1)</script>',quantity:2}]});
 await test('confirmation template escapes HTML and shows unpaid state',()=>{const m=messages.prepareOrderMessage('received',messageOrder());assert.ok(!m.html.includes('<script>'));assert.ok(m.html.includes('&lt;script&gt;'));assert.ok(m.text.includes('Payment: pending'));assert.ok(m.text.includes('$24.00'))});
 await test('fulfillment and cancellation templates require actual matching state',()=>{assert.throws(()=>messages.prepareOrderMessage('fulfilled',messageOrder()));assert.throws(()=>messages.prepareOrderMessage('cancelled',messageOrder()));for(const [event,state]of [['fulfilled','delivered'],['cancelled','cancelled'],['status_updated','processing']])assert.ok(messages.prepareOrderMessage(event,{...messageOrder(),status:state}).text)});
 await test('unconfigured email cannot claim sent',async()=>assert.equal((await messages.deliverOrderMessage()).sent,false));
 await test('payment remains explicitly disabled without adapter',()=>assert.equal(payments.getPaymentReadiness().enabled,false));
+await test('non-admin cannot preview or send test emails',async()=>{admin=false;await assert.rejects(emailActions.getAdminOrderEmailPreview(id),/unauthorized/);await assert.rejects(emailActions.sendAdminTestEmail(new FormData()),/unauthorized/)});
+await test('admin email preview uses stored order and does not send',async()=>{
+  order={...order,order_number:'IV-TEST',confirmation_code:'IVO-8K4P2',customer_email:'test@example.com',customer_name:'Ada',total:'24.00',order_items:[{product_name:'Rice',product_price:'12.00',quantity:2}]};
+  const preview=await emailActions.getAdminOrderEmailPreview(id);
+  assert.match(preview.text,/IVO-8K4P2/);
+  assert.match(preview.text,/Payment pending/);
+  assert.doesNotMatch(preview.text,/Payment received/);
+});
+await test('test email is blocked when provider is not configured',async()=>{
+  const form=new FormData();form.set('recipient','qa@example.com');
+  await assert.rejects(emailActions.sendAdminTestEmail(form),/email_not_configured/);
+});
 console.log(`${count} customer-order/admin/communications tests passed; database transport mocked, no emails or payments sent.`);

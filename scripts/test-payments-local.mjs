@@ -30,6 +30,7 @@ const signature = load('src/lib/payments/square-signature.ts');
 const messages = load('src/lib/communications/order-messages.ts');
 const readiness = load('src/lib/payments/readiness.ts');
 const validation = load('src/lib/checkout/checkout-validation.ts');
+const mask = load('src/lib/customer/mask-email.ts');
 const email = load('src/lib/email/send.ts');
 
 let count = 0;
@@ -103,7 +104,7 @@ await test('paid confirmation email contains code and never card data', () => {
   assert.equal(message.subject, 'Your Ivoire Shop order is confirmed — IVO-8K4P2');
   assert.match(message.text, /IVO-8K4P2/);
   assert.match(message.text, /Rice × 2/);
-  assert.match(message.text, /Keep this confirmation code handy/);
+  assert.match(message.text, /Keep this code handy/);
   assert.doesNotMatch(message.text, /cvv|card number|pan/i);
   assert.throws(() => messages.preparePaidOrderConfirmation({
     order_number: 'IV-TEST',
@@ -134,8 +135,43 @@ await test('delivery confirmation omits pickup copy and includes address', () =>
     order_items: [{ product_name: 'Oil', quantity: 1, product_price: '10.00' }],
   });
   assert.match(message.text, /1 Main St/);
-  assert.match(message.text, /makes its way to you/);
-  assert.doesNotMatch(message.text, /Keep this confirmation code handy when picking up/);
+  assert.match(message.text, /Delivery selected/);
+  assert.doesNotMatch(message.text, /Pickup selected/);
+});
+
+await test('unpaid confirmation email never claims payment received', () => {
+  const pending = {
+    order_number: 'IV-TEST',
+    confirmation_code: 'IVO-8K4P2',
+    customer_email: 'customer@email.com',
+    customer_name: 'Ada',
+    payment_status: 'pending',
+    payment_method: 'not_collected',
+    payment_provider: null,
+    fulfillment_method: 'local_pickup',
+    total: '24.00',
+    order_items: [{ product_name: 'Rice', product_price: '12.00', quantity: 2 }],
+  };
+  const unpaid = messages.prepareOrderConfirmation(pending);
+  assert.match(unpaid.text, /Payment pending/);
+  assert.match(unpaid.text, /Pickup selected/);
+  assert.doesNotMatch(unpaid.text, /Payment received/);
+  const processing = messages.prepareOrderConfirmation({ ...pending, payment_provider: 'square', payment_method: 'square' });
+  assert.match(processing.text, /Payment processing/);
+  assert.throws(() => messages.prepareOrderConfirmation({ ...pending, payment_status: 'failed' }));
+});
+
+await test('test email is labeled TEST and does not claim paid', () => {
+  const message = messages.prepareTestOrderConfirmation('qa@example.com');
+  assert.match(message.subject, /^TEST — /);
+  assert.match(message.text, /TEST EMAIL/);
+  assert.match(message.text, /Payment pending/);
+  assert.doesNotMatch(message.text, /Payment received/);
+});
+
+await test('email masks shared-screen addresses', () => {
+  assert.equal(mask.maskEmail('jane@gmail.com'), 'j***@gmail.com');
+  assert.equal(mask.maskEmail('Ada@Example.COM'), 'a***@example.com');
 });
 
 await test('unconfigured providers do not enable checkout payment', () => {
@@ -155,6 +191,8 @@ await test('email provider failure does not throw and does not claim sent', asyn
   assert.equal(result.sent, false);
   assert.equal(result.reason, 'provider_not_configured');
   assert.equal((await messages.deliverOrderMessage()).sent, false);
+  assert.equal(email.getEmailProviderStatus().configured, false);
+  assert.equal(email.getEmailProviderStatus().recommended, 'resend');
 });
 
 await test('duplicate webhook event id is treated as already processed', async () => {

@@ -16,6 +16,7 @@ function firstConfiguredProvider() {
   const resend = (process.env.RESEND_API_KEY ?? "").trim();
   const postmark = (process.env.POSTMARK_SERVER_TOKEN ?? "").trim();
   const sendgrid = (process.env.SENDGRID_API_KEY ?? "").trim();
+  // Recommended later: Resend. Keep Postmark/SendGrid as compatible fallbacks.
   if (from && resend) return { name: "resend" as const, from, key: resend };
   if (from && postmark) return { name: "postmark" as const, from, key: postmark };
   if (from && sendgrid) return { name: "sendgrid" as const, from, key: sendgrid };
@@ -27,6 +28,8 @@ export function getEmailProviderStatus() {
   return {
     configured: Boolean(provider),
     provider: provider?.name ?? null,
+    recommended: "resend" as const,
+    recommendedVars: ["ORDER_EMAIL_FROM", "RESEND_API_KEY"] as const,
   };
 }
 

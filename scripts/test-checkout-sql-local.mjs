@@ -32,6 +32,7 @@ await db.exec(migration('20260928054603_optional_inventory_bulk_categories.sql')
 trackingReady=true;
 await db.exec(migration('20260928185900_payment_status_cancelled.sql'));
 await db.exec(migration('20260928190000_checkout_confirmation_payments.sql'));
+await db.exec(migration('20260928210000_fix_confirmation_code_alphabet.sql'));
 let passed=0;
 async function test(name,fn){await reset();await fn();passed++;console.log('PASS '+name);}
 await test('quantity > 1 uses database price, ignoring browser price',async()=>{const r=await checkout([{product_id:a,quantity:3,price:0.01}]);assert.equal(Number(r.total),30);assert.equal(await stock(a),7);});

@@ -8,6 +8,7 @@ import { isPersistentImageUrl, productImagesObjectPath } from "@/src/lib/catalog
 import { resolvePersistedSku } from "@/src/lib/catalog/sku";
 import { uniqueProductSlug } from "@/src/lib/catalog/product-slug";
 import { nextOrderStatuses } from "@/src/lib/orders/status";
+import { notifyFulfillmentEmail } from "@/src/lib/communications/fulfillment-email";
 
 function textValue(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -525,6 +526,7 @@ export async function updateOrderStatus(formData: FormData) {
   const { data: changed, error } = await supabase.from("orders").update({ status })
     .eq("id", id).eq("status", current.status).select("id").maybeSingle();
   if (error || !changed) redirect(`/admin/orders/${id}?error=status_update_failed`);
+  await notifyFulfillmentEmail(supabase, id, status);
 
   revalidatePath("/admin");
   revalidatePath("/admin/orders");

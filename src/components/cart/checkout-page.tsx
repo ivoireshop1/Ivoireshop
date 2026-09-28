@@ -24,7 +24,7 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [confirmation, setConfirmation] = useState<CheckoutAttempt | null>(null);
-  const [emailSent, setEmailSent] = useState(true);
+  const [emailSent, setEmailSent] = useState(false);
   const [fulfillmentMethod] = useFulfillmentMethod();
   const [attempt, setAttempt] = useState<CheckoutAttempt | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
@@ -52,12 +52,9 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const saved = readCheckoutAttempt();
-      if (saved?.receipt && (saved.receipt.payment_status === "paid" || saved.receipt.payment_status === "pending" && saved.receipt.confirmation_code && saved.receipt.email_sent === false && saved.receipt.payment_provider)) {
-        /* Pending unpaid checkouts resume at payment, not the success screen. */
-      }
-      if (saved?.receipt?.payment_status === "paid") {
+      if (saved?.receipt?.payment_status === "paid" || (saved?.receipt?.payment_status === "pending" && saved.receipt.confirmation_code && !saved.receipt.payment_provider)) {
         setConfirmation(saved);
-        setEmailSent(saved.receipt.email_sent !== false);
+        setEmailSent(saved.receipt.email_sent === true);
       } else if (saved) {
         setAttempt(saved);
       }
@@ -80,10 +77,10 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
     return { ok: true, attempt: completed, receipt: result.receipt };
   }
 
-  function showPaid(next: CheckoutAttempt, sent: boolean) {
-    persist({ ...next, receipt: { ...next.receipt!, email_sent: sent, payment_status: next.receipt?.payment_status ?? "paid" } });
+  function showConfirmed(next: CheckoutAttempt, sent: boolean) {
+    persist({ ...next, receipt: { ...next.receipt!, email_sent: sent } });
     setEmailSent(sent);
-    setConfirmation(next);
+    setConfirmation({ ...next, receipt: { ...next.receipt!, email_sent: sent } });
     try { completePurchase(next.items, next.receipt!.order_id); }
     catch { setError("Your order is confirmed, but cart storage could not be updated. Review your cart before ordering again."); }
     router.refresh();
@@ -92,8 +89,8 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting.current || confirmation || !sessionReady) return;
-    if (!payments.enabled) { setError("Online payment is not available yet."); return; }
-    if (!paymentMethod) { setError("Choose Square or PayPal."); return; }
+    if (!payments.enabled) { /* Unpaid Place Order is allowed when Square/PayPal are not configured. */ }
+    else if (!paymentMethod) { setError("Choose Square or PayPal."); return; }
     const form = new FormData(event.currentTarget);
     const value = (name: string) => String(form.get(name) ?? "").trim();
     const candidate = attempt?.request ?? {
@@ -115,6 +112,16 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
     setAttempt(pending);
     startTransition(async () => {
       try {
+        if (!payments.enabled) {
+          const created = await ensureOrder(pending);
+          if (!created.ok) {
+            setError(created.error);
+            if (!created.retrySame) { forgetCheckoutAttempt(); setAttempt(null); }
+            return;
+          }
+          showConfirmed(created.attempt, created.receipt.email_sent === true);
+          return;
+        }
         if (paymentMethod === "square") {
           const token = tokenizeRef.current ? await tokenizeRef.current() : "";
           if (!token) { setError("Enter your card details to pay securely with Square."); return; }
@@ -134,7 +141,7 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
             }
             return;
           }
-          showPaid({ ...created.attempt, receipt: { ...paid.receipt, email_sent: paid.emailSent } }, paid.emailSent);
+          showConfirmed({ ...created.attempt, receipt: { ...paid.receipt, email_sent: paid.emailSent } }, paid.emailSent);
           return;
         }
         setError("Use the PayPal button to pay securely.");
@@ -169,7 +176,7 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
     const started = await startPaypalPayment({ idempotencyKey: created.attempt.request.idempotencyKey });
     if (!started.success) throw new Error(started.error);
     if ("paypalOrderId" in started) return started.paypalOrderId;
-    showPaid({ ...created.attempt, receipt: started.receipt }, started.emailSent);
+    showConfirmed({ ...created.attempt, receipt: started.receipt }, started.emailSent);
     throw new Error("This order is already paid.");
   }
 
@@ -186,7 +193,7 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
       }
       return;
     }
-    showPaid({ ...(attempt ?? confirmation)!, receipt: { ...paid.receipt, email_sent: paid.emailSent } }, paid.emailSent);
+    showConfirmed({ ...(attempt ?? confirmation)!, receipt: { ...paid.receipt, email_sent: paid.emailSent } }, paid.emailSent);
   }
 
   if (!isLoaded || !sessionReady) {
@@ -230,11 +237,11 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
           {storeOpen
             ? payments.enabled
               ? payments.message
-              : "Checkout is ready for your details, but online payment is not configured yet."
+              : "Online payment is not available yet. The store will contact you regarding payment."
             : STORE_CLOSED_MESSAGE}
         </p>
         {attempt && <div role="status" className="mt-6 space-y-2 rounded-xl border border-gold/40 bg-white p-4 text-sm break-words"><p>A previous order request is awaiting confirmation. Retry it below before starting another order. Your original items and details will be used.</p><p>{attempt.request.customerName} &middot; {attempt.request.customerEmail}</p><p>{attempt.request.fulfillmentMethod === "delivery" ? [attempt.request.address.address_line_1, attempt.request.address.city, attempt.request.address.country].filter(Boolean).join(", ") : "Local pickup"}</p></div>}
-        <form className="mt-8 space-y-7" onSubmit={handleSubmit}>
+        <form aria-describedby={error ? "checkout-error" : undefined} className="mt-8 space-y-7" onSubmit={handleSubmit}>
           <fieldset disabled={isSubmitting || Boolean(attempt)} className="space-y-7">
           <fieldset className="space-y-4 border-t border-black/10 pt-6">
             <legend className="font-semibold text-forest-green">Your details</legend>
@@ -280,7 +287,12 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
               value={paymentMethod}
               onChange={setPaymentMethod}
             />
-            {paymentMethod === "square" && squarePublic?.applicationId && squarePublic.locationId && squarePublic.environment ? (
+            {!payments.enabled ? (
+              <p className="rounded-xl border border-forest-green/10 bg-white/70 px-4 py-3 text-sm text-muted">
+                Online payment is not available yet. The store will contact you regarding payment.
+              </p>
+            ) : null}
+            {payments.enabled && paymentMethod === "square" && squarePublic?.applicationId && squarePublic.locationId && squarePublic.environment ? (
               <SquareCardFields
                 applicationId={squarePublic.applicationId}
                 environment={squarePublic.environment as PaymentEnvironment}
@@ -288,7 +300,7 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
                 onReady={setTokenize}
               />
             ) : null}
-            {paymentMethod === "paypal" && paypalPublic?.clientId && paypalPublic.environment ? (
+            {payments.enabled && paymentMethod === "paypal" && paypalPublic?.clientId && paypalPublic.environment ? (
               <PaypalCheckoutButtons
                 clientId={paypalPublic.clientId}
                 createOrder={paypalCreateOrder}
@@ -304,7 +316,7 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
           </fieldset>
 
           {error ? (
-            <p aria-live="polite" className="rounded-lg border border-red-900/15 bg-white/60 px-4 py-3 text-sm text-red-900">
+            <p aria-live="polite" className="rounded-lg border border-red-900/15 bg-white/60 px-4 py-3 text-sm text-red-900" id="checkout-error" role="alert">
               {error}
             </p>
           ) : null}
@@ -315,7 +327,7 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
             <p className="mt-3 text-muted">
               {payments.enabled
                 ? "Final prices are confirmed by the store, then Square or PayPal is charged that verified total."
-                : "Online payment is not configured, so checkout cannot collect payment yet."}
+                : "Online payment is not available yet. The store will contact you regarding payment."}
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-4 border-t border-black/10 pt-6">
@@ -325,15 +337,19 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
               </span>
               {attempt ? " — awaiting confirmed total" : ` · $${subtotal.toFixed(2)} estimated subtotal`}
             </div>
-            {paymentMethod === "paypal" ? (
+            {payments.enabled && paymentMethod === "paypal" ? (
               <p className="text-sm font-semibold text-forest-green">Pay securely with PayPal</p>
             ) : (
               <button
-                className="rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={!storeOpen || !payments.enabled || isSubmitting || (!attempt && items.length === 0) || paymentMethod !== "square"}
+                className="min-h-11 rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={!storeOpen || isSubmitting || (!attempt && items.length === 0) || (payments.enabled && paymentMethod !== "square")}
                 type="submit"
               >
-                {isSubmitting ? "Paying securely..." : attempt ? "Retry payment" : "Pay securely with Square"}
+                {isSubmitting
+                  ? payments.enabled ? "Paying securely..." : "Placing order..."
+                  : payments.enabled
+                    ? attempt ? "Retry payment" : "Pay securely with Square"
+                    : attempt ? "Retry order" : "Place Order"}
               </button>
             )}
           </div>
@@ -352,11 +368,12 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
 }
 
 function Field({ label, name, required = false, type = "text", hint }: { label: string; name: string; required?: boolean; type?: string; hint?: string }) {
+  const hintId = hint ? `${name}-hint` : undefined;
   return (
-    <label className="block text-sm font-medium">
+    <label className="block text-sm font-medium" htmlFor={name}>
       {label}
-      <input className="mt-2 w-full rounded-lg border border-black/15 bg-white px-4 py-3" name={name} required={required} type={type} />
-      {hint ? <span className="mt-2 block text-xs font-normal text-muted">{hint}</span> : null}
+      <input aria-describedby={hintId} className="mt-2 w-full rounded-lg border border-black/15 bg-white px-4 py-3" id={name} name={name} required={required} type={type} />
+      {hint ? <span className="mt-2 block text-xs font-normal text-muted" id={hintId}>{hint}</span> : null}
     </label>
   );
 }

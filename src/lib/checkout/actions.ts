@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/src/lib/supabase/server";
-import { checkoutFailure, validateCheckout, type CheckoutResponse } from "./checkout-validation";
+import { checkoutFailure, validateCheckout, type CheckoutReceipt, type CheckoutResponse } from "./checkout-validation";
 import { STORE_CLOSED_MESSAGE, STORE_SETTINGS_ID } from "@/src/lib/store/constants";
+import { trySendOrderConfirmation } from "@/src/lib/communications/send-confirmation";
 
 export async function placeCheckoutOrder(input: unknown): Promise<CheckoutResponse> {
   const validated = validateCheckout(input);
@@ -27,7 +28,7 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
     if (error) return checkoutFailure(error.code, error.message);
     const row = Array.isArray(data) ? data[0] : null;
     if (!row?.order_id || !row.order_number || !row.status || !Number.isFinite(Number(row.total)) || Number(row.total) < 0) return checkoutFailure();
-    const receipt = {
+    const receipt: CheckoutReceipt = {
       order_id: String(row.order_id),
       order_number: String(row.order_number),
       status: String(row.status),
@@ -40,7 +41,19 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
       customer_name: row.customer_name ? String(row.customer_name) : undefined,
       payment_method: row.payment_method ? String(row.payment_method) : null,
       payment_provider: row.payment_provider ? String(row.payment_provider) : null,
+      email_sent: false,
     };
+    let emailSent = false;
+    try {
+      if (receipt.guest_access_token) {
+        const confirmation = await supabase.rpc("get_checkout_confirmation", { p_access_token: receipt.guest_access_token });
+        const details = Array.isArray(confirmation.data) ? confirmation.data[0] : confirmation.data;
+        emailSent = await trySendOrderConfirmation(details ?? {});
+      }
+    } catch {
+      console.error("[order-email] confirmation failed", { orderNumber: receipt.order_number });
+    }
+    receipt.email_sent = emailSent;
     // A cache failure must not turn a committed order into a claimed checkout failure.
     try {
       for (const path of ["/", "/shop", "/categories", "/admin", "/admin/orders", "/admin/inventory", "/admin/products", "/admin/customers", "/account"]) revalidatePath(path);

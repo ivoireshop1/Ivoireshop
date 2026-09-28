@@ -1,9 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getCustomerOrder } from "@/src/lib/customer/orders";
-import { orderStatusLabel } from "@/src/lib/orders/status";
+import { orderStatusLabel, paymentProviderLabel, paymentStatusLabel } from "@/src/lib/orders/status";
 import { SmartBackButton } from "@/src/components/navigation/smart-back-button";
 import { ReorderButton } from "@/src/components/customer/reorder-button";
+import { CopyConfirmationButton } from "@/src/components/checkout/copy-confirmation-button";
 import { fulfillmentLabel } from "@/src/lib/fulfillment/fulfillment";
 
 export default async function CustomerOrderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,15 +21,18 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
       <p className="mt-8 text-xs font-semibold uppercase tracking-[0.2em] text-gold">Order</p>
       <h1 className="mt-2 text-4xl font-semibold text-forest-green">{order.order_number}</h1>
       {order.confirmation_code ? (
-        <p className="mt-3 font-mono text-2xl tracking-[0.16em] text-forest-green">{order.confirmation_code}</p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <p className="font-mono text-2xl tracking-[0.16em] text-forest-green">{order.confirmation_code}</p>
+          <CopyConfirmationButton code={order.confirmation_code} />
+        </div>
       ) : null}
       <p className="mt-3 text-muted">
         {new Date(order.created_at).toLocaleDateString()} · {orderStatusLabel(order.status, order.fulfillment_method)} · {fulfillmentLabel(order.fulfillment_method)}
       </p>
 
-      <p className="mt-3 capitalize text-muted">
-        Payment: {order.payment_status}
-        {order.payment_provider ? ` · ${order.payment_provider === "square" ? "Square" : order.payment_provider === "paypal" ? "PayPal" : order.payment_provider}` : ""}
+      <p className="mt-3 text-muted">
+        {paymentStatusLabel(order.payment_status, order.payment_provider)}
+        {order.payment_provider || order.payment_method ? ` · ${paymentProviderLabel(order.payment_provider, order.payment_method)}` : ""}
       </p>
       <section className="mt-8 rounded-2xl border border-black/10 bg-white p-6">
         <h2 className="font-semibold text-forest-green">Items</h2>

@@ -17,7 +17,7 @@ export default async function GuestOrderConfirmationPage({ params }: { params: P
       <SiteHeader />
       <main className="mx-auto w-full max-w-4xl px-5 py-10 lg:px-8">
         <OrderConfirmationExperience
-          emailSent={order.payment_status === "paid"}
+          emailSent={false}
           fulfillmentMethod={order.fulfillment_method}
           receipt={{
             order_id: String(order.order_id),

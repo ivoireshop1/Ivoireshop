@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ReorderButton } from "@/src/components/customer/reorder-button";
 import { fulfillmentLabel } from "@/src/lib/fulfillment/fulfillment";
+import { orderStatusLabel, paymentStatusLabel } from "@/src/lib/orders/status";
 
 export type CustomerOrderSummary = {
   id: string;
@@ -34,11 +35,11 @@ export function CustomerOrderCard({ order }: { order: CustomerOrderSummary }) {
         <div className="text-right">
           <p className="font-semibold text-forest-green">${Number(order.total).toFixed(2)}</p>
           <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-gold">
-            {order.status.replaceAll("_", " ")} · {fulfillmentLabel(order.fulfillment_method)}
+            {orderStatusLabel(order.status, order.fulfillment_method)} · {fulfillmentLabel(order.fulfillment_method)}
           </p>
         </div>
       </div>
-      <p className="mt-2 text-sm capitalize text-muted">Payment: {order.payment_status}</p>
+      <p className="mt-2 text-sm text-muted">{paymentStatusLabel(order.payment_status)}</p>
       {preview ? <p className="mt-3 text-sm text-muted">{preview}</p> : null}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Link className="rounded-lg border border-forest-green/20 px-3 py-2 text-sm font-semibold text-forest-green" href={`/account/orders/${order.id}`}>

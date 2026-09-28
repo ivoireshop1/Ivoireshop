@@ -22,9 +22,10 @@ begin
     raw := decode(replace(gen_random_uuid()::text, '-', ''), 'hex');
     candidate := 'IVO-';
     for i in 0..4 loop
-      candidate := candidate || substr(alphabet, (get_byte(raw, i) % 32) + 1, 1);
+      candidate := candidate || substr(alphabet, (get_byte(raw, i) % char_length(alphabet)) + 1, 1);
     end loop;
-    exit when not exists (select 1 from public.orders where confirmation_code = candidate);
+    exit when char_length(candidate) = 9
+      and not exists (select 1 from public.orders where confirmation_code = candidate);
   end loop;
   return candidate;
 end;
