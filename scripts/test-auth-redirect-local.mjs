@@ -11,11 +11,12 @@ function load(file){
   }},{filename:file});
   return exports;
 }
-const {resolvePostLoginPath}=load('src/lib/auth/post-login.ts');
+const {CUSTOMER_HOME,resolvePostLoginPath}=load('src/lib/auth/post-login.ts');
 const {sanitizeReturnPath}=load('src/lib/navigation/smart-navigation.ts');
 let n=0;function test(name,fn){fn();n++;console.log('PASS '+name)}
 test('admin login defaults to /admin',()=>assert.equal(resolvePostLoginPath('admin',null),'/admin'));
 test('customer login defaults to /account',()=>assert.equal(resolvePostLoginPath('customer',null),'/account'));
+test('signed-in customer Home destination is /account',()=>assert.equal(CUSTOMER_HOME,'/account'));
 test('customer admin next is denied',()=>assert.equal(resolvePostLoginPath('customer','/admin'),'/account'));
 test('customer nested admin next is denied',()=>assert.equal(resolvePostLoginPath('customer','/admin/products'),'/account'));
 test('unauthenticated admin path remains a login next candidate',()=>assert.equal(sanitizeReturnPath('/admin','/account'),'/admin'));

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { CANONICAL_CATEGORIES } from "@/src/lib/catalog/canonical-categories";
 import { useCart } from "@/src/lib/cart/cart-context";
 import { useWishlist } from "@/src/lib/wishlist/wishlist-context";
+import { CUSTOMER_HOME } from "@/src/lib/auth/post-login";
 import { createClient } from "@/src/lib/supabase/browser";
 function SearchIcon() {
   return <span aria-hidden="true" className="text-lg">⌕</span>;
@@ -24,13 +25,13 @@ export function Header() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  const homeHref = "/";
+  const homeHref = isAuthenticated ? CUSTOMER_HOME : "/";
   const wishlistLabel = wishlistItems.length > 0 ? `Wishlist (${wishlistItems.length})` : "Wishlist";
 
   return (
     <header className="border-b border-black/10 bg-background">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 overflow-x-hidden px-4 py-4 sm:gap-4 sm:px-5 lg:px-8">
-        <Link className="min-w-0 shrink-0 text-base font-semibold tracking-[0.18em] text-forest-green sm:text-lg" href={homeHref}>
+        <Link className="min-w-0 shrink-0 text-base font-semibold tracking-[0.18em] text-forest-green sm:text-lg" href="/">
           IVOIRE <span className="font-normal">SHOP</span>
         </Link>
         <nav aria-label="Main navigation" className="hidden min-w-0 items-center gap-5 text-sm font-medium text-foreground/75 xl:flex">
