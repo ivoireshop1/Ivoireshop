@@ -4,8 +4,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState, type ChangeEvent } from "react";
 import { DeleteProductForm } from "@/src/components/admin/delete-product-form";
-import { adminSetFeatured, adminSetProductStatus, adminUpdateProductPricing } from "@/src/lib/catalog/admin-actions";
-import { formatStockInput, parsePriceInput, parseStockInput } from "@/src/lib/catalog/pricing-input";
+import { adminSetFeatured, adminUpdateProductPricing } from "@/src/lib/catalog/admin-actions";
+import {
+  draftsReadyForActivation,
+  formatPriceDisplay,
+  formatStockInput,
+  inventoryStatusFromDraft,
+  parsePriceInput,
+  parseStockInput,
+  priceStatusFromDraft,
+} from "@/src/lib/catalog/pricing-input";
 
 export type AdminProductRowData = {
   id: string;
@@ -14,15 +22,22 @@ export type AdminProductRowData = {
   createdAt: string;
   categoryName: string;
   imageUrl: string | null;
-  price: number | null;
-  stockQuantity: number | null;
+  price: number | string | null;
+  stockQuantity: number | string | null;
   isActive: boolean;
   isFeatured: boolean;
 };
 
-type SaveState = "idle" | "saving" | "saved" | "error";
+function toNullableNumber(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
-function deriveStatus(isActive: boolean) {
+type SaveState = "idle" | "saving" | "saved" | "error";
+type RowStatus = "active" | "hidden";
+
+function deriveStatus(isActive: boolean): RowStatus {
   return isActive ? "active" : "hidden";
 }
 
@@ -31,10 +46,6 @@ function SaveIndicator({ state, error }: { state: SaveState; error: string | nul
   if (state === "saved") return <p className="mt-1 text-xs text-[#173f35]">Saved</p>;
   if (state === "error") return <p className="mt-1 text-xs text-[#7f1d1d]">{error}</p>;
   return null;
-}
-
-function displayPrice(value: number | null) {
-  return value === null ? "" : String(value);
 }
 
 export function AdminProductRow({
@@ -46,12 +57,13 @@ export function AdminProductRow({
   deleteAction: (formData: FormData) => void | Promise<void>;
   duplicateAction: (formData: FormData) => void | Promise<void>;
 }) {
-  const [isActive, setIsActive] = useState(product.isActive);
   const [isFeatured, setIsFeatured] = useState(product.isFeatured);
-  const [persistedPrice, setPersistedPrice] = useState(product.price);
-  const [persistedStock, setPersistedStock] = useState(product.stockQuantity);
-  const [priceInput, setPriceInput] = useState(displayPrice(product.price));
-  const [stockInput, setStockInput] = useState(formatStockInput(product.stockQuantity));
+  const [persistedPrice, setPersistedPrice] = useState(toNullableNumber(product.price));
+  const [persistedStock, setPersistedStock] = useState(toNullableNumber(product.stockQuantity));
+  const [persistedStatus, setPersistedStatus] = useState<RowStatus>(deriveStatus(product.isActive));
+  const [draftStatus, setDraftStatus] = useState<RowStatus>(deriveStatus(product.isActive));
+  const [priceInput, setPriceInput] = useState(formatPriceDisplay(toNullableNumber(product.price)));
+  const [stockInput, setStockInput] = useState(formatStockInput(toNullableNumber(product.stockQuantity)));
   const [statusState, setStatusState] = useState<SaveState>("idle");
   const [statusError, setStatusError] = useState<string | null>(null);
   const [featuredState, setFeaturedState] = useState<SaveState>("idle");
@@ -59,34 +71,38 @@ export function AdminProductRow({
   const [pricingError, setPricingError] = useState<string | null>(null);
   const saveLock = useRef(false);
 
-  const status = deriveStatus(isActive);
-  const needsPricing = persistedPrice === null;
-  const needsStock = persistedStock === null;
-  const inventoryLabel = needsStock
-    ? "Needs stock"
-    : Number(persistedStock) === 0
-      ? "Out of stock"
-      : Number(persistedStock) <= 5
-        ? "Low stock"
-        : "In stock";
+  const parsedPrice = parsePriceInput(priceInput);
+  const parsedStock = parseStockInput(stockInput);
+  const draftsValid = parsedPrice.ok && parsedStock.ok;
+  const priceLabel = priceStatusFromDraft(priceInput);
+  const inventoryLabel = inventoryStatusFromDraft(stockInput);
+  const savedPriceLabel = persistedPrice === null ? null : `Saved $${persistedPrice.toFixed(2)}`;
   const isDirty =
-    priceInput !== displayPrice(persistedPrice) || stockInput !== formatStockInput(persistedStock);
+    priceInput !== formatPriceDisplay(persistedPrice) ||
+    stockInput !== formatStockInput(persistedStock) ||
+    draftStatus !== persistedStatus;
+  const saveEnabled = draftsValid && isDirty && pricingState !== "saving";
 
-  async function handleStatusChange(event: ChangeEvent<HTMLSelectElement>) {
-    const nextStatus = event.target.value as "active" | "hidden";
-    const previousIsActive = isActive;
-    setStatusState("saving");
-    setStatusError(null);
-    setIsActive(nextStatus === "active");
-    const result = await adminSetProductStatus(product.id, nextStatus);
-    if (!result.success) {
-      setIsActive(previousIsActive);
-      setStatusState("error");
-      setStatusError(result.error);
-      return;
+  function applyDraftInputs(nextPrice: string, nextStock: string, nextStatus: RowStatus) {
+    setPriceInput(nextPrice);
+    setStockInput(nextStock);
+    setDraftStatus(nextStatus);
+    setPricingState("idle");
+    setPricingError(null);
+    if (nextStatus === "active") {
+      const ready = draftsReadyForActivation(nextPrice, nextStock);
+      if (!ready.ok) {
+        setStatusState("error");
+        setStatusError(ready.error);
+        return;
+      }
     }
-    setIsActive(result.data.is_active);
-    setStatusState("saved");
+    setStatusState("idle");
+    setStatusError(null);
+  }
+
+  function handleStatusChange(event: ChangeEvent<HTMLSelectElement>) {
+    applyDraftInputs(priceInput, stockInput, event.target.value as RowStatus);
   }
 
   async function handleFeaturedToggle() {
@@ -103,7 +119,7 @@ export function AdminProductRow({
     setFeaturedState("saved");
   }
 
-  async function savePricing() {
+  async function saveRow() {
     if (saveLock.current || pricingState === "saving") return;
     const price = parsePriceInput(priceInput);
     const stock = parseStockInput(stockInput);
@@ -117,11 +133,21 @@ export function AdminProductRow({
       setPricingError(stock.error);
       return;
     }
+    if (draftStatus === "active") {
+      const ready = draftsReadyForActivation(priceInput, stockInput);
+      if (!ready.ok) {
+        setStatusState("error");
+        setStatusError(ready.error);
+        setPricingState("error");
+        setPricingError(ready.error);
+        return;
+      }
+    }
 
     saveLock.current = true;
     setPricingState("saving");
     setPricingError(null);
-    const result = await adminUpdateProductPricing(product.id, priceInput, stockInput);
+    const result = await adminUpdateProductPricing(product.id, priceInput, stockInput, draftStatus);
     saveLock.current = false;
     if (!result.success) {
       setPricingState("error");
@@ -130,9 +156,12 @@ export function AdminProductRow({
     }
     setPersistedPrice(result.data.price);
     setPersistedStock(result.data.stock_quantity);
-    setPriceInput(displayPrice(result.data.price));
+    setPersistedStatus(deriveStatus(result.data.is_active));
+    setDraftStatus(deriveStatus(result.data.is_active));
+    setPriceInput(formatPriceDisplay(result.data.price));
     setStockInput(formatStockInput(result.data.stock_quantity));
-    setIsActive(result.data.is_active);
+    setStatusError(null);
+    setStatusState("idle");
     setPricingState("saved");
   }
 
@@ -151,7 +180,7 @@ export function AdminProductRow({
           <Link className="block break-words font-medium text-[#173f35] hover:underline" href={`/admin/products/${product.id}`}>
             {product.name}
           </Link>
-          <p className="mt-1 text-xs text-[#6b6b6b]">Updated {new Date(product.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+          <p className="mt-1 text-xs text-[#6b6b6b]">Updated {product.createdAt.slice(0, 10)}</p>
         </div>
       </div>
 
@@ -166,15 +195,14 @@ export function AdminProductRow({
           aria-label={`Price for ${product.name}`}
           className="mt-1 min-h-11 w-full rounded-lg border border-[#173f35]/15 bg-white px-3 py-2 text-sm text-[#173f35]"
           inputMode="decimal"
-          onChange={(event) => {
-            setPriceInput(event.target.value);
-            setPricingState("idle");
-            setPricingError(null);
+          onBlur={() => {
+            if (parsedPrice.ok && parsedPrice.value !== null) setPriceInput(formatPriceDisplay(parsedPrice.value));
           }}
+          onChange={(event) => applyDraftInputs(event.target.value, stockInput, draftStatus)}
           placeholder="0.00"
           value={priceInput}
         />
-        <p className="mt-1 text-xs text-[#6b6b6b]">{needsPricing ? "Needs pricing" : `Saved $${Number(persistedPrice).toFixed(2)}`}</p>
+        <p className="mt-1 text-xs text-[#6b6b6b]">{priceLabel ?? (isDirty ? "" : savedPriceLabel)}</p>
       </label>
 
       <label className="mt-4 block lg:mt-0">
@@ -183,11 +211,7 @@ export function AdminProductRow({
           aria-label={`Stock quantity for ${product.name}`}
           className="mt-1 min-h-11 w-full rounded-lg border border-[#173f35]/15 bg-white px-3 py-2 text-sm text-[#173f35]"
           inputMode="numeric"
-          onChange={(event) => {
-            setStockInput(event.target.value);
-            setPricingState("idle");
-            setPricingError(null);
-          }}
+          onChange={(event) => applyDraftInputs(priceInput, event.target.value, draftStatus)}
           placeholder="0"
           value={stockInput}
         />
@@ -199,8 +223,8 @@ export function AdminProductRow({
         <select
           aria-label={`Status for ${product.name}`}
           className="mt-1 min-h-11 w-full rounded-lg border border-[#173f35]/15 bg-white px-3 py-2 text-sm text-[#173f35]"
-          onChange={(event) => void handleStatusChange(event)}
-          value={status}
+          onChange={handleStatusChange}
+          value={draftStatus}
         >
           <option value="active">Active</option>
           <option value="hidden">Draft</option>
@@ -223,8 +247,8 @@ export function AdminProductRow({
       <div className="mt-4 flex flex-col gap-3 lg:mt-0">
         <button
           className="min-h-11 rounded-lg bg-[#173f35] px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
-          disabled={pricingState === "saving" || !isDirty}
-          onClick={() => void savePricing()}
+          disabled={!saveEnabled}
+          onClick={() => void saveRow()}
           type="button"
         >
           {pricingState === "saving" ? "Saving..." : "Save"}

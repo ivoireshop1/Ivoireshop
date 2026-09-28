@@ -6,32 +6,48 @@ import { useEffect, useState } from "react";
 import { CANONICAL_CATEGORIES } from "@/src/lib/catalog/canonical-categories";
 import { useCart } from "@/src/lib/cart/cart-context";
 import { useWishlist } from "@/src/lib/wishlist/wishlist-context";
-import { CUSTOMER_HOME } from "@/src/lib/auth/post-login";
 import { createClient } from "@/src/lib/supabase/browser";
+import { resolveStorefrontHomeHref, type NavRole } from "@/src/lib/auth/session-navigation";
+
 function SearchIcon() {
   return <span aria-hidden="true" className="text-lg">⌕</span>;
 }
 
-export function Header() {
+export function Header({ initialRole = "guest" }: { initialRole?: NavRole }) {
   const { totalItems, isLoaded, addEventId } = useCart();
   const { items: wishlistItems } = useWishlist();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [role, setRole] = useState<NavRole>(initialRole);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const client = createClient();
-    client.auth.getUser().then(({ data }) => setIsAuthenticated(Boolean(data.user)));
-    const { data: listener } = client.auth.onAuthStateChange((_event, session) => setIsAuthenticated(Boolean(session?.user)));
+
+    async function syncRole() {
+      const { data } = await client.auth.getUser();
+      if (!data.user) {
+        setRole("guest");
+        return;
+      }
+      const { data: profile } = await client.from("profiles").select("role").eq("id", data.user.id).maybeSingle();
+      setRole(profile?.role === "admin" ? "admin" : "customer");
+    }
+
+    void syncRole();
+    const { data: listener } = client.auth.onAuthStateChange(() => {
+      void syncRole();
+    });
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  const homeHref = isAuthenticated ? CUSTOMER_HOME : "/";
+  const isAuthenticated = role !== "guest";
+  const homeHref = resolveStorefrontHomeHref(role);
   const wishlistLabel = wishlistItems.length > 0 ? `Wishlist (${wishlistItems.length})` : "Wishlist";
+  const wishlistCountLabel = wishlistItems.length > 0 ? `Wishlist, ${wishlistItems.length} items` : "Wishlist";
 
   return (
     <header className="border-b border-black/10 bg-background">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 overflow-x-hidden px-4 py-4 sm:gap-4 sm:px-5 lg:px-8">
-        <Link className="min-w-0 shrink-0 text-base font-semibold tracking-[0.18em] text-forest-green sm:text-lg" href="/">
+        <Link className="min-w-0 shrink-0 text-base font-semibold tracking-[0.18em] text-forest-green sm:text-lg" href={homeHref}>
           IVOIRE <span className="font-normal">SHOP</span>
         </Link>
         <nav aria-label="Main navigation" className="hidden min-w-0 items-center gap-5 text-sm font-medium text-foreground/75 xl:flex">
@@ -40,11 +56,13 @@ export function Header() {
           {CANONICAL_CATEGORIES.map((category) => (
             <Link className="hover:text-forest-green" href={`/shop?category=${encodeURIComponent(category.name)}`} key={category.slug}>{category.name}</Link>
           ))}
-          {isAuthenticated ? (
+          {role === "customer" ? (
             <>
               <Link className="hover:text-forest-green" href="/wishlist">{wishlistLabel}</Link>
               <Link className="hover:text-forest-green" href="/account">Account</Link>
             </>
+          ) : role === "admin" ? (
+            <Link className="hover:text-forest-green" href="/admin">Dashboard</Link>
           ) : (
             <Link className="hover:text-forest-green" href="/categories">Categories</Link>
           )}
@@ -53,7 +71,9 @@ export function Header() {
           <Link aria-label="Search products" className="hidden text-forest-green sm:inline-flex" href="/shop"><SearchIcon /></Link>
           {isAuthenticated ? (
             <>
-              <Link aria-label="Wishlist" className="hidden text-forest-green sm:inline-flex" href="/wishlist">{wishlistLabel}</Link>
+              <Link aria-label={wishlistCountLabel} className="text-forest-green xl:hidden" href="/wishlist">
+                {wishlistItems.length > 0 ? `♡ ${wishlistItems.length}` : "♡"}
+              </Link>
               <SignOutLink />
             </>
           ) : (
@@ -70,12 +90,17 @@ export function Header() {
           {CANONICAL_CATEGORIES.map((category) => (
             <Link href={`/shop?category=${encodeURIComponent(category.name)}`} key={category.slug} onClick={() => setMenuOpen(false)}>{category.name}</Link>
           ))}
-          <Link href="/categories" onClick={() => setMenuOpen(false)}>All categories</Link>
-          {isAuthenticated ? (
+          {role === "customer" ? (
             <>
               <Link href="/wishlist" onClick={() => setMenuOpen(false)}>{wishlistLabel}</Link>
               <Link href="/account#recent-orders" onClick={() => setMenuOpen(false)}>Orders</Link>
               <Link href="/account" onClick={() => setMenuOpen(false)}>Account</Link>
+              <Link href="/account#security" onClick={() => setMenuOpen(false)}>Security</Link>
+              <MobileSignOutLink onSignOut={() => setMenuOpen(false)} />
+            </>
+          ) : role === "admin" ? (
+            <>
+              <Link href="/admin" onClick={() => setMenuOpen(false)}>Dashboard</Link>
               <MobileSignOutLink onSignOut={() => setMenuOpen(false)} />
             </>
           ) : (

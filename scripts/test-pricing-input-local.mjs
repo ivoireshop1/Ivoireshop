@@ -13,7 +13,14 @@ function load(file) {
   return exports;
 }
 
-const { parsePriceInput, parseStockInput } = load('src/lib/catalog/pricing-input.ts');
+const {
+  parsePriceInput,
+  parseStockInput,
+  formatPriceDisplay,
+  priceStatusFromDraft,
+  inventoryStatusFromDraft,
+  draftsReadyForActivation,
+} = load('src/lib/catalog/pricing-input.ts');
 let n = 0;
 function test(name, fn) { fn(); n++; console.log('PASS ' + name); }
 
@@ -40,5 +47,24 @@ test('failed parse keeps caller drafts', () => {
   assert.equal(bad.ok, false);
   assert.equal(draft.price, '12.99');
   assert.equal(draft.stock, '500');
+});
+test('draft labels use current inputs not persisted zeros', () => {
+  assert.equal(priceStatusFromDraft('16.99'), '$16.99');
+  assert.equal(inventoryStatusFromDraft('500'), 'In stock');
+  assert.equal(priceStatusFromDraft(''), 'Needs pricing');
+  assert.equal(inventoryStatusFromDraft(''), 'Needs stock');
+  assert.equal(inventoryStatusFromDraft('0'), 'Out of stock');
+});
+test('activation validates draft values', () => {
+  const blocked = draftsReadyForActivation('', '0');
+  assert.equal(blocked.ok, false);
+  const ready = draftsReadyForActivation('16.99', '500');
+  assert.equal(ready.ok, true);
+});
+test('price display uses two decimals without mutating cents', () => {
+  assert.equal(formatPriceDisplay(16.4), '16.40');
+  assert.equal(formatPriceDisplay(3), '3.00');
+  assert.equal(formatPriceDisplay(2.99), '2.99');
+  assert.equal(parsePriceInput('16.99').value, 16.99);
 });
 console.log(`${n} pricing-input tests passed.`);

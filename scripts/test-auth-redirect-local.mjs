@@ -13,6 +13,14 @@ function load(file){
 }
 const {CUSTOMER_HOME,resolvePostLoginPath}=load('src/lib/auth/post-login.ts');
 const {sanitizeReturnPath}=load('src/lib/navigation/smart-navigation.ts');
+const {resolveHomeHref,resolveStorefrontHomeHref}=(()=>{
+  const exports={};
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/auth/session-navigation.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:(id)=>{
+    if(id==='@/src/lib/auth/post-login') return load('src/lib/auth/post-login.ts');
+    throw Error(id);
+  }},{filename:'src/lib/auth/session-navigation.ts'});
+  return exports;
+})();
 let n=0;function test(name,fn){fn();n++;console.log('PASS '+name)}
 test('admin login defaults to /admin',()=>assert.equal(resolvePostLoginPath('admin',null),'/admin'));
 test('customer login defaults to /account',()=>assert.equal(resolvePostLoginPath('customer',null),'/account'));
@@ -25,4 +33,8 @@ test('malicious external next is rejected for customers',()=>assert.equal(resolv
 test('protocol-relative next is rejected',()=>assert.equal(resolvePostLoginPath('admin','//evil.test'),'/admin'));
 test('admin safe admin next is preserved',()=>assert.equal(resolvePostLoginPath('admin','/admin/orders'),'/admin/orders'));
 test('admin is not sent to account by generic next',()=>assert.equal(resolvePostLoginPath('admin','/account'),'/admin'));
+test('guest storefront Home is /',()=>assert.equal(resolveStorefrontHomeHref('guest'),'/'));
+test('customer storefront Home is /account',()=>assert.equal(resolveStorefrontHomeHref('customer'),'/account'));
+test('admin storefront Home stays /',()=>assert.equal(resolveStorefrontHomeHref('admin'),'/'));
+test('admin app Home is /admin',()=>assert.equal(resolveHomeHref('admin'),'/admin'));
 console.log(`${n} auth redirect tests passed.`);

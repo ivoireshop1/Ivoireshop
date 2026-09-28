@@ -6,27 +6,15 @@ import { createClient } from "@/src/lib/supabase/server";
 import LogoutButton from "@/src/components/auth/logout-button";
 import { ChangePasswordForm } from "@/src/components/auth/change-password-form";
 import { Footer } from "@/src/components/layout/footer";
-import { Header } from "@/src/components/layout/header";
+import { SiteHeader } from "@/src/components/layout/site-header";
 import { CustomerHero } from "@/src/components/customer/customer-hero";
 import { CustomerAccountNav } from "@/src/components/customer/customer-account-nav";
 import { CustomerOrderCard } from "@/src/components/customer/customer-order-card";
 import { AddAddressForm } from "@/src/components/customer/add-address-form";
-import { toOneRelation } from "@/src/lib/catalog/relation-utils";
-import { getProducts } from "@/src/lib/catalog/catalog";
-
-type WishlistPreviewProduct = {
-  name: string;
-  slug: string;
-  price: number | string;
-  stock_quantity: number | null;
-  categories: { name: string } | { name: string }[] | null;
-  product_images: { image_url: string; position: number }[] | null;
-};
-
-type WishlistPreviewRow = {
-  id: string;
-  products: WishlistPreviewProduct | WishlistPreviewProduct[] | null;
-};
+import { CanonicalCategoryCards } from "@/src/components/storefront/canonical-category-cards";
+import { getCategories, getProducts } from "@/src/lib/catalog/catalog";
+import { getWishlistProductsForUser } from "@/src/lib/wishlist/wishlist-server";
+import { WishlistButton } from "@/src/components/wishlist/wishlist-button";
 
 export const metadata = pageMetadata("Your Account", "Manage your account and view your orders.", "/account", false);
 
@@ -38,7 +26,7 @@ export default async function AccountPage() {
     redirect("/login?next=/account");
   }
 
-  const [{ data: profile }, { data: orders, error: ordersError }, { data: addresses }, { data: wishlistRows }, recommended] = await Promise.all([
+  const [{ data: profile }, { data: orders, error: ordersError }, { data: addresses }, wishlistPreview, recommended, categories] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
     supabase
       .from("orders")
@@ -50,36 +38,23 @@ export default async function AccountPage() {
       .select("id, full_name, address_line_1, address_line_2, city, state, postal_code, country, is_default")
       .order("is_default", { ascending: false })
       .limit(8),
-    supabase
-      .from("wishlist_items")
-      .select("id, product_id, products(name, slug, price, stock_quantity, categories(name), product_images(image_url, position))")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(4),
+    getWishlistProductsForUser(supabase, user.id, 4),
     getProducts(),
+    getCategories(),
   ]);
   if (ordersError) throw new Error("Unable to load your orders.");
   const heroName = profile?.full_name?.trim()?.split(/\s+/)[0] || null;
   const recent = orders?.slice(0, 3) ?? [];
   const history = orders?.slice(3) ?? [];
-  const wishlistPreview = ((wishlistRows ?? []) as WishlistPreviewRow[])
-    .map((row) => toOneRelation(row.products))
-    .filter((product): product is WishlistPreviewProduct => Boolean(product));
-  const recommendedProducts = recommended.slice(0, 4);
+  const recommendedProducts = [...recommended.filter((product) => product.isFeatured), ...recommended.filter((product) => !product.isFeatured)].slice(0, 8);
+  const liveNames = new Set(recommended.map((product) => product.category));
 
   return (
     <>
-      <Header />
-      <main className="mx-auto w-full max-w-6xl px-6 py-10">
+      <SiteHeader />
+      <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-6 sm:py-10">
         <CustomerAccountNav />
         <CustomerHero firstName={heroName} />
-
-        <section className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <QuickAction href="/shop" label="Shop" />
-          <QuickAction href="/wishlist" label="Wishlist" />
-          <QuickAction href="#recent-orders" label="Orders" />
-          <QuickAction href="#security" label="Security" />
-        </section>
 
         <section className="mt-12" id="wishlist-preview">
           <div className="flex flex-wrap items-end justify-between gap-4">
@@ -87,50 +62,61 @@ export default async function AccountPage() {
               <h2 className="text-2xl font-semibold text-forest-green">Your wishlist</h2>
               <p className="mt-1 text-sm text-muted">Saved favorites, ready when you are.</p>
             </div>
-            <Link className="text-sm font-semibold text-forest-green underline underline-offset-4" href="/wishlist">
+            <Link className="min-h-11 text-sm font-semibold text-forest-green underline underline-offset-4" href="/wishlist">
               View all
             </Link>
           </div>
           {wishlistPreview.length ? (
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {wishlistPreview.map((product) => {
-                const image = product.product_images?.slice().sort((a, b) => a.position - b.position)[0]?.image_url;
-                const category = toOneRelation(product.categories)?.name || "Uncategorized";
-                const isSoldOut = Number(product.stock_quantity) === 0;
+                const isSoldOut = Number(product.stockQuantity) === 0;
                 return (
-                  <Link className="group rounded-xl bg-surface p-3 shadow-sm" href={`/product/${product.slug}`} key={product.slug}>
-                    <div className="relative aspect-square overflow-hidden rounded-xl bg-[#eadfce]">
-                      {image && <Image alt={product.name} className="object-cover transition duration-300 group-hover:scale-105" fill sizes="(max-width: 640px) 45vw, 22vw" src={image} />}
-                      {isSoldOut && <span className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-1 text-xs font-semibold text-white">Sold Out</span>}
+                  <article className="rounded-xl bg-surface p-3 shadow-sm" key={product.id}>
+                    <Link className="group block" href={`/product/${product.slug}`}>
+                      <div className="relative aspect-square overflow-hidden rounded-xl bg-[#eadfce]">
+                        {product.image && <Image alt={product.name} className="object-cover" fill sizes="(max-width: 640px) 92vw, 22vw" src={product.image} />}
+                        {isSoldOut && <span className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-1 text-xs font-semibold text-white">Sold Out</span>}
+                      </div>
+                      <p className="mt-3 text-xs text-muted">{product.category}</p>
+                      <p className="mt-1 break-words font-semibold text-forest-green">{product.name}</p>
+                      <p className="mt-1 text-sm font-semibold text-forest-green">${product.price.toFixed(2)}</p>
+                    </Link>
+                    <div className="mt-3">
+                      <WishlistButton productId={product.id} productName={product.name} />
                     </div>
-                    <p className="mt-3 text-xs text-muted">{category}</p>
-                    <p className="mt-1 truncate font-semibold text-forest-green">{product.name}</p>
-                    <p className="mt-1 text-sm font-semibold text-forest-green">${Number(product.price).toFixed(2)}</p>
-                  </Link>
+                  </article>
                 );
               })}
             </div>
           ) : (
-            <div className="mt-5 rounded-2xl border border-dashed border-forest-green/20 bg-[#f7f3ee] p-6">
-              <p className="font-semibold text-forest-green">Your wishlist is empty.</p>
-              <Link className="mt-3 inline-flex text-sm font-semibold text-forest-green underline underline-offset-4" href="/shop">
+            <p className="mt-4 text-sm text-muted">
+              No saved products yet.{" "}
+              <Link className="font-semibold text-forest-green underline underline-offset-4" href="/shop">
                 Explore products
               </Link>
-            </div>
+            </p>
           )}
+        </section>
+
+        <section className="mt-12" id="shop-by-category">
+          <h2 className="text-2xl font-semibold text-forest-green">Shop by category</h2>
+          <p className="mt-1 text-sm text-muted">Cosmetics, Foods, and Ivoire Market.</p>
+          <div className="mt-5">
+            <CanonicalCategoryCards categories={categories} liveNames={liveNames} />
+          </div>
         </section>
 
         {recommendedProducts.length > 0 && (
           <section className="mt-12">
             <h2 className="text-2xl font-semibold text-forest-green">Available now</h2>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {recommendedProducts.map((product) => (
                 <Link className="group rounded-xl bg-surface p-3 shadow-sm" href={`/product/${product.slug}`} key={product.id}>
                   <div className="relative aspect-square overflow-hidden rounded-xl bg-[#eadfce]">
-                    {product.image && <Image alt={product.name} className="object-cover transition duration-300 group-hover:scale-105" fill sizes="(max-width: 640px) 45vw, 22vw" src={product.image} />}
+                    {product.image && <Image alt={product.name} className="object-cover" fill sizes="(max-width: 640px) 92vw, 22vw" src={product.image} />}
                   </div>
                   <p className="mt-3 text-xs text-muted">{product.category}</p>
-                  <p className="mt-1 truncate font-semibold text-forest-green">{product.name}</p>
+                  <p className="mt-1 break-words font-semibold text-forest-green">{product.name}</p>
                   <p className="mt-1 text-sm font-semibold text-forest-green">${product.price.toFixed(2)}</p>
                 </Link>
               ))}
@@ -146,34 +132,29 @@ export default async function AccountPage() {
             <h2 className="text-2xl font-semibold text-forest-green">Recent orders</h2>
             <p className="mt-1 text-sm text-muted">Your newest groceries, ready to reorder.</p>
           </div>
-          <Link className="text-sm font-semibold text-forest-green underline underline-offset-4" href="#order-history">
-            Order history
-          </Link>
+          {history.length > 0 && (
+            <Link className="text-sm font-semibold text-forest-green underline underline-offset-4" href="#order-history">
+              Order history
+            </Link>
+          )}
         </div>
         {recent.length ? (
           <div className="mt-5 grid gap-4">
             {recent.map((order) => <CustomerOrderCard key={order.id} order={order} />)}
           </div>
         ) : (
-          <div className="mt-5 rounded-2xl border border-dashed border-forest-green/20 bg-[#f7f3ee] p-6">
-            <p className="font-semibold text-forest-green">Your first order is waiting.</p>
-            <Link className="mt-3 inline-flex text-sm font-semibold text-forest-green underline underline-offset-4" href="/shop">
-              Start shopping
-            </Link>
-          </div>
+          <p className="mt-3 text-sm text-muted">No orders yet. When you place one, it will show up here.</p>
         )}
       </section>
 
-      <section className="mt-12" id="order-history">
-        <h2 className="text-2xl font-semibold text-forest-green">Order history</h2>
-        {history.length ? (
+      {history.length > 0 && (
+        <section className="mt-12" id="order-history">
+          <h2 className="text-2xl font-semibold text-forest-green">Order history</h2>
           <div className="mt-5 grid gap-4">
             {history.map((order) => <CustomerOrderCard key={`history-${order.id}`} order={order} />)}
           </div>
-        ) : (
-          <p className="mt-3 text-sm text-muted">No orders yet. Your first pantry restock can start in the shop.</p>
-        )}
-      </section>
+        </section>
+      )}
 
       <section className="mt-12 grid gap-4 md:grid-cols-2" id="addresses">
         <article className="rounded-2xl border border-black/10 bg-white p-6">
@@ -222,13 +203,5 @@ export default async function AccountPage() {
       </main>
       <Footer />
     </>
-  );
-}
-
-function QuickAction({ href, label }: { href: string; label: string }) {
-  return (
-    <Link className="rounded-xl border border-[#173f35]/10 bg-white px-4 py-3 text-center text-sm font-semibold text-forest-green shadow-sm transition hover:-translate-y-0.5 hover:border-gold/60" href={href}>
-      {label}
-    </Link>
   );
 }

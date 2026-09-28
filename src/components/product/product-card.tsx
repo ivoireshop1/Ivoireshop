@@ -15,35 +15,30 @@ export function ProductCard({ product, returnTo }: { product: Product; returnTo?
   const badge = product.isNew ? "New" : product.isPopular ? "Popular" : product.isFeatured ? "Featured" : null;
   const cartItem = items.find((item) => item.productId === product.id);
   const unavailable = product.stockQuantity == null || product.stockQuantity <= (cartItem?.quantity ?? 0) || product.price <= 0;
+  const stockLabel = product.stockQuantity == null ? "Availability pending" : product.stockQuantity === 0 ? "Out of stock" : `${product.stockQuantity} in stock`;
   function add() { if (unavailable) return; addItem({ productId: product.id, slug: product.slug, name: product.name, price: product.price, image: product.image, quantity: 1 }); setAdded(true); setTimeout(() => setAdded(false), 1600); }
-  return <article className="group rounded-xl bg-surface p-3 text-foreground shadow-sm">
-    <Link className="relative block aspect-[4/5] overflow-hidden rounded-2xl bg-[#eadfce]" href={buildProductPath(product.slug, returnTo)}>
-      <ProductImage alt={product.name} className="object-cover transition duration-300 group-hover:scale-105" fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" src={product.image} />
-      {badge && <ProductBadge label={badge} />}
-    </Link>
-    <div className="pt-4">
-      <p className="text-xs text-muted">{product.category} · {product.weight}</p>
-      <Link className="mt-1 block font-semibold text-foreground hover:text-forest-green" href={buildProductPath(product.slug, returnTo)}>{product.name}</Link>
-      <div className="mt-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 flex items-center gap-2">
-          <span className="font-semibold text-forest-green">${product.price.toFixed(2)}</span>
-          {product.compareAtPrice && product.compareAtPrice > product.price ? (
-            <span className="text-xs text-muted line-through">${product.compareAtPrice.toFixed(2)}</span>
-          ) : null}
-        </div>
-        <div className="flex min-w-0 items-center justify-end gap-2">
+  const href = buildProductPath(product.slug, returnTo);
+  return (
+    <article className="group rounded-xl bg-surface p-3 text-foreground shadow-sm">
+      <Link className="relative block aspect-square overflow-hidden rounded-2xl bg-[#eadfce]" href={href}>
+        <ProductImage alt={product.name} className="object-cover transition duration-300 group-hover:scale-105" fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" src={product.image} />
+        {badge && <ProductBadge label={badge} />}
+      </Link>
+      <div className="pt-4">
+        <p className="text-xs text-muted">{product.category}</p>
+        <Link className="mt-1 block break-words font-semibold text-foreground hover:text-forest-green" href={href}>{product.name}</Link>
+        <p className="mt-1 text-xs text-muted">{stockLabel}</p>
+        <p className="mt-3 font-semibold text-forest-green">${product.price.toFixed(2)}</p>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <WishlistButton productId={product.id} productName={product.name} />
           {cartItem ? (
-            <>
-              <span className="min-w-0 truncate text-sm font-semibold text-forest-green">{added ? "✓ Added" : `✓ ${cartItem.quantity}`}</span>
-              <button disabled={unavailable} aria-label={`Add another ${product.name} to cart`} className="shrink-0 rounded-lg border border-forest-green/20 bg-[#f5f0e6] px-2.5 py-2 text-sm font-semibold text-forest-green disabled:opacity-50" onClick={add} type="button">+ Add</button>
-            </>
+            <button disabled={unavailable} aria-label={`Add another ${product.name} to cart`} className="min-h-11 rounded-lg border border-forest-green/20 bg-[#f5f0e6] px-3 py-2 text-sm font-semibold text-forest-green disabled:opacity-50" onClick={add} type="button">{added ? "✓ Added" : `Add another (${cartItem.quantity})`}</button>
           ) : (
-            <button disabled={unavailable} aria-label={`Add ${product.name} to cart`} className="shrink-0 rounded-lg bg-forest-green px-3 py-2 text-sm font-semibold text-white disabled:opacity-50" onClick={add} type="button">{unavailable ? "Unavailable" : "Add"}</button>
+            <button disabled={unavailable} aria-label={`Add ${product.name} to cart`} className="min-h-11 rounded-lg bg-forest-green px-3 py-2 text-sm font-semibold text-white disabled:opacity-50" onClick={add} type="button">{unavailable ? "Unavailable" : "Add to Cart"}</button>
           )}
+          <Link className="min-h-11 inline-flex items-center text-sm font-semibold text-forest-green underline underline-offset-4" href={href}>View Product</Link>
         </div>
       </div>
-      {cartItem && <div className="mt-2 flex justify-end"><Link className="text-xs font-semibold text-muted underline underline-offset-4" href="/cart">View cart</Link></div>}
-    </div>
-  </article>;
+    </article>
+  );
 }

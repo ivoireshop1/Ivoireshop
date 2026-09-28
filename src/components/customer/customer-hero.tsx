@@ -2,14 +2,15 @@ import Image from "next/image";
 import Link from "next/link";
 
 export function CustomerHero({ firstName }: { firstName: string | null }) {
-  const greeting = firstName ? `Welcome back, ${firstName}` : "Welcome back";
-
   return (
     <section className="relative isolate overflow-hidden rounded-3xl bg-forest-green">
       <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch">
-        <div className="order-2 px-6 py-10 sm:px-10 sm:py-14 lg:order-1 lg:flex lg:flex-col lg:justify-center lg:py-16">
+        <div className="px-6 py-8 sm:px-10 sm:py-12 lg:flex lg:flex-col lg:justify-center lg:py-16">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">Your Ivoire Shop</p>
-          <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight text-white sm:text-5xl">{greeting}</h1>
+          <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight text-white sm:text-5xl">
+            <span className="block">Welcome back{firstName ? "," : ""}</span>
+            {firstName ? <span className="mt-1 block break-words [overflow-wrap:anywhere]">{firstName}</span> : null}
+          </h1>
           <p className="mt-4 max-w-md leading-7 text-white/80">
             Pick up where you left off — your favorites, your orders, and fresh picks are all here.
           </p>
@@ -28,10 +29,10 @@ export function CustomerHero({ firstName }: { firstName: string | null }) {
             </Link>
           </div>
         </div>
-        <div className="relative order-1 aspect-[4/3] min-h-[220px] lg:order-2 lg:aspect-auto lg:min-h-[360px]">
+        <div className="relative aspect-[16/10] max-h-64 w-full lg:aspect-auto lg:max-h-none lg:min-h-[360px]">
           <Image
-            alt="Customer with groceries planning a shop at home"
-            className="object-cover object-[center_20%]"
+            alt="Customer with an Ivoire Shop shopping bag and groceries"
+            className="object-cover object-center"
             fill
             priority
             sizes="(max-width: 1024px) 100vw, 48vw"
