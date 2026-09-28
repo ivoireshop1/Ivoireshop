@@ -10,14 +10,15 @@ let images;
 let writes;
 let failImageInsert = false;
 const supabase = { from(table) {
-  let operation = 'select', payload, ids;
+  let operation = 'select', payload, ids, shape = 'list';
   const query = {
     select() { return this; }, eq() { return this; },
     in(key, values) { ids = values; return this; },
+    not() { return this; },
     update(value) { operation = 'update'; payload = value; return this; },
     insert(value) { operation = 'insert'; payload = value; return this; },
     delete() { operation = 'delete'; return this; },
-    single() { return this; }, maybeSingle() { return this; },
+    single() { shape = 'one'; return this; }, maybeSingle() { shape = 'one'; return this; },
     then(resolve, reject) {
       try {
         let data;
@@ -25,7 +26,11 @@ const supabase = { from(table) {
           data = {id:'c1', slug:'foods', is_active:true};
         } else if (table === 'products') {
           if (operation !== 'select') { writes.push({table, operation, payload}); product = {...product, ...payload}; }
-          data = {...product, product_images: images};
+          if (operation === 'select' && shape !== 'one') {
+            data = product.sku ? [{ id: product.id, sku: product.sku }] : [];
+          } else {
+            data = {...product, product_images: images};
+          }
         } else if (table === 'product_images') {
           if (operation === 'insert' && failImageInsert) return Promise.resolve({data:null,error:{message:'simulated storage-record failure'}}).then(resolve,reject);
           if (operation === 'insert') images.push(...payload.map((row,i)=>({...row,id:`new-${i}`})));
@@ -90,5 +95,17 @@ await test('untracked publish does not require quantity',async()=>{
 await test('untracked activation is allowed without stock',async()=>{
   product.track_inventory=false;product.stock_quantity=null;product.price=12;
   assert.equal((await actions.adminSetProductStatus('p1','active')).success,true);
+});
+await test('existing SKU is preserved on save',async()=>{
+  product.sku='FOOD-KEEP1';
+  const r=await saveProduct(form({sku:'COS-NEW01'}));
+  assert.equal(r.success,true);
+  assert.equal(product.sku,'FOOD-KEEP1');
+});
+await test('missing SKU is generated from Foods prefix and product id',async()=>{
+  product.sku=null;
+  const r=await saveProduct(form({sku:''}));
+  assert.equal(r.success,true);
+  assert.match(product.sku,/^FOOD-[A-Z0-9]+$/);
 });
 console.log(`${count} deterministic action tests passed; database/RLS/browser behavior is not exercised.`);

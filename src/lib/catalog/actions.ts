@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { canonicalSlugForName, isAssignableCategory, isCanonicalSlug } from "@/src/lib/catalog/canonical-categories";
 import { isPersistentImageUrl, productImagesObjectPath } from "@/src/lib/catalog/image-url";
+import { resolvePersistedSku } from "@/src/lib/catalog/sku";
 import { nextOrderStatuses } from "@/src/lib/orders/status";
 
 function textValue(formData: FormData, key: string) {
@@ -38,7 +39,7 @@ const SAVE_ERRORS: Record<string, string> = {
   product_required: "Enter a valid name, category, and price.",
   missing_name: "Add a product name before publishing.",
   missing_category: "Add a category before publishing.",
-  missing_price: "Add a valid price before publishing.",
+  missing_price: "Add a price before publishing.",
   missing_stock: "Add a valid stock quantity before publishing.",
   missing_image: "Add at least one product image before publishing.",
   product_save_failed: "The product could not be saved. Your entries were kept.",
@@ -236,9 +237,11 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
     .eq("id", categoryId)
     .maybeSingle();
   let currentCategoryId: string | null = null;
+  let existingSku: string | null = null;
   if (id) {
-    const { data: existing } = await supabase.from("products").select("category_id").eq("id", id).maybeSingle();
+    const { data: existing } = await supabase.from("products").select("category_id, sku").eq("id", id).maybeSingle();
     currentCategoryId = existing?.category_id ?? null;
+    existingSku = existing?.sku ?? null;
   }
   if (!categoryRow || !isAssignableCategory(categoryRow, currentCategoryId)) {
     return saveError("missing_category");
@@ -285,6 +288,21 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
   const isActive = wantsActive;
   const normalizedStockQuantity = !trackInventory ? null : status === "sold_out" ? 0 : stockQuantityValue;
 
+  const { data: skuRows } = await supabase.from("products").select("id, sku").not("sku", "is", null);
+  const takenSkus = (skuRows ?? [])
+    .filter((row) => !id || row.id !== id)
+    .map((row) => String(row.sku ?? ""))
+    .filter(Boolean);
+  const sku = id
+    ? resolvePersistedSku({
+        existingSku,
+        submittedSku: textValue(formData, "sku"),
+        categorySlug: categoryRow.slug,
+        productId: id,
+        takenSkus,
+      }).sku
+    : existingSku || textValue(formData, "sku") || null;
+
   const values = {
     name,
     slug,
@@ -293,7 +311,7 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
     short_description: textValue(formData, "short_description") || null,
     price,
     compare_at_price: compareAtPriceValue,
-    sku: textValue(formData, "sku") || null,
+    sku,
     stock_quantity: normalizedStockQuantity,
     track_inventory: trackInventory,
     is_active: false,
@@ -335,6 +353,20 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
       const { error: deleteImagesError } = await supabase.from("product_images")
         .delete().eq("product_id", savedProduct.id).in("id", oldImages.map((image) => image.id));
       if (deleteImagesError) return saveError("product_save_failed");
+    }
+  }
+
+  if (savedProduct && !sku) {
+    const generated = resolvePersistedSku({
+      existingSku: null,
+      submittedSku: null,
+      categorySlug: categoryRow.slug,
+      productId: savedProduct.id,
+      takenSkus,
+    });
+    if (generated.sku) {
+      const { error: skuError } = await supabase.from("products").update({ sku: generated.sku }).eq("id", savedProduct.id);
+      if (skuError) return saveError("product_save_failed");
     }
   }
 

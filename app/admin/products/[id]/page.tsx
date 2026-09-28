@@ -34,7 +34,7 @@ export default async function EditProductPage({
             : queryError === "missing_image"
               ? "Add at least one product image before publishing."
               : queryError === "missing_price"
-                ? "Add a valid price before publishing."
+                ? "Add a price before publishing."
                 : queryError === "missing_stock"
                   ? "Add a valid stock quantity before publishing."
                   : queryError === "missing_name"

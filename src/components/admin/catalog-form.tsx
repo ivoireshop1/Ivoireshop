@@ -2,10 +2,11 @@
 
 import type { ReactNode } from "react";
 import Image from "next/image";
+import { fillProductDetailsWithAi } from "@/src/lib/catalog/product-ai-actions";
 import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
 import { useState, useRef, type ChangeEvent, type FormEvent } from "react";
 
-export type CategoryOption = { id: string; name: string };
+export type CategoryOption = { id: string; name: string; slug?: string };
 
 export type ProductValues = {
   id?: string;
@@ -98,6 +99,9 @@ export function ProductForm({
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiMessage, setAiMessage] = useState<string | null>(null);
+  const [pendingAiName, setPendingAiName] = useState<string | null>(null);
 
   // Auto-slug generator when typing name
   function handleNameChange(e: ChangeEvent<HTMLInputElement>) {
@@ -111,6 +115,60 @@ export function ProductForm({
   function handleSlugChange(e: ChangeEvent<HTMLInputElement>) {
     setIsSlugCustomized(true);
     setSlug(slugify(e.target.value));
+  }
+
+  async function handleFillWithAi() {
+    if (!product?.id || aiBusy || isSaving) return;
+    const preserved = {
+      categoryId,
+      price,
+      stockQuantity,
+      trackInventory,
+      isActive,
+    };
+    setAiBusy(true);
+    setAiMessage(null);
+    setPendingAiName(null);
+    try {
+      const result = await fillProductDetailsWithAi(product.id);
+      setCategoryId(preserved.categoryId);
+      setPrice(preserved.price);
+      setStockQuantity(preserved.stockQuantity);
+      setTrackInventory(preserved.trackInventory);
+      setIsActive(preserved.isActive);
+      if (!result.success) {
+        setAiMessage(result.error);
+        return;
+      }
+      if (result.suggestions.shortDescription) setShortDescription(result.suggestions.shortDescription);
+      if (result.suggestions.description) setDescription(result.suggestions.description);
+      if (result.sku && !String(product.sku ?? "").trim()) setSku(result.sku);
+      if (result.replaceName && result.suggestions.name) {
+        setName(result.suggestions.name);
+        if (!isSlugCustomized || slug === slugify(name)) {
+          setSlug(slugify(result.suggestions.name));
+        }
+      } else if (result.suggestions.name && result.suggestions.name !== name) {
+        setPendingAiName(result.suggestions.name);
+      }
+      setAiMessage("Review the suggested details, edit anything that needs changing, then Save.");
+    } catch {
+      setCategoryId(preserved.categoryId);
+      setPrice(preserved.price);
+      setStockQuantity(preserved.stockQuantity);
+      setTrackInventory(preserved.trackInventory);
+      setIsActive(preserved.isActive);
+      setAiMessage("AI couldn't fill this product. You can enter the details manually or try again.");
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
+  function applyPendingAiName() {
+    if (!pendingAiName) return;
+    setName(pendingAiName);
+    if (!isSlugCustomized) setSlug(slugify(pendingAiName));
+    setPendingAiName(null);
   }
 
   // Handle native file selection
@@ -192,7 +250,7 @@ export function ProductForm({
 
     const numPrice = Number(price);
     if (!price.trim() || !Number.isFinite(numPrice) || numPrice <= 0) {
-      errors.push("Add a valid price before publishing.");
+      errors.push("Add a price before publishing.");
     }
 
     const numStock = Number(stockQuantity);
@@ -210,7 +268,7 @@ export function ProductForm({
   async function handleSubmit(e: FormEvent<HTMLFormElement>, saveAsDraft: boolean) {
     e.preventDefault();
     setValidationErrors([]);
-    if (isUploading || isSaving) return;
+    if (isUploading || isSaving || aiBusy) return;
     if (!categoryId) {
       setValidationErrors(["Select a category before saving."]);
       return;
@@ -320,6 +378,37 @@ export function ProductForm({
             <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#b8964c]">
               Basic Information
             </p>
+            {product?.id ? (
+              <div className="space-y-3">
+                <button
+                  aria-busy={aiBusy}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-[#173f35]/20 bg-white px-4 py-2.5 text-sm font-semibold text-[#173f35] shadow-sm transition hover:bg-white/80 disabled:opacity-60 sm:w-auto"
+                  disabled={aiBusy || isSaving || isUploading}
+                  onClick={() => void handleFillWithAi()}
+                  type="button"
+                >
+                  {aiBusy ? "✨ Analyzing product..." : "✨ Fill with AI"}
+                </button>
+                {aiMessage ? (
+                  <p aria-live="polite" className="text-sm text-[#173f35]">
+                    {aiMessage}{" "}
+                    {aiMessage.includes("couldn't fill") ? (
+                      <button className="font-semibold underline underline-offset-2" disabled={aiBusy} onClick={() => void handleFillWithAi()} type="button">
+                        Try Again
+                      </button>
+                    ) : null}
+                  </p>
+                ) : null}
+                {pendingAiName ? (
+                  <p className="rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-sm text-[#173f35]">
+                    AI suggested a name: {pendingAiName}.{" "}
+                    <button className="font-semibold underline underline-offset-2" onClick={applyPendingAiName} type="button">
+                      Use suggestion
+                    </button>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             <label className="block text-sm font-medium text-[#173f35]">
               Product Name <span className="text-red-600">*</span>
@@ -364,7 +453,7 @@ export function ProductForm({
                 ))}
               </select>
               <span className="mt-1 block text-xs text-[#6b6b6b]">
-                Required. Choose Foods, Cosmetics, or Ivoire Market.
+                Required. Choose Foods, Cosmetics, or Ivoire Market. Fill with AI will not change this.
               </span>
             </label>
 
@@ -373,7 +462,8 @@ export function ProductForm({
               <input
                 className="mt-2 w-full rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-[#173f35] outline-none transition focus:border-[#173f35]/35"
                 onChange={(e) => setSku(e.target.value)}
-                placeholder="e.g. RICE-JAS-50"
+                placeholder="Generated on save if left blank"
+                readOnly={Boolean(String(product?.sku ?? "").trim())}
                 type="text"
                 value={sku}
               />
@@ -418,8 +508,11 @@ export function ProductForm({
                   value={price}
                 />
                 <span className="mt-1 block text-xs text-[#6b6b6b]">
-                  Selling price in customer store.
+                  Selling price in customer store. AI will not set this.
                 </span>
+                {validationErrors.some((error) => error.toLowerCase().includes("price")) ? (
+                  <span className="mt-1 block text-sm text-red-700">Add a price before publishing.</span>
+                ) : null}
               </label>
 
               <label className="block text-sm font-medium text-[#173f35]">

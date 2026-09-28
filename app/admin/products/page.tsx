@@ -175,7 +175,7 @@ export default async function AdminProductsPage({
             : params.error === "missing_image"
               ? "Add at least one product image before publishing."
               : params.error === "missing_price"
-                ? "Add a valid price before publishing."
+                ? "Add a price before publishing."
                 : params.error === "missing_stock"
                   ? "Add a valid stock quantity before publishing."
                   : params.error === "missing_name"
