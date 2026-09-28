@@ -12,6 +12,7 @@ import {
 } from "@/src/lib/catalog/admin-product-list";
 import { categoriesForProductAssignment } from "@/src/lib/catalog/canonical-categories";
 import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
+import { FRESH_RESET_SUCCESS } from "@/src/lib/catalog/catalog-reset";
 
 export default async function AdminProductsPage({
   searchParams,
@@ -121,15 +122,21 @@ export default async function AdminProductsPage({
           <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#b8964c]">Catalog</p>
           <h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Products</h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Link
-            className="rounded-full border border-[#173f35]/10 bg-white px-4 py-2 text-sm font-medium text-[#173f35] shadow-sm transition hover:border-[#173f35]/20"
+            className="min-h-11 rounded-full border border-[#173f35]/10 bg-white px-4 py-2 text-sm font-medium text-[#173f35] shadow-sm transition hover:border-[#173f35]/20"
             href="/admin/products"
           >
             Refresh
           </Link>
           <Link
-            className="rounded-full bg-[#173f35] px-4 py-2 text-sm font-medium text-white shadow-[0_10px_22px_rgba(23,63,53,0.25)] transition hover:bg-[#143a30]"
+            className="min-h-11 rounded-full border border-[#173f35]/10 bg-white px-4 py-2 text-sm font-medium text-[#173f35] shadow-sm transition hover:border-[#173f35]/20"
+            href="/admin/products/catalog-controls"
+          >
+            Catalog Controls
+          </Link>
+          <Link
+            className="min-h-11 rounded-full bg-[#173f35] px-4 py-2 text-sm font-medium text-white shadow-[0_10px_22px_rgba(23,63,53,0.25)] transition hover:bg-[#143a30]"
             href="/admin/products/new"
           >
             Add Product
@@ -187,7 +194,7 @@ export default async function AdminProductsPage({
       )}
       {params.success && (
         <p className="rounded-2xl border border-[#173f35]/15 bg-[#173f35]/5 px-4 py-3 text-sm font-medium text-[#173f35]">
-          Product changes saved.
+          {params.success === "catalog_reset" ? FRESH_RESET_SUCCESS : "Product changes saved."}
         </p>
       )}
 

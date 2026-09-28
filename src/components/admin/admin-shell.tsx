@@ -8,6 +8,7 @@ import LogoutButton from "@/src/components/auth/logout-button";
 const navigation = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/products", label: "Products" },
+  { href: "/admin/products/catalog-controls", label: "Catalog Controls" },
   { href: "/admin/products/new", label: "Add Product" },
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/inventory", label: "Inventory" },
@@ -44,17 +45,23 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
           <div className={`${menuOpen ? "block" : "hidden"} px-4 py-5 lg:block`}>
             <nav className="space-y-1" aria-label="Admin navigation">
-              {navigation.map((item) => (
+              {navigation.map((item) => {
+                const current =
+                  item.href === "/admin/products"
+                    ? pathname === "/admin/products" || (pathname.startsWith("/admin/products/") && !pathname.startsWith("/admin/products/catalog-controls") && pathname !== "/admin/products/new" && !pathname.startsWith("/admin/products/new/"))
+                    : pathname === item.href || (item.href !== "/admin" && item.href !== "/" && pathname.startsWith(`${item.href}/`));
+                return (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setMenuOpen(false)}
-                  aria-current={pathname === item.href || (item.href !== "/admin" && item.href !== "/" && pathname.startsWith(`${item.href}/`)) ? "page" : undefined}
-                  className={`flex min-h-11 items-center rounded-xl px-3 py-2.5 text-sm font-medium ${pathname === item.href || (item.href !== "/admin" && item.href !== "/" && pathname.startsWith(`${item.href}/`)) ? "bg-[#173f35]/10 text-[#173f35]" : "text-[#173f35]"}`}
+                  aria-current={current ? "page" : undefined}
+                  className={`flex min-h-11 items-center rounded-xl px-3 py-2.5 text-sm font-medium ${current ? "bg-[#173f35]/10 text-[#173f35]" : "text-[#173f35]"}`}
                 >
                   {item.label}
                 </Link>
-              ))}
+                );
+              })}
             </nav>
             <div className="mt-4 border-t border-[#173f35]/10 pt-2">
               <LogoutButton />

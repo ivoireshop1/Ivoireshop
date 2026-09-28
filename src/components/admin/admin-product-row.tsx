@@ -229,7 +229,7 @@ export function AdminProductRow({
             if (parsedPrice.ok && parsedPrice.value !== null) setPriceInput(formatPriceDisplay(parsedPrice.value));
           }}
           onChange={(event) => applyDraftInputs(event.target.value, stockInput, draftStatus)}
-          placeholder="0.00"
+          placeholder=""
           value={priceInput}
         />
         <p className="mt-1 text-xs text-[#6b6b6b]">{priceLabel ?? (isDirty ? "" : savedPriceLabel)}</p>
@@ -287,7 +287,7 @@ export function AdminProductRow({
           onClick={() => void saveRow()}
           type="button"
         >
-          {pricingState === "saving" ? "Saving..." : "Save"}
+          {pricingState === "saving" ? "Saving..." : draftStatus === "active" ? "Approve / Activate" : "Save Draft"}
         </button>
         <SaveIndicator error={pricingError} state={pricingState} />
         <div className="flex flex-wrap items-center gap-3">

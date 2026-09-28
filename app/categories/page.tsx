@@ -3,6 +3,7 @@ import { Footer } from "@/src/components/layout/footer";
 import { SiteHeader } from "@/src/components/layout/site-header";
 import { PageHero } from "@/src/components/storefront/page-hero";
 import { CanonicalCategoryCards } from "@/src/components/storefront/canonical-category-cards";
+import { CatalogPreparingNotice } from "@/src/components/storefront/catalog-preparing-notice";
 import { getCategories, getProducts } from "@/src/lib/catalog/catalog";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export default async function CategoriesPage() {
         <PageHero eyebrow="The Ivoire collection" title="Explore Our Categories" description="Shop Cosmetics, Foods, and Ivoire Market." />
         <section className="mx-auto max-w-7xl px-5 py-14 lg:px-8">
           <CanonicalCategoryCards categories={categories} liveNames={liveNames} />
+          {products.length === 0 ? <div className="mt-10"><CatalogPreparingNotice compact /></div> : null}
         </section>
       </main>
       <Footer />

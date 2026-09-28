@@ -9,6 +9,7 @@ import { CtaSection } from "@/src/components/storefront/cta-section";
 import { Hero } from "@/src/components/storefront/hero";
 import { StorefrontBillboard } from "@/src/components/storefront/storefront-billboard";
 import { GuestShoppingSection } from "@/src/components/storefront/guest-shopping-section";
+import { CatalogEmptyHome } from "@/src/components/storefront/catalog-empty-home";
 import { ProductSection } from "@/src/components/storefront/product-section";
 import { ComingSoonHome, NewArrivalsHome } from "@/src/components/storefront/home-merch-sections";
 import { getNavRole } from "@/src/lib/auth/session";
@@ -30,6 +31,7 @@ export default async function Home() {
         <CategorySection />
         <NewArrivalsHome />
         <ComingSoonHome />
+        <CatalogEmptyHome />
         <ProductSection />
         <BenefitsSection />
         <GuestShoppingSection />

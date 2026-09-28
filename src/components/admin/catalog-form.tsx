@@ -269,7 +269,7 @@ export function ProductForm({
     return errors;
   }
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>, saveAsDraft: boolean) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>, mode: "draft" | "save" | "activate") {
     e.preventDefault();
     setValidationErrors([]);
     if (isUploading || isSaving || aiBusy) return;
@@ -278,7 +278,8 @@ export function ProductForm({
       return;
     }
 
-    const willBeActive = !saveAsDraft && isActive;
+    const saveAsDraft = mode === "draft";
+    const willBeActive = mode === "activate" || (mode === "save" && isActive);
 
     if (willBeActive) {
       const errors = checkPublishingRequirements();
@@ -351,7 +352,7 @@ export function ProductForm({
   }
 
   return (
-    <form className="mt-6 max-w-4xl space-y-6" onSubmit={(event) => handleSubmit(event, false)}>
+    <form className="mt-6 max-w-4xl space-y-6" onSubmit={(event) => handleSubmit(event, "save")}>
       {/* Validation Errors Alert */}
       {saveMessage ? (
         <p aria-live="polite" className="rounded-2xl border border-[#173f35]/15 bg-[#173f35]/5 px-4 py-3 text-sm text-[#173f35]">
@@ -858,7 +859,16 @@ export function ProductForm({
             <button
               className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-[#173f35] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#143a30] disabled:opacity-50"
               disabled={isSaving || isUploading}
-              onClick={(e) => handleSubmit(e as unknown as FormEvent<HTMLFormElement>, false)}
+              onClick={(e) => handleSubmit(e as unknown as FormEvent<HTMLFormElement>, "activate")}
+              type="button"
+            >
+              {isSaving ? "Saving..." : "Approve / Activate"}
+            </button>
+
+            <button
+              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-[#173f35]/20 bg-white px-5 py-2.5 text-sm font-medium text-[#173f35] shadow-sm transition hover:bg-[#f9f7f3] disabled:opacity-50"
+              disabled={isSaving || isUploading}
+              onClick={(e) => handleSubmit(e as unknown as FormEvent<HTMLFormElement>, "save")}
               type="button"
             >
               {isSaving ? "Saving..." : product?.id ? "Save Changes" : "Create Product"}
@@ -867,10 +877,10 @@ export function ProductForm({
             <button
               className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-[#173f35]/20 bg-white px-5 py-2.5 text-sm font-medium text-[#173f35] shadow-sm transition hover:bg-[#f9f7f3] disabled:opacity-50"
               disabled={isSaving || isUploading}
-              onClick={(e) => handleSubmit(e as unknown as FormEvent<HTMLFormElement>, true)}
+              onClick={(e) => handleSubmit(e as unknown as FormEvent<HTMLFormElement>, "draft")}
               type="button"
             >
-              Save as Draft
+              Save Draft
             </button>
           </div>
         </div>

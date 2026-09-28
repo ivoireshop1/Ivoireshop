@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { createAnnouncement, deleteAnnouncement, listAnnouncements, setAnnouncementPublished } from "@/src/lib/admin/announcements";
 import { CategoryImageField } from "@/src/components/admin/category-image-field";
@@ -18,6 +19,9 @@ export default async function AdminContentPage({
         <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#b8964c]">Merchandising</p>
         <h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Storefront / Promotions</h1>
         <p className="mt-2 text-sm text-[#6b6b6b]">One published billboard can appear on the storefront. Disable it to return to the regular layout.</p>
+        <Link className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products/catalog-controls">
+          Catalog Controls
+        </Link>
       </div>
       {error ? <p className="rounded-2xl border border-[#7f1d1d]/20 bg-[#7f1d1d]/5 px-4 py-3 text-sm text-[#7f1d1d]">The promotion could not be saved. Use an internal link such as /shop or /shop?arrival=new.</p> : null}
       {success ? <p className="rounded-2xl border border-[#173f35]/15 bg-[#173f35]/5 px-4 py-3 text-sm text-[#173f35]">Promotion updated.</p> : null}
