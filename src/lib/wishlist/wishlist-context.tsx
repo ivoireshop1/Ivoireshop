@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/src/lib/supabase/browser";
 import { addToWishlist, getWishlist, removeFromWishlist } from "./wishlist-service";
 import type { WishlistItem } from "@/src/types/wishlist";
@@ -22,15 +22,15 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const itemsRef = useRef<WishlistItem[]>([]);
 
-  const refreshWishlist = useCallback(async () => {
-    setIsLoading(true);
+  const refreshWishlist = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) setIsLoading(true);
     setError(null);
     try {
       const { data: { user } } = await createClient().auth.getUser();
       setItems(user ? await getWishlist() : []);
     } catch (reason) {
-      setItems([]);
       setError(reason instanceof Error ? reason.message : "Unable to load wishlist.");
     } finally {
       setIsLoading(false);
@@ -38,26 +38,37 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => { void refreshWishlist(); }, 0);
-    const { data: listener } = createClient().auth.onAuthStateChange(() => { void refreshWishlist(); });
-    return () => { window.clearTimeout(timer); listener.subscription.unsubscribe(); };
+    const { data: listener } = createClient().auth.onAuthStateChange((event) => {
+      if (event === "TOKEN_REFRESHED") return;
+      void refreshWishlist({ silent: event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "INITIAL_SESSION" });
+    });
+    return () => {
+      window.clearTimeout(timer);
+      listener.subscription.unsubscribe();
+    };
   }, [refreshWishlist]);
 
   const update = useCallback(async (productId: string, action: "add" | "remove") => {
-    const previous = items;
+    const previous = itemsRef.current;
     const existing = previous.find((item) => item.productId === productId);
-    setItems(action === "add" && !existing ? [...previous, { id: `pending-${productId}`, productId }] : action === "remove" ? previous.filter((item) => item.productId !== productId) : previous);
+    if (action === "add" && existing) return;
+    setItems(action === "add" ? [...previous, { id: `pending-${productId}`, productId }] : previous.filter((item) => item.productId !== productId));
     setError(null);
     try {
       if (action === "add") await addToWishlist(productId);
       else await removeFromWishlist(productId);
-      await refreshWishlist();
+      await refreshWishlist({ silent: true });
     } catch (reason) {
       setItems(previous);
       setError(reason instanceof Error ? reason.message : "Unable to update wishlist.");
       throw reason;
     }
-  }, [items, refreshWishlist]);
+  }, [refreshWishlist]);
 
   const value = useMemo(() => ({
     items, isLoading, error,
@@ -65,7 +76,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     removeItem: (productId: string) => update(productId, "remove"),
     toggleItem: (productId: string) => update(productId, items.some((item) => item.productId === productId) ? "remove" : "add"),
     isWishlisted: (productId: string) => items.some((item) => item.productId === productId),
-    refreshWishlist,
+    refreshWishlist: () => refreshWishlist({ silent: true }),
   }), [items, isLoading, error, refreshWishlist, update]);
   return <WishlistContext.Provider value={value}>{children}</WishlistContext.Provider>;
 }

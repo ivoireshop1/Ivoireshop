@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { saveProduct } from "@/src/lib/catalog/actions";
+import { categoriesForProductAssignment } from "@/src/lib/catalog/canonical-categories";
 import { ProductForm } from "@/src/components/admin/catalog-form";
 
 export default async function EditProductPage({
@@ -15,11 +16,13 @@ export default async function EditProductPage({
   const { supabase } = await requireAdmin();
   const [{ data: product, error: productError }, { data: categories, error: categoryError }] = await Promise.all([
     supabase.from("products").select("*, product_images(image_url, position)").eq("id", id).maybeSingle(),
-    supabase.from("categories").select("id, name").order("name"),
+    supabase.from("categories").select("id, name, is_active").order("name"),
   ]);
 
   if (productError || categoryError) throw new Error("Unable to load product.");
   if (!product) notFound();
+
+  const categoryOptions = categoriesForProductAssignment(categories ?? [], product.category_id);
 
   return (
     <>
@@ -39,7 +42,7 @@ export default async function EditProductPage({
                     : "Enter a valid name, category, description, price, and whole-number stock quantity."}
         </p>
       )}
-      <ProductForm action={saveProduct} categories={categories ?? []} product={product} />
+      <ProductForm action={saveProduct} categories={categoryOptions} product={product} />
     </>
   );
 }

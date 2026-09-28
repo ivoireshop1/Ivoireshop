@@ -6,8 +6,8 @@ export function CustomerHero({ firstName }: { firstName: string | null }) {
 
   return (
     <section className="relative isolate overflow-hidden rounded-3xl bg-forest-green">
-      <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
-        <div className="order-2 px-6 py-10 sm:px-10 sm:py-14 lg:order-1 lg:py-20">
+      <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch">
+        <div className="order-2 px-6 py-10 sm:px-10 sm:py-14 lg:order-1 lg:flex lg:flex-col lg:justify-center lg:py-16">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">Your Ivoire Shop</p>
           <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight text-white sm:text-5xl">{greeting}</h1>
           <p className="mt-4 max-w-md leading-7 text-white/80">
@@ -15,27 +15,27 @@ export function CustomerHero({ firstName }: { firstName: string | null }) {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
-              className="rounded-lg bg-white px-6 py-3.5 text-center text-sm font-semibold text-forest-green shadow-[0_15px_35px_rgba(0,0,0,0.18)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#f7f3ee]"
+              className="min-h-11 rounded-lg bg-white px-6 py-3.5 text-center text-sm font-semibold text-forest-green shadow-[0_15px_35px_rgba(0,0,0,0.18)]"
               href="/shop"
             >
               Shop Products
             </Link>
             <Link
-              className="rounded-lg border border-white/40 bg-white/10 px-6 py-3.5 text-center text-sm font-semibold text-white backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:bg-white/15"
+              className="min-h-11 rounded-lg border border-white/40 bg-white/10 px-6 py-3.5 text-center text-sm font-semibold text-white"
               href="/wishlist"
             >
               View Wishlist
             </Link>
           </div>
         </div>
-        <div className="relative order-1 aspect-[4/3] lg:order-2 lg:aspect-auto lg:h-full lg:min-h-[420px]">
+        <div className="relative order-1 aspect-[4/3] min-h-[220px] lg:order-2 lg:aspect-auto lg:min-h-[360px]">
           <Image
-            alt="A customer holding an Ivoire Shop grocery bag with fresh produce and pantry items"
-            className="object-cover"
+            alt="Customer with groceries planning a shop at home"
+            className="object-cover object-[center_20%]"
             fill
             priority
-            sizes="(max-width: 1024px) 100vw, 50vw"
-            src="/customer/hero-lifestyle.png/hero-lifestyle.png"
+            sizes="(max-width: 1024px) 100vw, 48vw"
+            src="/images/customer-account-lifestyle.png"
           />
         </div>
       </div>

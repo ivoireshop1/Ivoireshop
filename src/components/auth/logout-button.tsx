@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/src/lib/supabase/browser";
 
-export default function LogoutButton() {
+export default function LogoutButton({ className }: { className?: string }) {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -25,7 +25,7 @@ export default function LogoutButton() {
   }
 
   return (
-    <div className="mt-4">
+    <div className={className ?? "mt-4"}>
       <button
         className="min-h-11 rounded-lg border border-forest-green px-4 py-2 text-sm font-medium text-forest-green disabled:opacity-60"
         disabled={isLoggingOut}

@@ -1,5 +1,7 @@
 import { requireAdmin } from "@/src/lib/auth/guards";
-import { createCategory, deleteCategory, updateCategory } from "@/src/lib/catalog/actions";
+import { createCategory, deactivateCategory, deleteCategory, updateCategory } from "@/src/lib/catalog/actions";
+import { isCanonicalSlug } from "@/src/lib/catalog/canonical-categories";
+import { CategoryCreateForm, CategoryRowForm } from "@/src/components/admin/category-forms";
 
 export default async function AdminCategoriesPage({
   searchParams,
@@ -8,29 +10,46 @@ export default async function AdminCategoriesPage({
 }) {
   const params = await searchParams;
   const { supabase } = await requireAdmin();
-  const [{ data: categories, error }, { data: productCounts }] = await Promise.all([
+  const [{ data: categories, error }, { data: productRows }] = await Promise.all([
     supabase.from("categories").select("id, name, slug, description, image_url, is_active").order("name"),
-    supabase.from("products").select("category_id"),
+    supabase.from("products").select("category_id, is_active"),
   ]);
 
   if (error) throw new Error("Unable to load categories.");
 
-  const counts = new Map<string, number>();
-  (productCounts ?? []).forEach((product) => {
+  const totals = new Map<string, number>();
+  const actives = new Map<string, number>();
+  (productRows ?? []).forEach((product) => {
     const key = product.category_id ?? "";
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+    totals.set(key, (totals.get(key) ?? 0) + 1);
+    if (product.is_active) actives.set(key, (actives.get(key) ?? 0) + 1);
   });
+
+  const rows = categories ?? [];
+  const activeCategories = rows.filter((category) => category.is_active);
+  const legacyCategories = rows.filter((category) => !category.is_active);
 
   return (
     <div className="space-y-6">
       <div>
         <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#b8964c]">Organization</p>
         <h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Categories</h1>
+        <p className="mt-2 max-w-2xl text-sm text-[#6b6b6b]">
+          Storefront shoppers see active categories. Counts include every product assigned to the category, including drafts.
+        </p>
       </div>
 
       {params.error && (
         <p className="rounded-2xl border border-[#7f1d1d]/20 bg-[#7f1d1d]/5 px-4 py-3 text-sm text-[#7f1d1d]">
-          {params.error === "category_in_use" ? "This category still has products assigned to it. Move or reassign them before deleting it." : params.error === "canonical_duplicate" ? "Cosmetics, Foods, and Ivoire Market already exist. Do not create a duplicate." : params.error === "canonical_locked" ? "The three primary categories cannot be renamed or deleted." : "The category could not be saved. Check the values and try again."}
+          {params.error === "category_in_use"
+            ? "This category still has products assigned to it. Deactivate it instead of deleting."
+            : params.error === "canonical_duplicate"
+              ? "Cosmetics, Foods, and Ivoire Market already exist. Do not create a duplicate."
+              : params.error === "canonical_locked"
+                ? "The three primary categories cannot be renamed or deleted."
+                : params.error === "category_duplicate"
+                  ? "A category with that slug already exists."
+                  : "The category could not be saved. Check the values and try again."}
         </p>
       )}
       {params.success && (
@@ -39,42 +58,42 @@ export default async function AdminCategoriesPage({
         </p>
       )}
 
-      <form action={createCategory} className="grid gap-4 rounded-[28px] border border-[#173f35]/10 bg-white p-6 shadow-[0_12px_32px_rgba(23,63,53,0.04)] lg:grid-cols-5">
-        <input className="rounded-xl border border-[#173f35]/15 px-4 py-3" name="name" placeholder="Category name" required />
-        <input className="rounded-xl border border-[#173f35]/15 px-4 py-3" name="slug" placeholder="Slug (optional)" />
-        <input className="rounded-xl border border-[#173f35]/15 px-4 py-3" name="image_url" placeholder="Image URL (optional)" />
-        <input className="rounded-xl border border-[#173f35]/15 px-4 py-3 lg:col-span-1" name="description" placeholder="Description" />
-        <div className="flex items-center justify-end gap-3">
-          <label className="flex items-center gap-2 text-sm text-[#173f35]">
-            <input defaultChecked name="is_active" type="checkbox" />
-            Active
-          </label>
-          <button className="rounded-xl bg-[#173f35] px-4 py-3 text-sm font-medium text-white" type="submit">Add category</button>
-        </div>
-      </form>
+      <CategoryCreateForm action={createCategory} />
 
-      <div className="space-y-4">
-        {(categories ?? []).map((category) => (
-          <form action={updateCategory} className="grid gap-3 rounded-[24px] border border-[#173f35]/10 bg-white p-5 shadow-[0_10px_25px_rgba(23,63,53,0.04)] lg:grid-cols-[1.2fr_1.2fr_1.2fr_1.5fr_auto_auto_auto]" key={category.id}>
-            <input name="id" type="hidden" value={category.id} />
-            <input className="rounded-xl border border-[#173f35]/15 px-3 py-2" name="name" defaultValue={category.name} required />
-            <input className="rounded-xl border border-[#173f35]/15 px-3 py-2" name="slug" defaultValue={category.slug} required />
-            <input className="rounded-xl border border-[#173f35]/15 px-3 py-2" name="image_url" defaultValue={category.image_url ?? ""} placeholder="Image URL" />
-            <input className="rounded-xl border border-[#173f35]/15 px-3 py-2" name="description" defaultValue={category.description ?? ""} placeholder="Description" />
-            <label className="flex items-center gap-2 text-sm text-[#173f35]">
-              <input defaultChecked={category.is_active} name="is_active" type="checkbox" />
-              Active
-            </label>
-            <div className="flex items-center justify-center text-sm text-[#6b6b6b]">
-              {counts.get(category.id) ?? 0} products
-            </div>
-            <div className="flex items-center gap-3">
-              <button className="text-sm font-medium text-[#173f35] underline-offset-2 hover:underline" type="submit">Save</button>
-              <button className="text-sm font-medium text-[#7f1d1d] underline-offset-2 hover:underline" formAction={deleteCategory} type="submit">Delete</button>
-            </div>
-          </form>
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-[#173f35]">Active categories</h2>
+        {activeCategories.map((category) => (
+          <CategoryRowForm
+            activeCount={actives.get(category.id) ?? 0}
+            category={category}
+            deactivateAction={deactivateCategory}
+            deleteAction={deleteCategory}
+            isCanonical={isCanonicalSlug(category.slug)}
+            key={category.id}
+            totalCount={totals.get(category.id) ?? 0}
+            updateAction={updateCategory}
+          />
         ))}
-      </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-[#6b6b6b]">Legacy / inactive categories</h2>
+        <p className="text-sm text-[#6b6b6b]">These are hidden from the storefront. They remain only if historical products still reference them.</p>
+        {legacyCategories.length === 0 ? <p className="text-sm text-[#6b6b6b]">No inactive categories.</p> : null}
+        {legacyCategories.map((category) => (
+          <div className="opacity-80" key={category.id}>
+            <CategoryRowForm
+              activeCount={actives.get(category.id) ?? 0}
+              category={category}
+              deactivateAction={deactivateCategory}
+              deleteAction={deleteCategory}
+              isCanonical={isCanonicalSlug(category.slug)}
+              totalCount={totals.get(category.id) ?? 0}
+              updateAction={updateCategory}
+            />
+          </div>
+        ))}
+      </section>
     </div>
   );
 }

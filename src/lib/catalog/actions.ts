@@ -70,10 +70,12 @@ export async function createCategory(formData: FormData) {
   });
 
   if (error) {
-    redirect("/admin/categories?error=category_create_failed");
+    redirect(`/admin/categories?error=${error.code === "23505" ? "category_duplicate" : "category_create_failed"}`);
   }
 
   revalidatePath("/admin/categories");
+  revalidatePath("/admin/products");
+  revalidatePath("/categories");
   revalidatePath("/");
   redirect("/admin/categories?success=category_created");
 }
@@ -115,6 +117,8 @@ export async function updateCategory(formData: FormData) {
   }
 
   revalidatePath("/admin/categories");
+  revalidatePath("/admin/products");
+  revalidatePath("/categories");
   revalidatePath("/");
   redirect("/admin/categories?success=category_updated");
 }
@@ -152,7 +156,30 @@ export async function deleteCategory(formData: FormData) {
   }
 
   revalidatePath("/admin/categories");
+  revalidatePath("/admin/products");
+  revalidatePath("/categories");
+  revalidatePath("/");
   redirect("/admin/categories?success=category_deleted");
+}
+
+export async function deactivateCategory(formData: FormData) {
+  const { supabase } = await requireAdmin();
+  const id = textValue(formData, "id");
+  if (!id) redirect("/admin/categories?error=category_delete_failed");
+
+  const { data: existing } = await supabase.from("categories").select("slug").eq("id", id).maybeSingle();
+  if (existing && isCanonicalSlug(existing.slug)) {
+    redirect("/admin/categories?error=canonical_locked");
+  }
+
+  const { error } = await supabase.from("categories").update({ is_active: false }).eq("id", id);
+  if (error) redirect("/admin/categories?error=category_update_failed");
+
+  revalidatePath("/admin/categories");
+  revalidatePath("/admin/products");
+  revalidatePath("/categories");
+  revalidatePath("/");
+  redirect("/admin/categories?success=category_updated");
 }
 
 export async function saveProduct(formData: FormData): Promise<SaveProductResult> {

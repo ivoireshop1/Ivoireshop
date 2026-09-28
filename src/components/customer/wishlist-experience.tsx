@@ -18,7 +18,7 @@ export function WishlistExperience() {
   const { addItem, items: cartItems } = useCart();
   const [addedId, setAddedId] = useState<string | null>(null);
 
-  if (isLoading) return <p role="status" className="px-5 py-16 text-center text-muted">Loading your wishlist...</p>;
+  if (isLoading && items.length === 0) return <p role="status" className="px-5 py-16 text-center text-muted">Loading your wishlist...</p>;
   if (error) return <div role="alert" className="px-5 py-16 text-center"><p>Your wishlist could not be updated. Please try again.</p><button className="mt-5 rounded-lg bg-forest-green px-5 py-3 text-white" onClick={() => void refreshWishlist()} type="button">Try again</button></div>;
 
   if (!items.length) {

@@ -36,3 +36,7 @@ export function canonicalSortIndex(name: string) {
   const index = CANONICAL_CATEGORIES.findIndex((category) => category.name === name);
   return index === -1 ? CANONICAL_CATEGORIES.length : index;
 }
+
+export function categoriesForProductAssignment<T extends { id: string; is_active?: boolean }>(categories: T[], currentId?: string | null) {
+  return categories.filter((category) => category.is_active || category.id === currentId);
+}

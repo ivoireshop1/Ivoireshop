@@ -8,6 +8,7 @@ import { ChangePasswordForm } from "@/src/components/auth/change-password-form";
 import { Footer } from "@/src/components/layout/footer";
 import { Header } from "@/src/components/layout/header";
 import { CustomerHero } from "@/src/components/customer/customer-hero";
+import { CustomerAccountNav } from "@/src/components/customer/customer-account-nav";
 import { CustomerOrderCard } from "@/src/components/customer/customer-order-card";
 import { AddAddressForm } from "@/src/components/customer/add-address-form";
 import { toOneRelation } from "@/src/lib/catalog/relation-utils";
@@ -51,7 +52,8 @@ export default async function AccountPage() {
       .limit(8),
     supabase
       .from("wishlist_items")
-      .select("id, products(name, slug, price, stock_quantity, categories(name), product_images(image_url, position))")
+      .select("id, product_id, products(name, slug, price, stock_quantity, categories(name), product_images(image_url, position))")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(4),
     getProducts(),
@@ -69,6 +71,7 @@ export default async function AccountPage() {
     <>
       <Header />
       <main className="mx-auto w-full max-w-6xl px-6 py-10">
+        <CustomerAccountNav />
         <CustomerHero firstName={heroName} />
 
         <section className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">

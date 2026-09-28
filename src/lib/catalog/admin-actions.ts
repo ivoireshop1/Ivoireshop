@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
+import { parsePriceInput, parseStockInput } from "@/src/lib/catalog/pricing-input";
 
 export type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -10,8 +11,6 @@ function revalidateStorefront(slug: string | null | undefined) {
   revalidatePath("/");
   revalidatePath("/shop");
   revalidatePath("/categories");
-  revalidatePath("/admin/products");
-  revalidatePath("/admin/inventory");
   revalidatePath("/admin");
   if (slug) revalidatePath(`/product/${slug}`);
 }
@@ -95,17 +94,10 @@ export async function adminUpdateProductPricing(
 ): Promise<ActionResult<{ price: number | null; stock_quantity: number | null; needs_pricing: boolean; is_active: boolean }>> {
   if (!id) return { success: false, error: "Invalid product." };
 
-  const trimmedPrice = priceInput.trim();
-  const trimmedStock = stockInput.trim();
-  const price = trimmedPrice ? Number(trimmedPrice) : null;
-  const stockQuantity = trimmedStock ? Number(trimmedStock) : null;
-
-  if (trimmedPrice && (!Number.isFinite(price) || (price as number) <= 0)) {
-    return { success: false, error: "Price must be a number greater than 0." };
-  }
-  if (trimmedStock && (!Number.isFinite(stockQuantity) || !Number.isInteger(stockQuantity) || (stockQuantity as number) < 0)) {
-    return { success: false, error: "Stock must be a whole number of 0 or more." };
-  }
+  const parsedPrice = parsePriceInput(priceInput);
+  const parsedStock = parseStockInput(stockInput);
+  if (!parsedPrice.ok) return { success: false, error: parsedPrice.error };
+  if (!parsedStock.ok) return { success: false, error: parsedStock.error };
 
   const { supabase } = await requireAdmin();
   const { data: product, error: fetchError } = await supabase
@@ -116,10 +108,8 @@ export async function adminUpdateProductPricing(
 
   if (fetchError || !product) return { success: false, error: "Product not found." };
 
-  // An active product must never end up with incomplete pricing/stock.
-  // Keep existing values if an input was omitted or blank
-  const nextPrice = trimmedPrice ? price : (trimmedPrice === "" ? product.price : null);
-  const nextStock = trimmedStock ? stockQuantity : (trimmedStock === "" ? product.stock_quantity : null);
+  const nextPrice = parsedPrice.value;
+  const nextStock = parsedStock.value;
 
   const needsPricing = nextPrice === null || nextStock === null;
   const nextIsActive = needsPricing ? false : product.is_active;
