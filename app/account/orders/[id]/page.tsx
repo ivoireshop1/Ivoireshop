@@ -6,6 +6,7 @@ import { SmartBackButton } from "@/src/components/navigation/smart-back-button";
 import { ReorderButton } from "@/src/components/customer/reorder-button";
 import { CopyConfirmationButton } from "@/src/components/checkout/copy-confirmation-button";
 import { fulfillmentLabel } from "@/src/lib/fulfillment/fulfillment";
+import { markNotificationOrderRead } from "@/src/lib/notifications/actions";
 
 export default async function CustomerOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,6 +14,7 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
   if (result.kind === "unauthenticated") redirect("/login?next=" + encodeURIComponent("/account/orders/" + id));
   if (result.kind === "missing") notFound();
   const { order } = result;
+  await markNotificationOrderRead(order.id);
   const items = order.order_items;
 
   return (
@@ -21,10 +23,16 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
       <p className="mt-8 text-xs font-semibold uppercase tracking-[0.2em] text-gold">Order</p>
       <h1 className="mt-2 text-4xl font-semibold text-forest-green">{order.order_number}</h1>
       {order.confirmation_code ? (
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <p className="font-mono text-2xl tracking-[0.16em] text-forest-green">{order.confirmation_code}</p>
-          <CopyConfirmationButton code={order.confirmation_code} />
-        </div>
+        <section className="mt-6 rounded-[24px] border border-gold/40 bg-white px-5 py-6 text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gold">Your confirmation code</p>
+          <p className="mt-3 break-all font-mono text-4xl font-semibold tracking-[0.18em] text-forest-green">{order.confirmation_code}</p>
+          <div className="mt-4 flex justify-center">
+            <CopyConfirmationButton code={order.confirmation_code} />
+          </div>
+          {order.fulfillment_method === "local_pickup" ? (
+            <p className="mt-4 text-sm leading-6 text-muted">Keep this code handy. We&apos;ll use it to verify your order at pickup.</p>
+          ) : null}
+        </section>
       ) : null}
       <p className="mt-3 text-muted">
         {new Date(order.created_at).toLocaleDateString()} · {orderStatusLabel(order.status, order.fulfillment_method)} · {fulfillmentLabel(order.fulfillment_method)}

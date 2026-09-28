@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import ts from 'typescript';
-let rpcResult, rpcCalls, cachePaths, throwNetwork=false, cacheFailure=false, storeOpen=true;
+let rpcResult, rpcCalls, cachePaths, throwNetwork=false, cacheFailure=false, storeOpen=true, signedIn=false, throwNotification=false;
 const local=new Map(),session=new Map();
 const storage=map=>({getItem:key=>map.get(key)??null,setItem:(key,value)=>map.set(key,String(value)),removeItem:key=>map.delete(key)});
 const cache=new Map();
@@ -16,14 +16,15 @@ function load(file){
   if(id==='server-only')return {};
   if(id==='@/src/lib/communications/send-confirmation')return {trySendOrderConfirmation:async()=>false};
   if(id==='@/src/lib/supabase/server')return {createClient:async()=>({
+    auth:{getUser:async()=>({data:{user:signedIn?{id:'30000000-0000-4000-8000-000000000001'}:null}})},
     from(){return {select(){return this},eq(){return this},maybeSingle:async()=>({data:{is_open:storeOpen}})}},
-    rpc:async(name,args)=>{rpcCalls.push({name,args});if(throwNetwork)throw Error('network');return rpcResult;},
+    rpc:async(name,args)=>{rpcCalls.push({name,args});if(throwNetwork)throw Error('network');if(name==='create_customer_order_notification'){if(throwNotification)throw Error('notify');return {data:true,error:null};}return rpcResult;},
   })};
   if(id.startsWith('@/'))return load(id.slice(2)+'.ts');
   if(id.startsWith('.'))return load(path.resolve(path.dirname(file),id)+'.ts');
   throw Error(id);
  };
- vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{exports,require,URL,URLSearchParams,window,sessionStorage:storage(session),console},{filename:file});
+ vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{exports,require,URL,URLSearchParams,window,sessionStorage:storage(session),console,process},{filename:file});
  cache.set(file,exports);return exports;
 }
 const {placeCheckoutOrder}=load('src/lib/checkout/actions.ts');
@@ -34,7 +35,7 @@ const {sanitizeReturnPath}=load('src/lib/navigation/smart-navigation.ts');
 const id='20000000-0000-4000-8000-000000000001';
 const request=()=>({items:[{product_id:id,quantity:2}],customerName:'Test',customerEmail:'test@example.com',customerPhone:'1234567890',address:{address_line_1:'1 Main St',city:'Test',country:'US'},fulfillmentMethod:'delivery',idempotencyKey:crypto.randomUUID()});
 let count=0;
-async function test(name,fn){rpcCalls=[];cachePaths=[];throwNetwork=false;cacheFailure=false;storeOpen=true;local.clear();session.clear();rpcResult={data:[{order_id:id,order_number:'IV-TEST',status:'pending',total:'24.00'}],error:null};await fn();count++;console.log('PASS '+name)}
+async function test(name,fn){rpcCalls=[];cachePaths=[];throwNetwork=false;cacheFailure=false;storeOpen=true;signedIn=false;throwNotification=false;local.clear();session.clear();rpcResult={data:[{order_id:id,order_number:'IV-TEST',status:'pending',total:'24.00'}],error:null};await fn();count++;console.log('PASS '+name)}
 await test('actual action sends only IDs/quantities and uses RPC total',async()=>{const r=await placeCheckoutOrder({...request(),price:0.01,total:0.01});assert.equal(r.success,true);assert.equal(r.receipt.total,24);assert.equal(r.receipt.payment_status,'pending');assert.notEqual(r.receipt.payment_status,'paid');assert.equal(rpcCalls[0].name,'create_checkout_order');assert.deepEqual(Object.keys(rpcCalls[0].args.p_items[0]).sort(),['product_id','quantity']);assert.ok(!JSON.stringify(rpcCalls[0].args).includes('0.01'));});
 await test('closed store rejects new orders before RPC',async()=>{storeOpen=false;const r=await placeCheckoutOrder(request());assert.equal(r.success,false);assert.match(r.error,/temporarily unavailable/);assert.equal(rpcCalls.length,0)});
 await test('invalid contact rejected before RPC',async()=>{for(const change of [{customerName:''},{customerEmail:'bad'},{customerPhone:'bad'},{address:{}},{fulfillmentMethod:'invalid'}])assert.equal((await placeCheckoutOrder({...request(),...change})).success,false);assert.equal(rpcCalls.length,0)});
@@ -45,6 +46,17 @@ await test('API outage hides internal details and stays recoverable',async()=>{r
 await test('malformed RPC response cannot produce fake success',async()=>{for(const data of [null,[],[{order_id:id}],[{order_id:id,order_number:'N',status:'pending',total:'bad'}]]){rpcResult={data,error:null};assert.equal((await placeCheckoutOrder(request())).success,false)}});
 await test('successful checkout revalidates catalog/admin/order paths',async()=>{await placeCheckoutOrder(request());for(const p of ['/admin','/admin/orders','/admin/inventory','/shop','/account',`/admin/orders/${id}`])assert.ok(cachePaths.includes(p))});
 await test('cache error cannot undo an already committed order',async()=>{cacheFailure=true;assert.equal((await placeCheckoutOrder(request())).success,true)});
+await test('guest checkout does not create in-app notifications',async()=>{await placeCheckoutOrder(request());assert.ok(!rpcCalls.some(call=>call.name==='create_customer_order_notification'))});
+await test('signed-in checkout records confirmation and pending-payment notifications',async()=>{
+  signedIn=true;
+  await placeCheckoutOrder(request());
+  const notes=rpcCalls.filter(call=>call.name==='create_customer_order_notification');
+  assert.equal(notes.length,2);
+  assert.equal(notes[0].args.p_event_type,'order_confirmed');
+  assert.equal(notes[1].args.p_event_type,'payment_pending');
+  assert.ok(cachePaths.includes('/account/notifications'));
+});
+await test('notification failure cannot undo a committed order',async()=>{signedIn=true;throwNotification=true;assert.equal((await placeCheckoutOrder(request())).success,true)});
 await test('duplicate cart lines aggregate and deterministic lock order',()=>{const r=request();r.items=[...r.items,...r.items];assert.equal(validateCheckout(r).request.items[0].quantity,4)});
 const item={productId:id,slug:'rice',name:'Rice',price:12,image:'/rice.jpg',quantity:5};
 await test('success removes purchased units, preserves added units and other products',()=>{const items=[item,{...item,productId:'other',quantity:1}];cart.saveCart(items);const remaining=cart.completeStoredPurchase(items,[{productId:id,quantity:2}],'order-1');assert.equal(remaining[0].quantity,3);assert.equal(remaining[1].quantity,1);assert.equal(cart.loadCart()[0].quantity,3)});

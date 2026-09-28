@@ -6,7 +6,7 @@ import ts from 'typescript';
 
 const id='20000000-0000-4000-8000-000000000001';
 let user, admin, order, calls, writes, failRead, stale, cachePaths;
-const db={auth:{getUser:async()=>({data:{user}})},from(table){
+const db={auth:{getUser:async()=>({data:{user}})},rpc:async()=>({data:true,error:null}),from(table){
  const filters={},q={operation:'read',select(columns){calls.push({table,columns});return q},eq(k,v){filters[k]=v;return q},update(payload){q.operation='update';q.payload=payload;return q},async maybeSingle(){
   if(failRead)return {data:null,error:{message:'private failure'}};
   if(q.operation==='update'){
@@ -34,6 +34,7 @@ const status=load('src/lib/orders/status.ts');
 const messages=load('src/lib/communications/order-messages.ts');
 const payments=load('src/lib/payments/readiness.ts');
 const emailActions=load('src/lib/admin/email-actions.ts');
+const notify=load('src/lib/notifications/events.ts');
 let count=0;
 async function test(name,fn){user={id:'customer-a'};admin=true;calls=[];writes=[];cachePaths=[];failRead=false;stale=false;order={id,user_id:user.id,status:'pending',fulfillment_method:'delivery',payment_status:'pending'};await fn();count++;console.log('PASS '+name);}
 const form=(next='confirmed',expected='pending')=>new Map([['id',id],['status',next],['expected_status',expected]]);
@@ -69,5 +70,15 @@ await test('admin email preview uses stored order and does not send',async()=>{
 await test('test email is blocked when provider is not configured',async()=>{
   const form=new FormData();form.set('recipient','qa@example.com');
   await assert.rejects(emailActions.sendAdminTestEmail(form),/email_not_configured/);
+});
+await test('fulfillment and payment map to existing status events',()=>{
+  assert.equal(notify.notificationEventFromOrderStatus('processing'),'preparing');
+  assert.equal(notify.notificationEventFromOrderStatus('ready_for_pickup'),'ready_for_pickup');
+  assert.equal(notify.notificationEventFromOrderStatus('shipped'),'out_for_delivery');
+  assert.equal(notify.notificationEventFromOrderStatus('delivered'),'completed');
+  assert.equal(notify.notificationEventFromOrderStatus('cancelled'),'cancelled');
+  assert.equal(notify.notificationEventFromPaymentStatus('paid'),'payment_received');
+  assert.equal(notify.notificationEventFromPaymentStatus('failed'),'payment_failed');
+  assert.equal(notify.notificationEventFromPaymentStatus('pending'),'payment_pending');
 });
 console.log(`${count} customer-order/admin/communications tests passed; database transport mocked, no emails or payments sent.`);

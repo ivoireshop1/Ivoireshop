@@ -4,13 +4,15 @@ import { notFound } from "next/navigation";
 import { updateOrderStatus } from "@/src/lib/catalog/actions";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { CopyConfirmationButton } from "@/src/components/checkout/copy-confirmation-button";
+import { getEmailProviderStatus } from "@/src/lib/email/send";
 
 export default async function OrderDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; success?: string }> }) {
   const [{ id }, notices] = await Promise.all([params, searchParams]);
   const { supabase } = await requireAdmin();
-  const [{ data: order, error }, { data: items, error: itemsError }] = await Promise.all([
+  const [{ data: order, error }, { data: items, error: itemsError }, { data: notes }] = await Promise.all([
     supabase.from("orders").select("*").eq("id", id).maybeSingle(),
     supabase.from("order_items").select("product_name, product_price, quantity").eq("order_id", id),
+    supabase.from("customer_notifications").select("event_type, title, email_sent, created_at").eq("order_id", id).order("created_at", { ascending: true }),
   ]);
   if (error || itemsError) throw new Error("Unable to load order.");
   if (!order) notFound();
@@ -96,6 +98,23 @@ export default async function OrderDetailPage({ params, searchParams }: { params
           <div>Discount: ${Number(order.discount_amount).toFixed(2)}</div>
         </dl>
         <p className="mt-4 text-right text-lg font-semibold text-[#173f35]">Total ${Number(order.total).toFixed(2)}</p>
+      </section>
+      <section className="rounded-2xl bg-white p-5">
+        <h2 className="font-semibold text-[#173f35]">Customer notifications</h2>
+        {!notes?.length ? (
+          <p className="mt-3 text-sm text-[#6b6b6b]">No in-app notifications yet. Guest orders do not receive an account notification center.</p>
+        ) : (
+          <ul className="mt-3 space-y-2 text-sm">
+            {notes.map((note) => (
+              <li key={`${note.event_type}-${note.created_at}`}>
+                {note.title} — In App ✓
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-4 text-sm text-[#6b6b6b]">
+          Email — {getEmailProviderStatus().configured ? `Configured${notes?.some((note) => note.email_sent) ? " · sent" : ""}` : "Not configured"}
+        </p>
       </section>
     </div>
   );

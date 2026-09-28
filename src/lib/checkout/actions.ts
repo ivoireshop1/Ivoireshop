@@ -5,6 +5,7 @@ import { createClient } from "@/src/lib/supabase/server";
 import { checkoutFailure, validateCheckout, type CheckoutReceipt, type CheckoutResponse } from "./checkout-validation";
 import { STORE_CLOSED_MESSAGE, STORE_SETTINGS_ID } from "@/src/lib/store/constants";
 import { trySendOrderConfirmation } from "@/src/lib/communications/send-confirmation";
+import { recordCheckoutNotifications } from "@/src/lib/notifications/record";
 
 export async function placeCheckoutOrder(input: unknown): Promise<CheckoutResponse> {
   const validated = validateCheckout(input);
@@ -54,12 +55,19 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
       console.error("[order-email] confirmation failed", { orderNumber: receipt.order_number });
     }
     receipt.email_sent = emailSent;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      await recordCheckoutNotifications(supabase, receipt.order_id, receipt.payment_status, emailSent, Boolean(user));
+    } catch {
+      console.error("[order-notification] confirmation failed", { orderNumber: receipt.order_number });
+    }
     // A cache failure must not turn a committed order into a claimed checkout failure.
     try {
       for (const path of ["/", "/shop", "/categories", "/admin", "/admin/orders", "/admin/inventory", "/admin/products", "/admin/customers", "/account"]) revalidatePath(path);
       revalidatePath("/product/[slug]", "page");
       revalidatePath(`/admin/orders/${receipt.order_id}`);
       revalidatePath(`/account/orders/${receipt.order_id}`);
+      revalidatePath("/account/notifications");
     } catch { /* Order is already committed; fresh requests still read the database. */ }
     return { success: true, receipt };
   } catch {

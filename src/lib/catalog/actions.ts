@@ -9,6 +9,7 @@ import { resolvePersistedSku } from "@/src/lib/catalog/sku";
 import { uniqueProductSlug } from "@/src/lib/catalog/product-slug";
 import { nextOrderStatuses } from "@/src/lib/orders/status";
 import { notifyFulfillmentEmail } from "@/src/lib/communications/fulfillment-email";
+import { recordFulfillmentNotification } from "@/src/lib/notifications/record";
 
 function textValue(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -526,12 +527,14 @@ export async function updateOrderStatus(formData: FormData) {
   const { data: changed, error } = await supabase.from("orders").update({ status })
     .eq("id", id).eq("status", current.status).select("id").maybeSingle();
   if (error || !changed) redirect(`/admin/orders/${id}?error=status_update_failed`);
-  await notifyFulfillmentEmail(supabase, id, status);
+  const emailSent = await notifyFulfillmentEmail(supabase, id, status);
+  await recordFulfillmentNotification(supabase, id, status, Boolean(emailSent));
 
   revalidatePath("/admin");
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath("/account");
   revalidatePath(`/account/orders/${id}`);
+  revalidatePath("/account/notifications");
   redirect(`/admin/orders/${id}?success=status_updated`);
 }

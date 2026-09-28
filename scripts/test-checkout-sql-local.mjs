@@ -33,6 +33,7 @@ trackingReady=true;
 await db.exec(migration('20260928185900_payment_status_cancelled.sql'));
 await db.exec(migration('20260928190000_checkout_confirmation_payments.sql'));
 await db.exec(migration('20260928210000_fix_confirmation_code_alphabet.sql'));
+await db.exec(migration('20260928220000_customer_notifications.sql'));
 let passed=0;
 async function test(name,fn){await reset();await fn();passed++;console.log('PASS '+name);}
 await test('quantity > 1 uses database price, ignoring browser price',async()=>{const r=await checkout([{product_id:a,quantity:3,price:0.01}]);assert.equal(Number(r.total),30);assert.equal(await stock(a),7);});
@@ -153,6 +154,51 @@ await test('pickup checkout still generates a confirmation code',async()=>{
   const order=await checkout(undefined,undefined,{method:'local_pickup',address:'{"fulfillment_method":"local_pickup"}'});
   assert.match(order.confirmation_code,/^IVO-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{5}$/);
   assert.equal(order.fulfillment_method,'local_pickup');
+});
+await test('guest checkout does not create in-app notifications',async()=>{
+  const order=await checkout();
+  assert.equal((await db.query('select create_customer_order_notification($1,$2,false)',[order.order_id,'order_confirmed'])).rows[0].create_customer_order_notification,null);
+  assert.equal((await db.query('select * from customer_notifications')).rows.length,0);
+});
+await test('signed-in order notifications are isolated, idempotent, and markable as read',async()=>{
+  await db.exec(`select set_config('request.jwt.claim.sub','${user}',false)`);
+  const order=await checkout();
+  const first=(await db.query('select create_customer_order_notification($1,$2,false) as id',[order.order_id,'order_confirmed'])).rows[0].id;
+  const second=(await db.query('select create_customer_order_notification($1,$2,true) as id',[order.order_id,'order_confirmed'])).rows[0].id;
+  assert.equal(first,second);
+  assert.equal((await db.query('select * from customer_notifications')).rows.length,1);
+  await db.query('select create_customer_order_notification($1,$2,false)',[order.order_id,'preparing']);
+  await db.exec(`select set_config('request.jwt.claim.sub','40000000-0000-4000-8000-000000000099',false)`);
+  await assert.rejects(db.query('select create_customer_order_notification($1,$2,false)',[order.order_id,'ready_for_pickup']));
+  await db.exec('set role authenticated');
+  assert.equal((await db.query('select * from customer_notifications')).rows.length,0);
+  await db.exec("reset role; select set_config('request.jwt.claim.sub','"+user+"',false); set role authenticated");
+  assert.equal((await db.query('select * from customer_notifications')).rows.length,2);
+  assert.equal((await db.query('select mark_customer_notifications_read(null)')).rows[0].mark_customer_notifications_read,2);
+  await db.exec('reset role');
+});
+await test('anon cannot read customer notifications',async()=>{
+  await db.exec(`select set_config('request.jwt.claim.sub','${user}',false)`);
+  const order=await checkout();
+  await db.query('select create_customer_order_notification($1,$2,false)',[order.order_id,'order_confirmed']);
+  await db.exec('set role anon');
+  await assert.rejects(db.query('select * from customer_notifications'));
+  await db.exec('reset role');
+});
+await test('customers cannot rewrite notification content',async()=>{
+  await db.exec(`select set_config('request.jwt.claim.sub','${user}',false)`);
+  const order=await checkout();
+  await db.query('select create_customer_order_notification($1,$2,false)',[order.order_id,'order_confirmed']);
+  await db.exec('set role authenticated');
+  await assert.rejects(db.query("update customer_notifications set title='hacked'"),/Notifications can only be marked read|42501/);
+  await db.exec('reset role');
+});
+await test('payment received notification requires stored paid status',async()=>{
+  await db.exec(`select set_config('request.jwt.claim.sub','${user}',false)`);
+  const order=await checkout();
+  assert.equal((await db.query('select create_customer_order_notification($1,$2,false) as id',[order.order_id,'payment_received'])).rows[0].id,null);
+  await db.exec(`update orders set payment_status='paid' where id='${order.order_id}'`);
+  assert.ok((await db.query('select create_customer_order_notification($1,$2,false) as id',[order.order_id,'payment_received'])).rows[0].id);
 });
 // PGlite is single-session: simultaneous independent-connection row-lock behavior is NOT claimed.
 const sql=migration('20260923010000_harden_existing_checkout.sql');assert.match(sql,/pg_advisory_xact_lock/);assert.match(sql,/for update of p/);assert.match(sql,/order by value ->> 'product_id'/);

@@ -3,6 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { preparePaidOrderConfirmation, type PaidConfirmationOrder } from "@/src/lib/communications/order-messages";
 import { sendTransactionalEmail } from "@/src/lib/email/send";
+import { recordPaymentNotification } from "@/src/lib/notifications/record";
 import { usdToCents } from "./money";
 
 export type PaymentLifecycleStatus = "pending" | "paid" | "failed" | "cancelled" | "refunded";
@@ -118,6 +119,7 @@ export async function applyVerifiedPayment(input: {
     if (error) throw new Error("Unable to mark the order paid.");
     const order = (data as RecordedOrder | null) ?? { ...existing, payment_status: "paid" };
     const emailSent = await sendPaidConfirmation(order);
+    await recordPaymentNotification(supabase, order.id, "paid", emailSent);
     return { order, duplicate: false, emailSent };
   }
 
@@ -139,8 +141,10 @@ export async function applyVerifiedPayment(input: {
     .neq("payment_status", "paid")
     .select(ORDER_COLUMNS)
     .maybeSingle();
-  if (error) throw new Error("Unable to update payment status.");
-  return { order: (data as RecordedOrder | null) ?? existing, duplicate: false, emailSent: false };
+    if (error) throw new Error("Unable to update payment status.");
+    const updated = (data as RecordedOrder | null) ?? existing;
+    await recordPaymentNotification(supabase, updated.id, input.status, false);
+    return { order: updated, duplicate: false, emailSent: false };
 }
 
 export async function storeProviderOrderId(orderId: string, provider: PaymentProvider, providerOrderId: string) {

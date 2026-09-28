@@ -9,7 +9,7 @@ export async function notifyFulfillmentEmail(
   orderId: string,
   status: string,
 ) {
-  if (status !== "ready_for_pickup" && status !== "shipped" && status !== "delivered") return;
+  if (status !== "ready_for_pickup" && status !== "shipped" && status !== "delivered") return false;
   try {
     const { data: order, error } = await supabase
       .from("orders")
@@ -18,19 +18,21 @@ export async function notifyFulfillmentEmail(
       .maybeSingle();
     if (error || !order?.confirmation_code) {
       console.error("[order-email] fulfillment skipped", { reason: error ? "read_failed" : "missing_code" });
-      return;
+      return false;
     }
     const payload: ConfirmationOrder = {
       ...order,
       order_items: order.order_items ?? [],
     };
     const message = prepareFulfillmentEmail(payload, status);
-    if (!message) return;
+    if (!message) return false;
     const result = await sendTransactionalEmail(message);
     if (!result.sent) console.error("[order-email] fulfillment not sent", { orderNumber: order.order_number, reason: result.reason });
+    return result.sent;
   } catch (error) {
     console.error("[order-email] fulfillment failed", {
       detail: error instanceof Error ? error.message.slice(0, 180) : "unknown",
     });
+    return false;
   }
 }
