@@ -20,6 +20,8 @@ export type ProductValues = {
   stock_quantity?: number | null;
   is_active?: boolean;
   is_featured?: boolean;
+  is_new_arrival?: boolean;
+  is_coming_soon?: boolean;
   product_images?: Array<{ id?: string; image_url?: string | null; position?: number }>;
 };
 
@@ -75,6 +77,8 @@ export function ProductForm({
   // 3. Status & Featured State (independent)
   const [isActive, setIsActive] = useState(product?.is_active ?? false);
   const [isFeatured, setIsFeatured] = useState(product?.is_featured ?? false);
+  const [isNewArrival, setIsNewArrival] = useState(product?.is_new_arrival ?? false);
+  const [isComingSoon, setIsComingSoon] = useState(product?.is_coming_soon ?? false);
 
   // 4. Images State
   const initialImages: ImageItem[] = (product?.product_images ?? [])
@@ -247,6 +251,12 @@ export function ProductForm({
     formData.set("save_as_draft", saveAsDraft ? "true" : "false");
     if (isFeatured) {
       formData.set("is_featured", "on");
+    }
+    if (isNewArrival) {
+      formData.set("is_new_arrival", "on");
+    }
+    if (isComingSoon) {
+      formData.set("is_coming_soon", "on");
     }
 
     // Pass image URLs
@@ -633,6 +643,30 @@ export function ProductForm({
                   <span className="block text-xs text-[#6b6b6b]">
                     Show in homepage featured collection and highlights.
                   </span>
+                </div>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-white p-3 border border-[#173f35]/10">
+                <input
+                  checked={isNewArrival}
+                  className="mt-0.5 h-4 w-4 rounded accent-[#173f35]"
+                  onChange={(e) => setIsNewArrival(e.target.checked)}
+                  type="checkbox"
+                />
+                <div>
+                  <span className="block text-sm font-semibold text-[#173f35]">New Arrival</span>
+                  <span className="block text-xs text-[#6b6b6b]">Shown in New Arrivals only when this product is Active and complete.</span>
+                </div>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-white p-3 border border-[#173f35]/10">
+                <input
+                  checked={isComingSoon}
+                  className="mt-0.5 h-4 w-4 rounded accent-[#173f35]"
+                  onChange={(e) => setIsComingSoon(e.target.checked)}
+                  type="checkbox"
+                />
+                <div>
+                  <span className="block text-sm font-semibold text-[#173f35]">Coming Soon</span>
+                  <span className="block text-xs text-[#6b6b6b]">Previewed publicly without Add to Cart until the product is Active.</span>
                 </div>
               </label>
             </div>

@@ -1,8 +1,13 @@
 import { pageMetadata } from "@/src/lib/page-metadata";
-import AuthForm from "@/src/components/auth/auth-form";
+import { PasswordRecoveryExperience } from "@/src/components/auth/password-recovery-experience";
 
 export const metadata = pageMetadata("Reset Password", "Reset your account password.", "/reset-password", false);
 
-export default function ResetPasswordPage() {
-  return <AuthForm mode="reset" />;
+export default async function ResetPasswordPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ stage?: string; error?: string }>;
+}) {
+  const params = await searchParams;
+  return <PasswordRecoveryExperience invalid={params.error === "invalid"} stage={params.stage} />;
 }

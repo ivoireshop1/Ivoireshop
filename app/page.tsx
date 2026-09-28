@@ -7,8 +7,10 @@ import { BenefitsSection } from "@/src/components/storefront/benefits-section";
 import { CategorySection } from "@/src/components/storefront/category-section";
 import { CtaSection } from "@/src/components/storefront/cta-section";
 import { Hero } from "@/src/components/storefront/hero";
+import { StorefrontBillboard } from "@/src/components/storefront/storefront-billboard";
 import { GuestShoppingSection } from "@/src/components/storefront/guest-shopping-section";
 import { ProductSection } from "@/src/components/storefront/product-section";
+import { ComingSoonHome, NewArrivalsHome } from "@/src/components/storefront/home-merch-sections";
 import { getNavRole } from "@/src/lib/auth/session";
 import { CUSTOMER_HOME } from "@/src/lib/auth/post-login";
 
@@ -24,7 +26,10 @@ export default async function Home() {
       <SiteHeader />
       <main>
         <Hero />
+        <StorefrontBillboard />
         <CategorySection />
+        <NewArrivalsHome />
+        <ComingSoonHome />
         <ProductSection />
         <BenefitsSection />
         <GuestShoppingSection />

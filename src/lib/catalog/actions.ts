@@ -214,6 +214,8 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
     : null;
   const status = textValue(formData, "status") || "active";
   const isFeatured = formData.get("is_featured") === "on";
+  const isNewArrival = formData.get("is_new_arrival") === "on";
+  const isComingSoon = formData.get("is_coming_soon") === "on";
   const isDraft = formData.get("save_as_draft") === "true";
 
   if (
@@ -280,6 +282,8 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
     stock_quantity: normalizedStockQuantity,
     is_active: false,
     is_featured: isFeatured,
+    is_new_arrival: isNewArrival,
+    is_coming_soon: isComingSoon,
     needs_pricing: !hasCompletePricing,
   };
 

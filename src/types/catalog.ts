@@ -35,4 +35,5 @@ export interface Product {
   isFeatured: boolean;
   isNew: boolean;
   isPopular: boolean;
+  isComingSoon?: boolean;
 }

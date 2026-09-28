@@ -2,7 +2,7 @@ import Link from "next/link";
 import { NewsletterForm } from "./newsletter-form";
 
 const groups = [
-  { title: "Shop", links: [["Shop All", "/shop"], ["Categories", "/categories"], ["Featured Products", "/#featured-products"], ["New Arrivals", "/shop"]] },
+  { title: "Shop", links: [["Shop All", "/shop"], ["Categories", "/categories"], ["Featured Products", "/#featured-products"], ["New Arrivals", "/shop?arrival=new"]] },
   { title: "Account", links: [["Sign In", "/login"], ["Create Account", "/signup"], ["My Account", "/account"]] },
   { title: "Company", links: [["About Us", "/about"], ["Blog", "/blog"], ["Contact", "/contact"]] },
   { title: "Support", links: [["Shopping information", "/contact"]] },

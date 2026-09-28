@@ -8,6 +8,8 @@ import { ChangePasswordForm } from "@/src/components/auth/change-password-form";
 import { Footer } from "@/src/components/layout/footer";
 import { SiteHeader } from "@/src/components/layout/site-header";
 import { CustomerHero } from "@/src/components/customer/customer-hero";
+import { StorefrontBillboard } from "@/src/components/storefront/storefront-billboard";
+import { NewArrivalsHome } from "@/src/components/storefront/home-merch-sections";
 import { CustomerAccountNav } from "@/src/components/customer/customer-account-nav";
 import { CustomerOrderCard } from "@/src/components/customer/customer-order-card";
 import { AddAddressForm } from "@/src/components/customer/add-address-form";
@@ -55,6 +57,8 @@ export default async function AccountPage() {
       <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-6 sm:py-10">
         <CustomerAccountNav />
         <CustomerHero firstName={heroName} />
+        <StorefrontBillboard />
+        <NewArrivalsHome />
 
         <section className="mt-12" id="wishlist-preview">
           <div className="flex flex-wrap items-end justify-between gap-4">

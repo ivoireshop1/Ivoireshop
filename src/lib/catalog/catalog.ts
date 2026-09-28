@@ -15,6 +15,8 @@ type ProductRow = {
   category_id: string;
   is_active: boolean;
   is_featured: boolean;
+  is_new_arrival?: boolean;
+  is_coming_soon?: boolean;
   stock_quantity: number | null;
   categories: { name: string } | { name: string }[] | null;
   product_images?: { image_url: string; position: number }[] | null;
@@ -37,8 +39,9 @@ function mapProduct(row: ProductRow): Product {
     weight: row.stock_quantity !== null ? `${row.stock_quantity} in stock` : "",
     stockQuantity: row.stock_quantity,
     isFeatured: row.is_featured,
-    isNew: false,
+    isNew: Boolean(row.is_new_arrival),
     isPopular: false,
+    isComingSoon: Boolean(row.is_coming_soon) && !row.is_active,
   };
 }
 
@@ -74,7 +77,7 @@ export const getProducts = cache(async (): Promise<Product[]> => {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, slug, description, short_description, price, compare_at_price, category_id, is_active, is_featured, stock_quantity, categories(name), product_images(image_url, position)")
+      .select("id, name, slug, description, short_description, price, compare_at_price, category_id, is_active, is_featured, is_new_arrival, is_coming_soon, stock_quantity, categories(name), product_images(image_url, position)")
       .eq("is_active", true)
       .order("created_at", { ascending: false });
     if (error) {
@@ -88,9 +91,8 @@ export async function getProductBySlug(slug: string): Promise<Product | undefine
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, slug, description, short_description, price, compare_at_price, category_id, is_active, is_featured, stock_quantity, categories(name), product_images(image_url, position)")
+      .select("id, name, slug, description, short_description, price, compare_at_price, category_id, is_active, is_featured, is_new_arrival, is_coming_soon, stock_quantity, categories(name), product_images(image_url, position)")
       .eq("slug", slug)
-      .eq("is_active", true)
       .maybeSingle();
     if (error) {
       console.error("Catalog product query failed:", error.message);
@@ -100,5 +102,30 @@ export async function getProductBySlug(slug: string): Promise<Product | undefine
   } catch (error) {
     console.error("Catalog product connection failed:", error);
     return undefined;
+  }
+}
+
+export async function getNewArrivalProducts(limit = 4): Promise<Product[]> {
+  const products = await getProducts();
+  return products.filter((product) => product.isNew && product.price > 0 && product.image).slice(0, limit);
+}
+
+export async function getComingSoonProducts(limit = 4): Promise<Product[]> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("products")
+      .select("id, name, slug, description, short_description, price, compare_at_price, category_id, is_active, is_featured, is_new_arrival, is_coming_soon, stock_quantity, categories(name), product_images(image_url, position)")
+      .eq("is_coming_soon", true)
+      .eq("is_active", false)
+      .order("updated_at", { ascending: false })
+      .limit(12);
+    if (error) return [];
+    return (data as ProductRow[] | null ?? [])
+      .filter((row) => row.product_images?.length && !row.is_active && row.is_coming_soon)
+      .map(mapProduct)
+      .slice(0, limit);
+  } catch {
+    return [];
   }
 }

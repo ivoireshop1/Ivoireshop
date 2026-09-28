@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CategoryFilter } from "@/src/components/product/category-filter";
 import { ProductGrid } from "@/src/components/product/product-grid";
 import { ProductSearch } from "@/src/components/product/product-search";
+import { MerchProductRail } from "@/src/components/storefront/merch-product-rail";
 import { createClient } from "@/src/lib/supabase/browser";
 import { toOneRelation } from "@/src/lib/catalog/relation-utils";
 import { CANONICAL_CATEGORIES } from "@/src/lib/catalog/canonical-categories";
@@ -14,6 +15,8 @@ import type { Product } from "@/src/types/catalog";
 type ShopExperienceProps = {
   initialCategory?: string;
   initialSearch?: string;
+  newArrivals?: Product[];
+  comingSoon?: Product[];
 };
 
 type ProductRow = {
@@ -25,12 +28,13 @@ type ProductRow = {
   price: number | string;
   compare_at_price: number | string | null;
   is_featured: boolean;
+  is_new_arrival?: boolean;
   stock_quantity: number | null;
   categories?: { name: string | null } | Array<{ name: string | null }> | null;
   product_images?: Array<{ image_url: string; position: number }> | null;
 };
 
-export function ShopExperience({ initialCategory = "All", initialSearch = "" }: ShopExperienceProps) {
+export function ShopExperience({ initialCategory = "All", initialSearch = "", newArrivals = [], comingSoon = [] }: ShopExperienceProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -45,7 +49,7 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "" }: 
       const supabase = createClient();
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, slug, description, short_description, price, compare_at_price, is_featured, stock_quantity, categories(name), product_images(image_url, position)")
+        .select("id, name, slug, description, short_description, price, compare_at_price, is_featured, is_new_arrival, stock_quantity, categories(name), product_images(image_url, position)")
         .eq("is_active", true)
         .order("created_at", { ascending: false });
 
@@ -67,7 +71,7 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "" }: 
         weight: row.stock_quantity !== null ? `${row.stock_quantity} in stock` : "",
         stockQuantity: row.stock_quantity,
         isFeatured: Boolean(row.is_featured),
-        isNew: false,
+        isNew: Boolean(row.is_new_arrival),
         isPopular: false,
       })));
       setLoadState("ready");
@@ -78,21 +82,24 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "" }: 
   }, []);
 
   const activeCategories = useMemo(() => CANONICAL_CATEGORIES.map((category) => category.name), []);
+  const arrivalOnly = searchParams.get("arrival") === "new";
   const normalizedProducts = useMemo(() => products.filter((product) => {
     const matchesCategory = category === "All" || product.category === category;
     const text = `${product.name} ${product.category}`.toLowerCase();
-    return matchesCategory && text.includes(query.toLowerCase().trim());
-  }), [category, products, query]);
+    const matchesArrival = !arrivalOnly || (product.isNew && product.price > 0);
+    return matchesCategory && matchesArrival && text.includes(query.toLowerCase().trim());
+  }), [arrivalOnly, category, products, query]);
 
   useEffect(() => {
     const params = new URLSearchParams();
     if (category !== "All") params.set("category", category);
     if (query.trim()) params.set("search", query.trim());
+    if (arrivalOnly) params.set("arrival", "new");
     const queryString = params.toString();
     if (queryString !== searchParams.toString()) {
       router.replace(queryString ? `/shop?${queryString}` : "/shop", { scroll: false });
     }
-  }, [category, query, router, searchParams]);
+  }, [arrivalOnly, category, query, router, searchParams]);
 
   function clearFilters() {
     setQuery("");
@@ -105,6 +112,8 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "" }: 
       <div className="max-w-2xl"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">The Ivoire collection</p><h1 className="mt-3 font-serif text-4xl font-semibold text-white sm:text-5xl">Shop the live catalog</h1><p className="mt-4 max-w-xl leading-7 text-white/80">Browse products currently available from the store.</p></div>
     </div>
     <div className="mt-10 space-y-4"><ProductSearch value={query} onChange={setQuery} />{activeCategories.length > 0 && <CategoryFilter categories={activeCategories} value={category} onChange={setCategory} />}</div>
-    {loadState === "loading" ? <p role="status" className="py-16 text-center text-muted">Loading products...</p> : loadState === "error" ? <div role="alert" className="py-16 text-center"><h2 className="text-2xl font-semibold text-forest-green">Products could not be loaded</h2><p className="mt-3 text-muted">Please check your connection and try again.</p><button className="mt-6 rounded-lg bg-forest-green px-5 py-3 text-white" type="button" onClick={() => window.location.reload()}>Try again</button></div> : normalizedProducts.length > 0 ? <div className="mt-10"><ProductGrid products={normalizedProducts} returnTo={`${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`} /></div> : <div className="py-24 text-center"><h2 className="text-2xl font-semibold text-forest-green">{query || category !== "All" ? "No matching products" : "Products are being prepared"}</h2><p className="mt-3 text-muted">{query || category !== "All" ? "Try another search or clear your filters." : "Check back soon for products available to shop."}</p>{(query || category !== "All") && <button className="mt-6 rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white" onClick={clearFilters} type="button">Clear filters</button>}</div>}
+    {!arrivalOnly && newArrivals.length ? <MerchProductRail compact description="Fresh additions to Ivoire Shop." eyebrow="New arrivals" products={newArrivals} title="New Arrivals" viewAllHref="/shop?arrival=new" /> : null}
+    {loadState === "loading" ? <p role="status" className="py-16 text-center text-muted">Loading products...</p> : loadState === "error" ? <div role="alert" className="py-16 text-center"><h2 className="text-2xl font-semibold text-forest-green">Products could not be loaded</h2><p className="mt-3 text-muted">Please check your connection and try again.</p><button className="mt-6 rounded-lg bg-forest-green px-5 py-3 text-white" type="button" onClick={() => window.location.reload()}>Try again</button></div> : normalizedProducts.length > 0 ? <div className="mt-10"><ProductGrid products={normalizedProducts} returnTo={`${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`} /></div> : <div className="py-24 text-center"><h2 className="text-2xl font-semibold text-forest-green">{query || category !== "All" || arrivalOnly ? "No matching products" : "Products are being prepared"}</h2><p className="mt-3 text-muted">{query || category !== "All" || arrivalOnly ? "Try another search or clear your filters." : "Check back soon for products available to shop."}</p>{(query || category !== "All") && <button className="mt-6 rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white" onClick={clearFilters} type="button">Clear filters</button>}</div>}
+    {!arrivalOnly && comingSoon.length ? <MerchProductRail compact comingSoon description="A first look at products being prepared for the shop." eyebrow="Coming soon" products={comingSoon} title="Coming Soon" /> : null}
   </main>;
 }

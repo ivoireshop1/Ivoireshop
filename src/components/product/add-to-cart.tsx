@@ -13,7 +13,11 @@ export function AddToCart({ product }: { product: Product }) {
   const [isAdding, setIsAdding] = useState(false);
   const cartItem = items.find((item) => item.productId === product.id);
   const remaining = product.stockQuantity == null ? 0 : Math.max(0, product.stockQuantity - (cartItem?.quantity ?? 0));
-  const unavailable = remaining === 0 || product.price <= 0;
+  const unavailable = product.isComingSoon || remaining === 0 || product.price <= 0;
+
+  if (product.isComingSoon) {
+    return <p className="rounded-xl border border-forest-green/15 bg-[#f5f0e6] px-4 py-3 text-sm text-muted">This product is coming soon and cannot be added to your cart.</p>;
+  }
 
   function add() {
     if (isAdding || unavailable || quantity > remaining) return;

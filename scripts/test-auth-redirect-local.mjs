@@ -13,6 +13,7 @@ function load(file){
 }
 const {CUSTOMER_HOME,resolvePostLoginPath}=load('src/lib/auth/post-login.ts');
 const {sanitizeReturnPath}=load('src/lib/navigation/smart-navigation.ts');
+const {isPasswordRecoveryPath}=load('src/lib/auth/recovery.ts');
 const {resolveHomeHref,resolveStorefrontHomeHref}=(()=>{
   const exports={};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/auth/session-navigation.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:(id)=>{
@@ -37,4 +38,9 @@ test('guest storefront Home is /',()=>assert.equal(resolveStorefrontHomeHref('gu
 test('customer storefront Home is /account',()=>assert.equal(resolveStorefrontHomeHref('customer'),'/account'));
 test('admin storefront Home stays /',()=>assert.equal(resolveStorefrontHomeHref('admin'),'/'));
 test('admin app Home is /admin',()=>assert.equal(resolveHomeHref('admin'),'/admin'));
+test('password recovery paths are not admin destinations',()=>{
+  assert.equal(isPasswordRecoveryPath('/reset-password'),true);
+  assert.equal(isPasswordRecoveryPath('/update-password'),true);
+  assert.equal(resolvePostLoginPath('admin','/reset-password'),'/admin');
+});
 console.log(`${n} auth redirect tests passed.`);

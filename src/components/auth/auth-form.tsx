@@ -6,6 +6,7 @@ import { createClient } from "@/src/lib/supabase/browser";
 import { useRouter } from "next/navigation";
 import { resolveAuthRedirectTarget } from "@/src/lib/navigation/smart-navigation";
 import { resolvePostLoginPath } from "@/src/lib/auth/post-login";
+import { getPublicSiteUrl } from "@/src/lib/site";
 
 type AuthMode = "login" | "signup" | "reset" | "update-password";
 
@@ -24,6 +25,7 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const resetSuccess = searchParams.get("reset") === "success";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -32,6 +34,14 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
 
     const supabase = createClient();
     const nextTarget = resolveAuthRedirectTarget(searchParams, "/account");
+    if (mode === "reset") {
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${getPublicSiteUrl()}/auth/callback?next=${encodeURIComponent("/reset-password")}`,
+      });
+      setIsSubmitting(false);
+      setMessage("If an account exists for that email, we've sent password reset instructions.");
+      return;
+    }
     const result =
       mode === "login"
         ? await supabase.auth.signInWithPassword({ email, password })
@@ -44,11 +54,7 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
                 emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextTarget)}`,
               },
             })
-          : mode === "reset"
-            ? await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/update-password")}`,
-              })
-            : await supabase.auth.updateUser({ password });
+          : await supabase.auth.updateUser({ password });
 
     setIsSubmitting(false);
     if (result.error) {
@@ -73,13 +79,7 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
       return;
     }
 
-    setMessage(
-      mode === "reset"
-        ? "Check your email to continue."
-        : mode === "update-password"
-          ? "Your password has been updated."
-          : "You are now logged in.",
-    );
+    setMessage("Your password has been updated.");
   }
 
   const copy = content[mode];
@@ -134,6 +134,7 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
             {isSubmitting ? "Please wait..." : copy.submit}
           </button>
         </form>
+        {resetSuccess ? <p className="mt-5 text-sm text-forest-green">Your password has been updated. Sign in with your new password.</p> : null}
         {message && <p className="mt-5 text-sm text-muted">{message}</p>}
         <div className="mt-6 flex justify-between text-sm text-forest-green">
           {mode === "login" ? (

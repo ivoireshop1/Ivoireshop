@@ -6,9 +6,11 @@ import { useState } from "react";
 export function CategoryImageField({
   name = "image_url",
   defaultValue,
+  emptyHint = "No category image yet. A tasteful fallback is used on the storefront.",
 }: {
   name?: string;
   defaultValue?: string | null;
+  emptyHint?: string;
 }) {
   const [url, setUrl] = useState(defaultValue ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +55,7 @@ export function CategoryImageField({
           <Image alt="Category image preview" className="object-cover" fill sizes="(max-width: 768px) 90vw, 280px" src={url} unoptimized />
         </div>
       ) : (
-        <p className="text-xs text-[#6b6b6b]">No category image yet. A tasteful fallback is used on the storefront.</p>
+        <p className="text-xs text-[#6b6b6b]">{emptyHint}</p>
       )}
       {error ? <p className="text-xs text-[#7f1d1d]">{error}</p> : null}
     </div>
