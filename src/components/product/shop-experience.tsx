@@ -54,6 +54,7 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "", ne
         .order("created_at", { ascending: false });
 
       if (error || !data) {
+        if (error?.code) console.error("Shop catalog query failed", error.code);
         setLoadState("error");
         return;
       }
