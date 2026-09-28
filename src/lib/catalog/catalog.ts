@@ -81,7 +81,8 @@ export const getProducts = cache(async (): Promise<Product[]> => {
       .eq("is_active", true)
       .order("created_at", { ascending: false });
     if (error) {
-      throw new Error("Products could not be loaded.");
+      console.error("Catalog products query failed:", error.message);
+      return [];
     }
     return (data as ProductRow[] | null ?? []).filter((product) => product.product_images?.length).map(mapProduct);
 });

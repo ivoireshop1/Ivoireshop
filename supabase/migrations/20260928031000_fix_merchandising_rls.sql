@@ -1,8 +1,4 @@
--- New Arrival / Coming Soon merchandising flags and public Coming Soon visibility.
--- Additive. Does not reset catalog or weaken admin-only product writes.
-
-alter table public.products add column if not exists is_new_arrival boolean not null default false;
-alter table public.products add column if not exists is_coming_soon boolean not null default false;
+-- Fix merchandising RLS recursion: products must not query product_images in the same policy cycle.
 
 drop policy if exists "Active products are public" on public.products;
 create policy "Active products are public"
