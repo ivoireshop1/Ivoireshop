@@ -1,8 +1,7 @@
 import Link from "next/link";
 
 export function CartSummary({ subtotal, items }: { subtotal: number; items: Array<{ price: number; compareAtPrice?: number; quantity: number }> }) {
-  const delivery = subtotal >= 50 ? 0 : 7.5;
-  const total = subtotal + delivery;
+  const total = subtotal;
   const savings = items.reduce((sum, item) => {
     const listPrice = item.compareAtPrice ?? item.price;
     return sum + Math.max(0, listPrice - item.price) * item.quantity;
@@ -19,17 +18,17 @@ export function CartSummary({ subtotal, items }: { subtotal: number; items: Arra
         </div>
         <div className="flex justify-between">
           <span className="text-muted">Delivery</span>
-          <span>{delivery === 0 ? "Free" : `$${delivery.toFixed(2)}`}</span>
+          <span>No charge added</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted">Tax</span>
-          <span>Calculated at checkout</span>
+          <span>No charge added</span>
         </div>
       </div>
 
       <div className="mt-6 border-t border-black/10 pt-4">
         <div className="flex justify-between text-base font-semibold text-forest-green">
-          <span>Total</span>
+          <span>Estimated total</span>
           <span>${total.toFixed(2)}</span>
         </div>
       </div>
@@ -40,7 +39,7 @@ export function CartSummary({ subtotal, items }: { subtotal: number; items: Arra
         </p>
       ) : (
         <p className="mt-5 rounded-xl border border-forest-green/10 bg-white/60 px-3 py-2 text-xs leading-5 text-muted">
-          Free delivery over $50. Secure checkout and fresh fulfillment for every order.
+          Prices and availability are confirmed when you order. Payment is collected separately.
         </p>
       )}
 

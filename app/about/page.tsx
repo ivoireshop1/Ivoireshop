@@ -1,9 +1,12 @@
+import { pageMetadata } from "@/src/lib/page-metadata";
 import Link from "next/link";
 import { Footer } from "@/src/components/layout/footer";
 import { Header } from "@/src/components/layout/header";
 import { PageHero } from "@/src/components/storefront/page-hero";
 
 const values = [["Quality", "We carefully select products you can trust."], ["Authenticity", "Products and flavors that feel familiar and genuine."], ["Convenience", "Shop your essentials easily from one place."], ["Community", "Built around customers, families and everyday needs."]];
+
+export const metadata = pageMetadata("About", "Learn about Ivoire Shop and its selection of African and international foods.", "/about");
 
 export default function AboutPage() {
   return <><Header /><main>

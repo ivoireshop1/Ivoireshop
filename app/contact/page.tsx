@@ -1,9 +1,12 @@
+import { pageMetadata } from "@/src/lib/page-metadata";
 import { Footer } from "@/src/components/layout/footer";
 import { Header } from "@/src/components/layout/header";
 import { PageHero } from "@/src/components/storefront/page-hero";
 import { ContactForm } from "@/src/components/customer/contact-form";
 
-const faqs = [["How do I shop as a guest?", "Browse the shop and add products to your cart without creating an account."], ["Can I create an account later?", "Yes. You can create an account whenever you are ready."], ["How do I find products?", "Use the shop search, category filters, or browse our category collection."], ["How does delivery work?", "Delivery details will be shared as the shopping and checkout experience develops."]];
+const faqs = [["How do I shop as a guest?", "Browse the shop and add products to your cart without creating an account."], ["Can I create an account later?", "Yes. You can create an account whenever you are ready."], ["How do I find products?", "Use the shop search, category filters, or browse our category collection."], ["How does delivery work?", "Choose delivery or local pickup at checkout. No online payment is collected when you submit an order."]];
+
+export const metadata = pageMetadata("Contact", "Shopping information and support availability at Ivoire Shop.", "/contact");
 
 export default function ContactPage() {
   return <><Header /><main><PageHero eyebrow="Get in touch" title="We're Here To Help." description="Have a question about a product, your order, or shopping with Ivoire Shop? We're here to help." />

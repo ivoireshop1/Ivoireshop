@@ -21,10 +21,8 @@ export type AdminProductRowData = {
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-function deriveStatus(isActive: boolean, stockQuantity: number | null) {
-  if (!isActive) return "hidden";
-  if (Number(stockQuantity) === 0) return "sold_out";
-  return "active";
+function deriveStatus(isActive: boolean) {
+  return isActive ? "active" : "hidden";
 }
 
 function SaveIndicator({ state, error }: { state: SaveState; error: string | null }) {
@@ -59,20 +57,19 @@ export function AdminProductRow({
 
   const [, startTransition] = useTransition();
 
-  const status = deriveStatus(isActive, stockQuantity);
+  const status = deriveStatus(isActive);
   const needsPricing = price === null;
   const needsStock = stockQuantity === null;
   const inventoryLabel = needsStock ? "Needs stock" : Number(stockQuantity) === 0 ? "Out of stock" : Number(stockQuantity) <= 5 ? "Low stock" : "In stock";
 
   function handleStatusChange(event: ChangeEvent<HTMLSelectElement>) {
-    const nextStatus = event.target.value as "active" | "sold_out" | "hidden";
+    const nextStatus = event.target.value as "active" | "hidden";
     const previousIsActive = isActive;
     const previousStock = stockQuantity;
 
     setStatusState("saving");
     setStatusError(null);
-    setIsActive(nextStatus !== "hidden");
-    if (nextStatus === "sold_out") setStockQuantity(0);
+    setIsActive(nextStatus === "active");
 
     startTransition(async () => {
       const result = await adminSetProductStatus(product.id, nextStatus);
@@ -131,6 +128,8 @@ export function AdminProductRow({
       }
       setPrice(result.data.price);
       setStockQuantity(result.data.stock_quantity);
+      setPriceInput(result.data.price === null ? "" : String(result.data.price));
+      setStockInput(result.data.stock_quantity === null ? "" : String(result.data.stock_quantity));
       setIsActive(result.data.is_active);
       if (result.data.is_active !== previousIsActive) {
         setStatusState("saved");
@@ -196,13 +195,13 @@ export function AdminProductRow({
 
       <div className="mt-4 md:mt-0">
         <select
+          aria-label={`Status for ${product.name}`}
           className="w-full rounded-lg border border-[#173f35]/15 bg-white px-2 py-1.5 text-sm text-[#173f35]"
           onChange={handleStatusChange}
           value={status}
         >
           <option value="active">Active</option>
-          <option value="sold_out">Sold Out</option>
-          <option value="hidden">Hidden</option>
+          <option value="hidden">Draft</option>
         </select>
         <SaveIndicator error={statusError} state={statusState} />
       </div>

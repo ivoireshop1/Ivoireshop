@@ -31,6 +31,7 @@ export interface Product {
   category: string;
   image: string;
   weight: string;
+  stockQuantity?: number | null;
   isFeatured: boolean;
   isNew: boolean;
   isPopular: boolean;

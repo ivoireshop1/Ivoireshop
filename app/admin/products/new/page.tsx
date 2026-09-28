@@ -16,7 +16,21 @@ export default async function NewProductPage({
   return (
     <>
       <h1 className="text-3xl font-semibold text-forest-green">Add product</h1>
-      {params.error && <p className="mt-4 rounded-lg bg-red-100 px-4 py-3 text-sm text-red-800">Enter a valid name, category, description, price, and whole-number stock quantity.</p>}
+      {params.error && (
+        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+          {params.error === "missing_category"
+            ? "Add a category before publishing."
+            : params.error === "missing_image"
+              ? "Add at least one product image before publishing."
+              : params.error === "missing_price"
+                ? "Add a valid price before publishing."
+                : params.error === "missing_stock"
+                  ? "Add a valid stock quantity before publishing."
+                  : params.error === "missing_name"
+                    ? "Add a product name before publishing."
+                    : "Enter a valid name, category, description, price, and whole-number stock quantity."}
+        </p>
+      )}
       <ProductForm action={saveProduct} categories={categories ?? []} />
     </>
   );

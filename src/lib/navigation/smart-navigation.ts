@@ -8,7 +8,7 @@ const CURRENT_PATH_KEY = "ivoire.currentPath";
 const PREVIOUS_PATH_KEY = "ivoire.previousPath";
 
 export function sanitizeReturnPath(value: string | null | undefined, fallbackHref = DEFAULT_FALLBACK) {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\") || /^[a-z][a-z\d+.-]*:/i.test(value)) {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\") || /[\u0000-\u0020\u007f]/.test(value) || /^[a-z][a-z\d+.-]*:/i.test(value)) {
     return fallbackHref;
   }
 

@@ -16,7 +16,7 @@ const tuples = [...sql.matchAll(/^  \('((?:''|[^'])*)', '([^']+)', '((?:''|[^'])
 const duplicateValues = (values) =>
   [...new Set(values.filter((value, index) => values.indexOf(value) !== index))];
 const decodePublicPath = (imagePath) =>
-  path.join(publicPath, ...imagePath.replace(/^\/images\//, "").split("/").map(decodeURIComponent));
+  path.join(publicPath, ...imagePath.replace(/^\//, "").split("/").map(decodeURIComponent));
 const brokenImagePaths = [];
 
 for (const product of tuples) {

@@ -1,22 +1,27 @@
 import { createClient } from "@/src/lib/supabase/browser";
 import type { WishlistItem } from "@/src/types/wishlist";
 import type { Product } from "@/src/types/catalog";
+import { toOneRelation } from "@/src/lib/catalog/relation-utils";
+
+type WishlistProductRow = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  short_description: string | null;
+  price: number | string;
+  compare_at_price: number | string | null;
+  is_active: boolean;
+  is_featured: boolean;
+  stock_quantity: number | null;
+  categories: { name: string } | { name: string }[] | null;
+  product_images?: { image_url: string; position: number }[] | null;
+};
 
 type WishlistRow = {
   id: string;
   product_id: string;
-  products: {
-    id: string;
-    name: string;
-    slug: string;
-    description: string;
-    short_description: string | null;
-    price: number | string;
-    compare_at_price: number | string | null;
-    is_featured: boolean;
-    categories: { name: string }[] | null;
-    product_images?: { image_url: string; position: number }[] | null;
-  }[] | null;
+  products: WishlistProductRow | WishlistProductRow[] | null;
 };
 
 export async function getWishlist(): Promise<WishlistItem[]> {
@@ -26,16 +31,16 @@ export async function getWishlist(): Promise<WishlistItem[]> {
 
   const { data, error } = await supabase
     .from("wishlist_items")
-    .select("id, product_id, products(id, name, slug, description, short_description, price, compare_at_price, is_featured, categories(name), product_images(image_url, position))")
+    .select("id, product_id, products(id, name, slug, description, short_description, price, compare_at_price, is_active, is_featured, stock_quantity, categories(name), product_images(image_url, position))")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
 
   return (data as WishlistRow[] | null ?? []).map((row) => {
-    const productRow = row.products?.[0];
-    const categoryName = productRow?.categories?.[0]?.name;
-    const category = categoryName ?? "Uncategorized";
+    const productRow = toOneRelation(row.products);
+    const category = toOneRelation(productRow?.categories ?? null)?.name || "Uncategorized";
     const image = productRow?.product_images?.slice().sort((a: { position: number }, b: { position: number }) => a.position - b.position)[0]?.image_url;
+    // RLS hides inactive products from this join; a null product means unavailable, not deleted.
     const product: Product | undefined = productRow ? {
       id: productRow.id,
       slug: productRow.slug,
@@ -47,6 +52,7 @@ export async function getWishlist(): Promise<WishlistItem[]> {
       category,
       image: image ?? "",
       weight: "",
+      stockQuantity: productRow.stock_quantity,
       isFeatured: productRow.is_featured,
       isNew: false,
       isPopular: false,

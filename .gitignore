@@ -39,6 +39,13 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local validation runtime and CLI caches (never commit)
+.batch2-validation/
+supabase/.temp/
+
+# redundant local photo archive; storefront uses public/images and public/customer
+/public/hero-lifestyle.png/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -12,8 +12,11 @@ export function AddToCart({ product }: { product: Product }) {
   const [added, setAdded] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const cartItem = items.find((item) => item.productId === product.id);
+  const remaining = product.stockQuantity == null ? 0 : Math.max(0, product.stockQuantity - (cartItem?.quantity ?? 0));
+  const unavailable = remaining === 0 || product.price <= 0;
 
   function add() {
+    if (isAdding || unavailable || quantity > remaining) return;
     setIsAdding(true);
     addItem({
       productId: product.id,
@@ -35,7 +38,8 @@ export function AddToCart({ product }: { product: Product }) {
 
   return (
     <div className="flex flex-wrap items-center gap-4">
-      <QuantitySelector value={quantity} onChange={setQuantity} />
+      <QuantitySelector value={quantity} onChange={setQuantity} max={remaining} />
+      {unavailable && <p role="status" className="text-sm text-muted">{product.stockQuantity === 0 ? "Out of stock" : remaining === 0 && cartItem ? "All available units are in your cart" : "Currently unavailable"}</p>}
 
       {cartItem ? (
         <div className="flex items-center gap-2 rounded-lg border border-forest-green/20 bg-[#f5f0e6] px-4 py-3 text-sm font-semibold text-forest-green">
@@ -47,7 +51,7 @@ export function AddToCart({ product }: { product: Product }) {
       <button
         aria-label={isAdding ? `Adding ${quantity} ${product.name} to cart` : `Add ${quantity} ${product.name} to cart`}
         className="rounded-lg bg-forest-green px-7 py-3 font-semibold text-white transition hover:bg-forest-green/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-green/60 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
-        disabled={isAdding}
+        disabled={isAdding || unavailable || quantity > remaining}
         onClick={add}
         type="button"
       >
@@ -61,7 +65,7 @@ export function AddToCart({ product }: { product: Product }) {
             <Link className="text-forest-green underline underline-offset-4" href="/cart">
               View cart
             </Link>
-            <button className="text-forest-green underline underline-offset-4" onClick={add} type="button">
+            <button className="text-forest-green underline underline-offset-4 disabled:opacity-50" disabled={isAdding || unavailable || quantity > remaining} onClick={add} type="button">
               Add more
             </button>
           </div>

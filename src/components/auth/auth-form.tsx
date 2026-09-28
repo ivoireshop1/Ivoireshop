@@ -23,7 +23,7 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
-  const redirectTarget = resolveAuthRedirectTarget(searchParams, "/shop");
+  const redirectTarget = resolveAuthRedirectTarget(searchParams, "/account");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -31,7 +31,7 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
     setMessage("");
 
     const supabase = createClient();
-    const nextTarget = resolveAuthRedirectTarget(searchParams, "/shop");
+    const nextTarget = resolveAuthRedirectTarget(searchParams, "/account");
     const result =
       mode === "login"
         ? await supabase.auth.signInWithPassword({ email, password })
@@ -57,7 +57,7 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
     }
 
     if (mode === "login") {
-      router.push(sanitizeReturnPath(searchParams.get("next") ?? searchParams.get("returnTo") ?? redirectTarget, "/shop"));
+      router.push(sanitizeReturnPath(searchParams.get("next") ?? searchParams.get("returnTo") ?? redirectTarget, "/account"));
       return;
     }
 

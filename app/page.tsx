@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/src/lib/page-metadata";
 import { AnnouncementBar } from "@/src/components/layout/announcement-bar";
 import { Footer } from "@/src/components/layout/footer";
 import { Header } from "@/src/components/layout/header";
@@ -7,6 +8,8 @@ import { CtaSection } from "@/src/components/storefront/cta-section";
 import { Hero } from "@/src/components/storefront/hero";
 import { GuestShoppingSection } from "@/src/components/storefront/guest-shopping-section";
 import { ProductSection } from "@/src/components/storefront/product-section";
+
+export const metadata = pageMetadata("African & International Food", "Discover African and international food products and pantry staples.", "/");
 
 export default async function Home() {
   return (

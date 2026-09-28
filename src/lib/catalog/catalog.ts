@@ -1,5 +1,7 @@
+import { cache } from "react";
 import { createClient } from "@/src/lib/supabase/server";
 import type { CatalogCategory, Product } from "@/src/types/catalog";
+import { toOneRelation } from "@/src/lib/catalog/relation-utils";
 
 type ProductRow = {
   id: string;
@@ -13,16 +15,12 @@ type ProductRow = {
   is_active: boolean;
   is_featured: boolean;
   stock_quantity: number | null;
-  categories: { name: string }[] | null;
+  categories: { name: string } | { name: string }[] | null;
   product_images?: { image_url: string; position: number }[] | null;
 };
 
-function resolveCategoryName(name: string | null | undefined): Product["category"] {
-  return name || "Uncategorized";
-}
-
 function mapProduct(row: ProductRow): Product {
-  const category = resolveCategoryName(row.categories?.[0]?.name);
+  const category = toOneRelation(row.categories)?.name || "Uncategorized";
   const image = row.product_images?.slice().sort((a, b) => a.position - b.position)[0]?.image_url;
 
   return {
@@ -36,6 +34,7 @@ function mapProduct(row: ProductRow): Product {
     category,
     image: image ?? "",
     weight: row.stock_quantity !== null ? `${row.stock_quantity} in stock` : "",
+    stockQuantity: row.stock_quantity,
     isFeatured: row.is_featured,
     isNew: false,
     isPopular: false,
@@ -68,8 +67,7 @@ export async function getCategories(): Promise<CatalogCategory[]> {
   }
 }
 
-export async function getProducts(): Promise<Product[]> {
-  try {
+export const getProducts = cache(async (): Promise<Product[]> => {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("products")
@@ -77,15 +75,10 @@ export async function getProducts(): Promise<Product[]> {
       .eq("is_active", true)
       .order("created_at", { ascending: false });
     if (error) {
-      console.error("Catalog products query failed:", error.message);
-      return [];
+      throw new Error("Products could not be loaded.");
     }
     return (data as ProductRow[] | null ?? []).filter((product) => product.product_images?.length).map(mapProduct);
-  } catch (error) {
-    console.error("Catalog products connection failed:", error);
-    return [];
-  }
-}
+});
 
 export async function getProductBySlug(slug: string): Promise<Product | undefined> {
   try {

@@ -16,6 +16,14 @@ function isCartItem(item: unknown): item is CartItem {
 
 export function itemCount(items: CartItem[]) { return items.reduce((total, item) => total + item.quantity, 0); }
 export function subtotal(items: CartItem[]) { return items.reduce((total, item) => total + item.price * item.quantity, 0); }
+export function subtractPurchasedItems(items: CartItem[], purchased: { productId: string; quantity: number }[]) {
+  const quantities = new Map<string, number>();
+  for (const item of purchased) quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
+  return items.flatMap((item) => {
+    const quantity = item.quantity - (quantities.get(item.productId) ?? 0);
+    return quantity > 0 ? [{ ...item, quantity }] : [];
+  });
+}
 export function mergeItem(items: CartItem[], item: CartItem) {
   const existing = items.find((entry) => entry.productId === item.productId);
   return existing ? items.map((entry) => entry.productId === item.productId ? { ...entry, quantity: entry.quantity + item.quantity } : entry) : [...items, { ...item, quantity: Math.max(1, item.quantity) }];

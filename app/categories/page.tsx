@@ -1,8 +1,11 @@
+import { pageMetadata } from "@/src/lib/page-metadata";
 import Link from "next/link";
 import { Footer } from "@/src/components/layout/footer";
 import { Header } from "@/src/components/layout/header";
 import { PageHero } from "@/src/components/storefront/page-hero";
 import { getProducts } from "@/src/lib/catalog/catalog";
+
+export const metadata = pageMetadata("Categories", "Explore food categories in the Ivoire Shop catalog.", "/categories");
 
 export default async function CategoriesPage() {
   const products = await getProducts();
@@ -10,6 +13,7 @@ export default async function CategoriesPage() {
   return <><Header /><main>
     <PageHero eyebrow="The Ivoire collection" title="Explore Our Categories" description="Discover African and international products selected for your everyday needs." />
     <section className="mx-auto max-w-7xl px-5 py-14 lg:px-8">
+      {categories.length === 0 && <p className="py-12 text-center text-muted">No categories with available products yet. Please check back soon.</p>}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {categories.map((product) => <Link className="group rounded-2xl border border-black/10 bg-surface p-4 transition hover:-translate-y-1 hover:border-gold/60" href={`/shop?category=${encodeURIComponent(product.category)}`} key={product.category}>
           <div className="flex aspect-[1.7] items-end rounded-xl bg-[#dce5d9] p-5"><h2 className="text-2xl font-semibold text-forest-green">{product.category}</h2></div>

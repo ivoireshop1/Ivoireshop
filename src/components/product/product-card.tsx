@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { ProductImage } from "@/src/components/product/product-image";
 import Link from "next/link";
 import { useState } from "react";
 import type { Product } from "@/src/types/catalog";
@@ -14,10 +14,11 @@ export function ProductCard({ product, returnTo }: { product: Product; returnTo?
   const [added, setAdded] = useState(false);
   const badge = product.isNew ? "New" : product.isPopular ? "Popular" : product.isFeatured ? "Featured" : null;
   const cartItem = items.find((item) => item.productId === product.id);
-  function add() { addItem({ productId: product.id, slug: product.slug, name: product.name, price: product.price, image: product.image, quantity: 1 }); setAdded(true); setTimeout(() => setAdded(false), 1600); }
+  const unavailable = product.stockQuantity == null || product.stockQuantity <= (cartItem?.quantity ?? 0) || product.price <= 0;
+  function add() { if (unavailable) return; addItem({ productId: product.id, slug: product.slug, name: product.name, price: product.price, image: product.image, quantity: 1 }); setAdded(true); setTimeout(() => setAdded(false), 1600); }
   return <article className="group rounded-xl bg-surface p-3 text-foreground shadow-sm">
     <Link className="relative block aspect-[4/5] overflow-hidden rounded-2xl bg-[#eadfce]" href={buildProductPath(product.slug, returnTo)}>
-      <Image alt={product.name} className="object-cover transition duration-300 group-hover:scale-105" fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" src={product.image} />
+      <ProductImage alt={product.name} className="object-cover transition duration-300 group-hover:scale-105" fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" src={product.image} />
       {badge && <ProductBadge label={badge} />}
     </Link>
     <div className="pt-4">
@@ -35,10 +36,10 @@ export function ProductCard({ product, returnTo }: { product: Product; returnTo?
           {cartItem ? (
             <>
               <span className="min-w-0 truncate text-sm font-semibold text-forest-green">{added ? "✓ Added" : `✓ ${cartItem.quantity}`}</span>
-              <button aria-label={`Add another ${product.name} to cart`} className="shrink-0 rounded-lg border border-forest-green/20 bg-[#f5f0e6] px-2.5 py-2 text-sm font-semibold text-forest-green" onClick={add} type="button">+ Add</button>
+              <button disabled={unavailable} aria-label={`Add another ${product.name} to cart`} className="shrink-0 rounded-lg border border-forest-green/20 bg-[#f5f0e6] px-2.5 py-2 text-sm font-semibold text-forest-green disabled:opacity-50" onClick={add} type="button">+ Add</button>
             </>
           ) : (
-            <button aria-label={`Add ${product.name} to cart`} className="shrink-0 rounded-lg bg-forest-green px-3 py-2 text-sm font-semibold text-white" onClick={add} type="button">Add</button>
+            <button disabled={unavailable} aria-label={`Add ${product.name} to cart`} className="shrink-0 rounded-lg bg-forest-green px-3 py-2 text-sm font-semibold text-white disabled:opacity-50" onClick={add} type="button">{unavailable ? "Unavailable" : "Add"}</button>
           )}
         </div>
       </div>

@@ -6,6 +6,7 @@ export type CustomerOrderSummary = {
   id: string;
   order_number: string;
   status: string;
+  payment_status: string;
   total: number | string;
   fulfillment_method: string;
   created_at: string;
@@ -33,6 +34,7 @@ export function CustomerOrderCard({ order }: { order: CustomerOrderSummary }) {
           </p>
         </div>
       </div>
+      <p className="mt-2 text-sm capitalize text-muted">Payment: {order.payment_status}</p>
       {preview ? <p className="mt-3 text-sm text-muted">{preview}</p> : null}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Link className="rounded-lg border border-forest-green/20 px-3 py-2 text-sm font-semibold text-forest-green" href={`/account/orders/${order.id}`}>

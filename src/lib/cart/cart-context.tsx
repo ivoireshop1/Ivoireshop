@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { CartItem } from "@/src/types/cart";
-import { loadCart, saveCart } from "./cart-storage";
+import { completeStoredPurchase, loadCart, saveCart } from "./cart-storage";
 import { itemCount, mergeItem, subtotal } from "./cart-utils";
 
 type CartInput = CartItem | (Omit<CartItem, "quantity" | "slug" | "image"> & Partial<Pick<CartItem, "quantity" | "slug" | "image">>);
@@ -20,12 +20,15 @@ type CartContextValue = {
   incrementQuantity: (productId: string) => void;
   decrementQuantity: (productId: string) => void;
   clearCart: () => void;
+  completePurchase: (purchased: { productId: string; quantity: number }[], orderId: string) => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const latestItems = useRef(items);
+  useEffect(() => { latestItems.current = items; }, [items]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState<CartItem | null>(null);
   const [addEventId, setAddEventId] = useState(0);
@@ -61,6 +64,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     incrementQuantity: (productId: string) => setItems((current) => current.map((item) => item.productId === productId ? { ...item, quantity: item.quantity + 1 } : item)),
     decrementQuantity: (productId: string) => setItems((current) => current.flatMap((item) => item.productId !== productId ? [item] : item.quantity <= 1 ? [] : [{ ...item, quantity: item.quantity - 1 }])),
     clearCart: () => setItems([]),
+    completePurchase: (purchased: { productId: string; quantity: number }[], orderId: string) => {
+      const remaining = completeStoredPurchase(latestItems.current, purchased, orderId);
+      setItems(remaining);
+      setLastAddedItem(null);
+    },
   }), [items, isLoaded, lastAddedItem, addEventId]);
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/src/lib/auth/guards";
+import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
 
 export type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -10,6 +11,8 @@ function revalidateStorefront(slug: string | null | undefined) {
   revalidatePath("/shop");
   revalidatePath("/categories");
   revalidatePath("/admin/products");
+  revalidatePath("/admin/inventory");
+  revalidatePath("/admin");
   if (slug) revalidatePath(`/product/${slug}`);
 }
 
@@ -24,7 +27,7 @@ export async function adminSetProductStatus(
   const { supabase } = await requireAdmin();
   const { data: product, error: fetchError } = await supabase
     .from("products")
-    .select("id, slug, price, stock_quantity, needs_pricing, product_images(id)")
+    .select("id, name, slug, category_id, price, stock_quantity, needs_pricing, product_images(image_url)")
     .eq("id", id)
     .maybeSingle();
 
@@ -33,15 +36,19 @@ export async function adminSetProductStatus(
   }
 
   if (status !== "hidden") {
-    const hasImage = Array.isArray(product.product_images) && product.product_images.length > 0;
-    if (product.needs_pricing || product.price === null) {
+    const hasImage = Array.isArray(product.product_images) && product.product_images.some((image) => isPersistentImageUrl(image.image_url));
+    if (!product.name?.trim()) return { success: false, error: "Add a product name before activating this product." };
+    if (!product.category_id) {
+      return { success: false, error: "Add a category before activating this product." };
+    }
+    if (product.price === null || !Number.isFinite(Number(product.price)) || Number(product.price) <= 0) {
       return { success: false, error: "Add a valid price before activating this product." };
     }
-    if (product.stock_quantity === null) {
+    if (product.stock_quantity === null || !Number.isInteger(Number(product.stock_quantity)) || Number(product.stock_quantity) < 0) {
       return { success: false, error: "Add a valid stock quantity before activating this product." };
     }
     if (!hasImage) {
-      return { success: false, error: "Add a product image before activating this product." };
+      return { success: false, error: "Add at least one product image before activating this product." };
     }
   }
 
@@ -103,23 +110,27 @@ export async function adminUpdateProductPricing(
   const { supabase } = await requireAdmin();
   const { data: product, error: fetchError } = await supabase
     .from("products")
-    .select("id, slug, is_active")
+    .select("id, slug, price, stock_quantity, is_active")
     .eq("id", id)
     .maybeSingle();
 
   if (fetchError || !product) return { success: false, error: "Product not found." };
 
-  const needsPricing = price === null || stockQuantity === null;
   // An active product must never end up with incomplete pricing/stock.
+  // Keep existing values if an input was omitted or blank
+  const nextPrice = trimmedPrice ? price : (trimmedPrice === "" ? product.price : null);
+  const nextStock = trimmedStock ? stockQuantity : (trimmedStock === "" ? product.stock_quantity : null);
+
+  const needsPricing = nextPrice === null || nextStock === null;
   const nextIsActive = needsPricing ? false : product.is_active;
 
   const { error } = await supabase
     .from("products")
-    .update({ price, stock_quantity: stockQuantity, needs_pricing: needsPricing, is_active: nextIsActive })
+    .update({ price: nextPrice, stock_quantity: nextStock, needs_pricing: needsPricing, is_active: nextIsActive })
     .eq("id", id);
 
   if (error) return { success: false, error: "Could not save price/stock." };
 
   revalidateStorefront(product.slug);
-  return { success: true, data: { price, stock_quantity: stockQuantity, needs_pricing: needsPricing, is_active: nextIsActive } };
+  return { success: true, data: { price: nextPrice, stock_quantity: nextStock, needs_pricing: needsPricing, is_active: nextIsActive } };
 }

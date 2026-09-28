@@ -2,10 +2,10 @@ import Link from "next/link";
 import { NewsletterForm } from "./newsletter-form";
 
 const groups = [
-  { title: "Shop", links: [["Shop All", "/shop"], ["Categories", "/#categories"], ["Featured Products", "/#featured-products"], ["New Arrivals", "/shop"]] },
+  { title: "Shop", links: [["Shop All", "/shop"], ["Categories", "/categories"], ["Featured Products", "/#featured-products"], ["New Arrivals", "/shop"]] },
   { title: "Account", links: [["Sign In", "/login"], ["Create Account", "/signup"], ["My Account", "/account"]] },
   { title: "Company", links: [["About Us", "/about"], ["Blog", "/blog"], ["Contact", "/contact"]] },
-  { title: "Support", links: [["Help", "/#support"], ["Delivery Information", "/#delivery"], ["Returns", "/#returns"], ["Privacy Policy", "/#privacy"], ["Terms & Conditions", "/#terms"]] },
+  { title: "Support", links: [["Shopping information", "/contact"]] },
 ];
 
 export function Footer() {
@@ -26,14 +26,14 @@ export function Footer() {
         ))}
         <div id="contact">
           <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Join our newsletter</h2>
-          <p className="mt-4 max-w-xs text-sm leading-6 text-white/70">Get exclusive deals, new arrivals, and more.</p>
+          <p className="mt-4 max-w-xs text-sm leading-6 text-white/70">Newsletter signup is not yet available.</p>
           <NewsletterForm />
         </div>
       </div>
       <div className="border-t border-white/15">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-5 text-xs text-white/60 sm:flex-row sm:items-center sm:justify-between lg:px-8">
           <span>© 2026 Ivoire Shop</span>
-          <div className="flex gap-5"><Link href="#">Privacy Policy</Link><Link href="#">Terms &amp; Conditions</Link></div>
+          <Link href="/contact">Shopping information</Link>
         </div>
       </div>
     </footer>

@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { updateInventory } from "@/src/lib/catalog/actions";
+import { toOneRelation } from "@/src/lib/catalog/relation-utils";
 
 export default async function AdminInventoryPage({ searchParams }: { searchParams: Promise<{ search?: string; low?: string; error?: string; success?: string }> }) {
   const params = await searchParams;
@@ -30,7 +31,7 @@ export default async function AdminInventoryPage({ searchParams }: { searchParam
         <button className="rounded-xl bg-[#173f35] px-4 py-2 text-sm text-white">Filter</button>
       </form>
       {items.length === 0 ? <div className="rounded-2xl border border-dashed border-[#173f35]/20 bg-white p-10 text-center text-[#6b6b6b]">No inventory items match these filters.</div> : <div className="space-y-3">{items.map((product) => {
-        const category = (product.categories as { name?: string } | null)?.name ?? "Uncategorized";
+        const category = toOneRelation(product.categories as { name?: string } | { name?: string }[] | null)?.name ?? "Uncategorized";
         const stock = Number(product.stock_quantity);
         const state = stock === 0 ? "Out of stock" : stock <= 5 ? "Low stock" : "In stock";
         return <form action={updateInventory} className="grid items-center gap-3 rounded-2xl border border-[#173f35]/10 bg-white p-4 md:grid-cols-[1.4fr_0.8fr_0.7fr_0.8fr]" key={product.id}>

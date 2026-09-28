@@ -1,0 +1,5 @@
+# Local source-photo archive: storefront uses public/images and public/customer.
+public/hero-lifestyle.png/
+supabase/.temp/
+.env*
+.git/

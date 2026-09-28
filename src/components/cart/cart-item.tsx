@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { ProductImage } from "@/src/components/product/product-image";
 import Link from "next/link";
 import type { CartItem as CartItemType } from "@/src/types/cart";
 import { useCart } from "@/src/lib/cart/cart-context";
@@ -11,11 +11,11 @@ export function CartItem({ item }: { item: CartItemType }) {
   return (
     <article className="flex gap-4 rounded-2xl border border-black/8 bg-surface p-4 shadow-[0_12px_25px_rgba(23,63,53,0.04)] transition hover:border-forest-green/20 hover:shadow-[0_18px_35px_rgba(23,63,53,0.08)]">
       <Link className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-[#eadfce]" href={`/product/${item.slug}`}>
-        <Image alt={item.name} className="object-cover" fill sizes="96px" src={item.image} />
+        <ProductImage alt={item.name} className="object-cover" fill sizes="96px" src={item.image} />
       </Link>
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col items-start gap-1 sm:flex-row sm:justify-between sm:gap-4">
           <Link className="font-semibold text-forest-green hover:underline" href={`/product/${item.slug}`}>
             {item.name}
           </Link>

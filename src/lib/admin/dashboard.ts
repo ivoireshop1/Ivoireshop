@@ -71,10 +71,13 @@ export async function getAdminDashboardData() {
         .select("id, order_number, customer_name, total, status, created_at")
         .order("created_at", { ascending: false })
         .limit(5),
-      supabase.from("order_items").select("product_id, product_name, quantity, product_price"),
+      supabase.from("order_items").select("order_id, product_id, product_name, quantity, product_price"),
       supabase.from("orders").select("id, status, payment_status, total"),
     ]);
 
+  if ([todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult].some((result) => result.error)) {
+    throw new Error("Unable to load dashboard data.");
+  }
   const todayOrders = todayOrdersResult.data ?? [];
   const todayCustomers = todayCustomersResult.data ?? [];
   const products = productResult.data ?? [];
@@ -159,7 +162,7 @@ export async function getAdminDashboardData() {
     id: order.id,
     orderNumber: order.order_number,
     customerName: order.customer_name ?? "Guest customer",
-    itemCount: 0,
+    itemCount: orderItems.filter((item) => item.order_id === order.id).reduce((sum, item) => sum + item.quantity, 0),
     total: Number(order.total ?? 0),
     status: order.status,
     createdAt: order.created_at,

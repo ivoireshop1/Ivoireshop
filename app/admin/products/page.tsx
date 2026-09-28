@@ -78,12 +78,22 @@ export default async function AdminProductsPage({
       </p>
 
       {params.error && (
-        <p className="rounded-2xl border border-[#7f1d1d]/20 bg-[#7f1d1d]/5 px-4 py-3 text-sm text-[#7f1d1d]">
-          The product action could not be completed. Check the values and try again.
+        <p className="rounded-2xl border border-[#7f1d1d]/20 bg-[#7f1d1d]/5 px-4 py-3 text-sm font-medium text-[#7f1d1d]">
+          {params.error === "missing_category"
+            ? "Add a category before publishing."
+            : params.error === "missing_image"
+              ? "Add at least one product image before publishing."
+              : params.error === "missing_price"
+                ? "Add a valid price before publishing."
+                : params.error === "missing_stock"
+                  ? "Add a valid stock quantity before publishing."
+                  : params.error === "missing_name"
+                    ? "Add a product name before publishing."
+                    : "The product action could not be completed. Check the values and try again."}
         </p>
       )}
       {params.success && (
-        <p className="rounded-2xl border border-[#173f35]/15 bg-[#173f35]/5 px-4 py-3 text-sm text-[#173f35]">
+        <p className="rounded-2xl border border-[#173f35]/15 bg-[#173f35]/5 px-4 py-3 text-sm font-medium text-[#173f35]">
           Product changes saved.
         </p>
       )}
@@ -186,7 +196,7 @@ export default async function AdminProductsPage({
                     createdAt: product.created_at,
                     categoryName,
                     imageUrl,
-                    price: product.needs_pricing ? null : product.price,
+                    price: product.price,
                     stockQuantity: product.stock_quantity,
                     isActive: product.is_active,
                     isFeatured: product.is_featured,
