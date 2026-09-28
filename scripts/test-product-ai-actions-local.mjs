@@ -178,6 +178,7 @@ await test("untrusted image URLs are rejected before vision", async () => {
   const result = await fillProductDetailsWithAi(FOODS);
   assert.equal(result.success, false);
   assert.equal(result.error, FAILURE);
+  assert.equal(result.code, "IMAGE_FETCH_FAILED");
   assert.equal(visionCalls.length, 0);
 });
 
@@ -219,9 +220,11 @@ await test("Ivoire Market image is analyzed without changing category or publish
 
 await test("vision failure stays in editor and does not write", async () => {
   visionError = new Error("gateway timeout");
+  visionError.name = "TimeoutError";
   const result = await fillProductDetailsWithAi(FOODS);
   assert.equal(result.success, false);
   assert.equal(result.error, FAILURE);
+  assert.equal(result.code, "AI_TIMEOUT");
   assert.equal(products[0].name, "Palm Oil Draft");
   assert.equal(writes.length, 0);
 });

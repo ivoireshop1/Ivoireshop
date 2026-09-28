@@ -4,6 +4,8 @@ import { saveProduct } from "@/src/lib/catalog/actions";
 import { categoriesForProductAssignment } from "@/src/lib/catalog/canonical-categories";
 import { ProductForm } from "@/src/components/admin/catalog-form";
 
+export const maxDuration = 60;
+
 export default async function EditProductPage({
   params,
   searchParams,

@@ -2,7 +2,13 @@
 
 import { unstable_rethrow } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/server";
-import { suggestionHasContent, type ProductAiSuggestion } from "@/src/lib/catalog/product-ai";
+import type { ProductAiSuggestion } from "@/src/lib/catalog/product-ai";
+import {
+  PRODUCT_AI_FAILURE,
+  classifyProductAiError,
+  logProductAiFailure,
+  type ProductAiFailureCode,
+} from "@/src/lib/catalog/product-ai-errors";
 import { readTrustedProductImage } from "@/src/lib/catalog/product-ai-image";
 import { analyzeProductImageWithGateway } from "@/src/lib/catalog/product-ai-vision";
 import { resolvePersistedSku } from "@/src/lib/catalog/sku";
@@ -17,9 +23,12 @@ export type FillProductAiResult =
       replaceName: boolean;
       categoryName: string;
     }
-  | { success: false; error: string };
+  | { success: false; error: string; code: ProductAiFailureCode };
 
-const FAILURE = "AI couldn't fill this product. You can enter the details manually or try again.";
+function fail(code: ProductAiFailureCode): FillProductAiResult {
+  logProductAiFailure(code);
+  return { success: false, error: PRODUCT_AI_FAILURE, code };
+}
 
 async function adminClient() {
   const supabase = await createClient();
@@ -35,10 +44,10 @@ async function adminClient() {
 export async function fillProductDetailsWithAi(productId: string): Promise<FillProductAiResult> {
   try {
     const supabase = await adminClient();
-    if (!supabase) return { success: false, error: "You need to sign in as an admin." };
+    if (!supabase) return { success: false, error: "You need to sign in as an admin.", code: "UNKNOWN" };
 
     const id = String(productId ?? "").trim();
-    if (!id) return { success: false, error: FAILURE };
+    if (!id) return fail("UNKNOWN");
 
     const { data: product, error } = await supabase
       .from("products")
@@ -46,7 +55,7 @@ export async function fillProductDetailsWithAi(productId: string): Promise<FillP
       .eq("id", id)
       .maybeSingle();
 
-    if (error || !product) return { success: false, error: FAILURE };
+    if (error || !product) return fail("UNKNOWN");
 
     const { data: category } = await supabase
       .from("categories")
@@ -55,15 +64,15 @@ export async function fillProductDetailsWithAi(productId: string): Promise<FillP
       .maybeSingle();
     const categoryName = category?.name;
     const categorySlug = category?.slug;
-    if (!categoryName || !categorySlug) return { success: false, error: FAILURE };
+    if (!categoryName || !categorySlug) return fail("UNKNOWN");
 
     const images = Array.isArray(product.product_images) ? [...product.product_images] : [];
     images.sort((left, right) => (left.position ?? 0) - (right.position ?? 0));
     const imageUrl = images[0]?.image_url ?? "";
-    if (!isTrustedProductImageUrl(imageUrl)) return { success: false, error: FAILURE };
+    if (!isTrustedProductImageUrl(imageUrl)) return fail("IMAGE_FETCH_FAILED");
 
     const image = await readTrustedProductImage(imageUrl);
-    if (!image) return { success: false, error: FAILURE };
+    if (!image) return fail("IMAGE_FETCH_FAILED");
 
     const suggestions = await analyzeProductImageWithGateway({
       bytes: image.bytes,
@@ -71,8 +80,6 @@ export async function fillProductDetailsWithAi(productId: string): Promise<FillP
       categoryName,
       draftName: product.name ?? "",
     });
-
-    if (!suggestionHasContent(suggestions)) return { success: false, error: FAILURE };
 
     const { data: skuRows } = await supabase.from("products").select("id, sku").not("sku", "is", null);
     const taken = (skuRows ?? [])
@@ -97,7 +104,9 @@ export async function fillProductDetailsWithAi(productId: string): Promise<FillP
     };
   } catch (error) {
     unstable_rethrow(error);
-    console.error("fillProductDetailsWithAi failed", error instanceof Error ? error.name : "error");
-    return { success: false, error: FAILURE };
+    if (error && typeof error === "object" && "name" in error && error.name === "ProductAiResponseInvalid") {
+      return fail("AI_RESPONSE_INVALID");
+    }
+    return fail(classifyProductAiError(error));
   }
 }

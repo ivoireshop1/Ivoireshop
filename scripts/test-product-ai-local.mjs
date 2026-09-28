@@ -71,6 +71,18 @@ test("missing SKU is generated uniquely", () => {
   assert.notEqual(second, first);
 });
 
+test("encoded stored image paths stay trusted and fetchable", () => {
+  const { encodePublicImagePath } = load("src/lib/catalog/product-ai-image.ts");
+  assert.equal(
+    encodePublicImagePath("/images/Foods%2012-22-25/Ivoire%20Market%20Pictre2/My%20project-(3).jpg"),
+    "/images/Foods%2012-22-25/Ivoire%20Market%20Pictre2/My%20project-(3).jpg",
+  );
+  assert.equal(
+    encodePublicImagePath("/images/Foods 12-22-25/Ivoire Market Pictre2/My project-(3).jpg"),
+    "/images/Foods%2012-22-25/Ivoire%20Market%20Pictre2/My%20project-(3).jpg",
+  );
+});
+
 test("only trusted stored images are allowed", () => {
   assert.equal(isTrustedProductImageUrl("/images/Foods%2012-22-25/Comestics%2012-22-25/soap.jpeg"), true);
   assert.equal(
@@ -108,12 +120,28 @@ test("empty or broken AI JSON is treated as failure content", () => {
   assert.equal(suggestionHasContent(parseProductAiJson('{"name":"Palm Oil","description":"Red palm oil."}')), true);
 });
 
+test("failure codes distinguish image fetch from AI auth and timeouts", () => {
+  const { classifyProductAiError, productAiGatewayReady } = load("src/lib/catalog/product-ai-errors.ts");
+  const timeout = new Error("aborted");
+  timeout.name = "TimeoutError";
+  assert.equal(classifyProductAiError(timeout), "AI_TIMEOUT");
+  assert.equal(classifyProductAiError({ statusCode: 401 }), "AI_AUTH_FAILED");
+  assert.equal(classifyProductAiError({ statusCode: 429 }), "AI_RATE_LIMITED");
+  assert.equal(productAiGatewayReady(), Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL === "1"));
+});
+
 test("prompt locks category and forbids price inventory and medical claims", () => {
   const prompt = productAiSystemPrompt("Cosmetics");
   assert.match(prompt, /Cosmetics/);
   assert.match(prompt, /Never change or suggest a different category/);
   assert.match(prompt, /selling price/);
   assert.match(prompt, /medical claims/);
+});
+
+test("production vision model is a free-tier Gateway model", () => {
+  const source = fs.readFileSync("src/lib/catalog/product-ai-vision.ts", "utf8");
+  assert.match(source, /google\/gemini-2\.5-flash/);
+  assert.match(source, /type: "file"/);
 });
 
 test("AI action module does not write product rows", () => {
