@@ -118,6 +118,11 @@ test("AI output is sanitized and does not invent medical claims", () => {
 test("empty or broken AI JSON is treated as failure content", () => {
   assert.equal(suggestionHasContent(parseProductAiJson("not json")), false);
   assert.equal(suggestionHasContent(parseProductAiJson('{"name":"Palm Oil","description":"Red palm oil."}')), true);
+  const fenced = parseProductAiJson('```json\n{"name":"Palm Oil","description":"Red palm oil."}\n```');
+  assert.equal(fenced.name, "Palm Oil");
+  const optionalMissing = parseProductAiJson('{"name":"Palm Oil","description":"Red palm oil."}');
+  assert.equal(optionalMissing.shortDescription, null);
+  assert.equal(suggestionHasContent(optionalMissing), true);
 });
 
 test("failure codes distinguish image fetch from AI auth and timeouts", () => {
@@ -149,6 +154,8 @@ test("AI action module does not write product rows", () => {
   assert.doesNotMatch(source, /\.update\(/);
   assert.doesNotMatch(source, /\.insert\(/);
   assert.match(source, /fillProductDetailsWithAi/);
+  assert.match(source, /logProductAiEvent/);
+  assert.match(fs.readFileSync("src/lib/catalog/product-ai-errors.ts", "utf8"), /\[AI_PRODUCT_ASSIST\]/);
   assert.match(fs.readFileSync("src/components/admin/catalog-form.tsx", "utf8"), /Fill with AI/);
 });
 
@@ -156,6 +163,7 @@ test("AI keys are not exposed to the browser bundle of the form", () => {
   const form = fs.readFileSync("src/components/admin/catalog-form.tsx", "utf8");
   assert.doesNotMatch(form, /AI_GATEWAY|OPENAI_API_KEY|ANTHROPIC_API_KEY/);
   assert.match(form, /fillProductDetailsWithAi/);
+  assert.match(form, /Reference: AI-NET/);
 });
 
 test("Fill with AI preserves category price quantity and status in the editor", () => {

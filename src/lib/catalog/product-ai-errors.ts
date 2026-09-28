@@ -9,6 +9,21 @@ export type ProductAiFailureCode =
   | "AI_RESPONSE_INVALID"
   | "UNKNOWN";
 
+export function newAiAssistReference() {
+  const bytes = new Uint8Array(2);
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    crypto.getRandomValues(bytes);
+  } else {
+    bytes[0] = Math.floor(Math.random() * 256);
+    bytes[1] = Math.floor(Math.random() * 256);
+  }
+  return `AI-${Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+}
+
+export function productAiFailureMessage(reference: string) {
+  return `${PRODUCT_AI_FAILURE} Reference: ${reference}`;
+}
+
 export function productAiGatewayReady() {
   return Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL === "1");
 }
@@ -30,6 +45,13 @@ export function classifyProductAiError(error: unknown): ProductAiFailureCode {
   return "UNKNOWN";
 }
 
-export function logProductAiFailure(code: ProductAiFailureCode, extra?: string) {
-  console.error("fillProductDetailsWithAi", code, extra ?? "");
+export function logProductAiEvent(input: {
+  reference: string;
+  step: string;
+  code?: ProductAiFailureCode | string;
+  extra?: string;
+}) {
+  console.error(
+    `[AI_PRODUCT_ASSIST] ref=${input.reference} step=${input.step} code=${input.code ?? ""} ${input.extra ?? ""}`.trim(),
+  );
 }

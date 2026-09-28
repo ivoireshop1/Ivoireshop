@@ -37,12 +37,12 @@ export function encodePublicImagePath(imageUrl: string) {
 }
 
 export function publicImageOrigin() {
-  const site = resolvePublicSiteUrl(process.env).replace(/\/$/, "");
-  if (site && !/localhost|127\.0\.0\.1/i.test(site)) return site;
-  const vercelHost = (process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || "")
+  const vercelHost = (process.env.VERCEL_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || "")
     .replace(/^https?:\/\//, "")
     .replace(/\/$/, "");
-  if (vercelHost) return `https://${vercelHost}`;
+  if (process.env.VERCEL && vercelHost) return `https://${vercelHost}`;
+  const site = resolvePublicSiteUrl(process.env).replace(/\/$/, "");
+  if (site && !/localhost|127\.0\.0\.1/i.test(site)) return site;
   return site;
 }
 
@@ -78,7 +78,9 @@ async function bytesFromResponse(response: Response, fallbackType: string) {
 }
 
 export async function readTrustedProductImage(imageUrl: string) {
-  if (!isTrustedProductImageUrl(imageUrl)) return null;
+  if (!isTrustedProductImageUrl(imageUrl)) {
+    return { ok: false as const, status: 0, contentType: null, bytes: 0, source: "rejected" as const };
+  }
   const mediaType = mediaTypeFromImageUrl(imageUrl);
   if (imageUrl.startsWith("/images/")) {
     const diskPath = publicImageDiskPath(imageUrl);
@@ -86,25 +88,68 @@ export async function readTrustedProductImage(imageUrl: string) {
       try {
         const bytes = await readFile(diskPath);
         if (bytes.length && bytes.byteLength <= MAX_IMAGE_BYTES) {
-          return { bytes, mediaType };
+          return {
+            ok: true as const,
+            bytes,
+            mediaType,
+            status: 200,
+            contentType: mediaType,
+            source: "disk" as const,
+          };
         }
       } catch {
         // Serverless runtimes serve /images from the CDN, not the function disk.
       }
     }
     const httpUrl = publicImageHttpUrl(imageUrl);
-    if (!httpUrl || !isTrustedProductImageUrl(new URL(httpUrl).pathname)) return null;
+    if (!httpUrl || !isTrustedProductImageUrl(new URL(httpUrl).pathname)) {
+      return { ok: false as const, status: 0, contentType: null, bytes: 0, source: "http" as const };
+    }
     try {
       const response = await fetch(httpUrl, { redirect: "error" });
-      return await bytesFromResponse(response, mediaType);
+      const parsed = await bytesFromResponse(response, mediaType);
+      if (!parsed) {
+        return {
+          ok: false as const,
+          status: response.status,
+          contentType: response.headers.get("content-type"),
+          bytes: 0,
+          source: "http" as const,
+        };
+      }
+      return {
+        ok: true as const,
+        bytes: parsed.bytes,
+        mediaType: parsed.mediaType,
+        status: response.status,
+        contentType: parsed.mediaType,
+        source: "http" as const,
+      };
     } catch {
-      return null;
+      return { ok: false as const, status: 0, contentType: null, bytes: 0, source: "http" as const };
     }
   }
   try {
     const response = await fetch(imageUrl, { redirect: "error" });
-    return await bytesFromResponse(response, mediaType);
+    const parsed = await bytesFromResponse(response, mediaType);
+    if (!parsed) {
+      return {
+        ok: false as const,
+        status: response.status,
+        contentType: response.headers.get("content-type"),
+        bytes: 0,
+        source: "supabase" as const,
+      };
+    }
+    return {
+      ok: true as const,
+      bytes: parsed.bytes,
+      mediaType: parsed.mediaType,
+      status: response.status,
+      contentType: parsed.mediaType,
+      source: "supabase" as const,
+    };
   } catch {
-    return null;
+    return { ok: false as const, status: 0, contentType: null, bytes: 0, source: "supabase" as const };
   }
 }

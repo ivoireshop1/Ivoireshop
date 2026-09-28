@@ -76,7 +76,18 @@ function load(file) {
     if (id === "@/src/lib/supabase/server") return { createClient: async () => createSupabase() };
     if (id === "@/src/lib/catalog/product-ai-image") {
       return {
-        readTrustedProductImage: async (url) => (url.startsWith("/images/") ? { bytes: new Uint8Array([1, 2, 3]), mediaType: "image/jpeg" } : null),
+        readTrustedProductImage: async (url) =>
+          url.startsWith("/images/")
+            ? {
+                ok: true,
+                bytes: new Uint8Array([1, 2, 3]),
+                mediaType: "image/jpeg",
+                status: 200,
+                contentType: "image/jpeg",
+                source: "disk",
+              }
+            : { ok: false, status: 0, contentType: null, bytes: 0, source: "rejected" },
+        publicImageHttpUrl: (url) => (url.startsWith("/images/") ? `https://example.test${url}` : null),
       };
     }
     if (id === "@/src/lib/catalog/product-ai-vision") {
@@ -102,7 +113,7 @@ function load(file) {
     ts.transpileModule(fs.readFileSync(file, "utf8"), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
     }).outputText,
-    { exports, require, Buffer, URL, console, Uint8Array },
+    { exports, require, Buffer, URL, console, Uint8Array, process },
     { filename: file },
   );
   cache.set(file, exports);
@@ -177,7 +188,8 @@ await test("untrusted image URLs are rejected before vision", async () => {
   products[0].product_images = [{ image_url: "https://evil.example/x.jpg", position: 0 }];
   const result = await fillProductDetailsWithAi(FOODS);
   assert.equal(result.success, false);
-  assert.equal(result.error, FAILURE);
+  assert.match(result.error, new RegExp("^" + FAILURE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(result.error, /Reference: AI-[A-F0-9]{4}/);
   assert.equal(result.code, "IMAGE_FETCH_FAILED");
   assert.equal(visionCalls.length, 0);
 });
@@ -223,7 +235,8 @@ await test("vision failure stays in editor and does not write", async () => {
   visionError.name = "TimeoutError";
   const result = await fillProductDetailsWithAi(FOODS);
   assert.equal(result.success, false);
-  assert.equal(result.error, FAILURE);
+  assert.match(result.error, new RegExp("^" + FAILURE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(result.error, /Reference: AI-[A-F0-9]{4}/);
   assert.equal(result.code, "AI_TIMEOUT");
   assert.equal(products[0].name, "Palm Oil Draft");
   assert.equal(writes.length, 0);

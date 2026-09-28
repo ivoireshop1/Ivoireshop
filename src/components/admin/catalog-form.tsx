@@ -158,7 +158,7 @@ export function ProductForm({
       setStockQuantity(preserved.stockQuantity);
       setTrackInventory(preserved.trackInventory);
       setIsActive(preserved.isActive);
-      setAiMessage("AI couldn't fill this product. You can enter the details manually or try again.");
+      setAiMessage("AI couldn't fill this product. You can enter the details manually or try again. Reference: AI-NET");
     } finally {
       setAiBusy(false);
     }

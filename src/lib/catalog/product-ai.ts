@@ -34,9 +34,9 @@ export function emptyProductAiSuggestion(): ProductAiSuggestion {
 export function sanitizeProductAiSuggestion(raw: unknown): ProductAiSuggestion {
   const source = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   return {
-    name: cleanText(source.name, 120),
-    shortDescription: cleanText(source.shortDescription ?? source.short_description, 240),
-    description: cleanText(source.description, 2000),
+    name: cleanText(source.name ?? source.product_name ?? source.title, 120),
+    shortDescription: cleanText(source.shortDescription ?? source.short_description ?? source.summary, 240),
+    description: cleanText(source.description ?? source.product_description ?? source.longDescription, 2000),
     brand: cleanText(source.brand, 80),
     packageSize: cleanText(source.packageSize ?? source.package_size, 80),
     productType: cleanText(source.productType ?? source.product_type, 80),
@@ -72,7 +72,8 @@ export function productAiUserPrompt(input: { categoryName: string; draftName: st
 
 export function parseProductAiJson(text: string): ProductAiSuggestion {
   const trimmed = String(text ?? "").trim();
-  const block = trimmed.match(/\{[\s\S]*\}/)?.[0];
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
+  const block = fenced?.match(/\{[\s\S]*\}/)?.[0] ?? trimmed.match(/\{[\s\S]*\}/)?.[0];
   if (!block) return emptyProductAiSuggestion();
   try {
     return sanitizeProductAiSuggestion(JSON.parse(block));
