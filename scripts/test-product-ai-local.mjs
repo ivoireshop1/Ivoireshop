@@ -135,12 +135,15 @@ test("failure codes distinguish image fetch from AI auth and timeouts", () => {
   assert.equal(productAiGatewayReady(), Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL === "1"));
 });
 
-test("prompt locks category and forbids price inventory and medical claims", () => {
+test("prompt locks category and writes English copy without invented claims", () => {
   const prompt = productAiSystemPrompt("Cosmetics");
   assert.match(prompt, /Cosmetics/);
   assert.match(prompt, /Never change or suggest a different category/);
   assert.match(prompt, /selling price/);
   assert.match(prompt, /medical claims/);
+  assert.match(prompt, /professional English/);
+  assert.match(prompt, /Do not mix French and English/);
+  assert.match(prompt, /skin-lightening/);
 });
 
 test("production vision model is a free-tier Gateway model", () => {
@@ -173,6 +176,8 @@ test("Fill with AI preserves category price quantity and status in the editor", 
   assert.match(form, /setStockQuantity\(preserved\.stockQuantity\)/);
   assert.match(form, /setIsActive\(preserved\.isActive\)/);
   assert.doesNotMatch(form, /setCategoryId\(result/);
+  assert.match(form, /isImportedPlaceholderSlug/);
+  assert.match(form, /!preserved\.isActive/);
 });
 
 console.log(`${n} product AI tests passed.`);

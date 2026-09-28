@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRef, useState, type ChangeEvent } from "react";
 import { DeleteProductForm } from "@/src/components/admin/delete-product-form";
 import { adminSetFeatured, adminUpdateProductPricing } from "@/src/lib/catalog/admin-actions";
+import { adminProductViewHref, adminProductViewLabel } from "@/src/lib/catalog/product-slug";
 import {
   draftsReadyForActivation,
   formatPriceDisplay,
@@ -293,8 +294,12 @@ export function AdminProductRow({
           <Link className="min-h-11 text-sm text-[#173f35] underline-offset-2 hover:underline" href={`/admin/products/${product.id}`}>
             Edit
           </Link>
-          <Link className="min-h-11 text-sm text-[#173f35] underline-offset-2 hover:underline" href={`/product/${product.slug}`} target="_blank">
-            View
+          <Link
+            className="min-h-11 text-sm text-[#173f35] underline-offset-2 hover:underline"
+            href={adminProductViewHref({ id: product.id, slug: product.slug, isActive: persistedStatus === "active" })}
+            target={persistedStatus === "active" ? "_blank" : undefined}
+          >
+            {adminProductViewLabel(persistedStatus === "active")}
           </Link>
           <form action={duplicateAction}>
             <input name="id" type="hidden" value={product.id} />

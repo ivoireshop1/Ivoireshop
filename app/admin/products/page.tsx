@@ -178,6 +178,8 @@ export default async function AdminProductsPage({
                 ? "Add a price before publishing."
                 : params.error === "missing_stock"
                   ? "Add a valid stock quantity before publishing."
+                : params.error === "product_missing"
+                  ? "That product is no longer in the catalog. Choose another product from this list."
                   : params.error === "missing_name"
                     ? "Add a product name before publishing."
                     : "The product action could not be completed. Check the values and try again."}

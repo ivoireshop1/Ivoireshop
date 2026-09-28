@@ -63,9 +63,11 @@ test("parent Foods wrapper does not classify cosmetics or market as Foods", () =
   assert.equal(canonicalCategoryFromSourceFolder("/images/Foods 12-22-25/orphan.jpg"), null);
 });
 
-test("Ivoire Market folder maps to Ivoire Market including cookware filenames", () => {
-  assert.equal(canonicalCategoryFromSourceFolder("Ivoire Market Pictre2"), "Ivoire Market");
-  assert.equal(canonicalCategoryFromSourceFolder("Ivoire Market Pictre2/pots-and-pans.jpg"), "Ivoire Market");
+test("QEI import image is classified from Ivoire Market Pictre2 only", () => {
+  assert.equal(
+    canonicalCategoryFromSourceFolder("/images/Foods%2012-22-25/Ivoire%20Market%20Pictre2/My%20project-1%20(134).jpg"),
+    "Ivoire Market",
+  );
 });
 
 test("unknown folders are not guessed", () => {

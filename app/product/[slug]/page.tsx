@@ -2,18 +2,13 @@ import { cache } from "react";
 import { pageMetadata } from "@/src/lib/page-metadata";
 import { SiteHeader } from "@/src/components/layout/site-header";
 import { Footer } from "@/src/components/layout/footer";
-import { ProductImage } from "@/src/components/product/product-image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AddToCart } from "@/src/components/product/add-to-cart";
 import { SmartBackButton } from "@/src/components/navigation/smart-back-button";
-import { RelatedProducts } from "@/src/components/product/related-products";
 import { createClient } from "@/src/lib/supabase/server";
 import { buildProductPath } from "@/src/lib/navigation/smart-navigation";
-import { WishlistButton } from "@/src/components/wishlist/wishlist-button";
-import { ProductReviewForm } from "@/src/components/product/product-review-form";
 import { toOneRelation } from "@/src/lib/catalog/relation-utils";
-import { starDisplay } from "@/src/lib/reviews/public";
+import { publicStockLabel } from "@/src/lib/catalog/inventory";
+import { ProductStorefrontDetail } from "@/src/components/product/product-storefront-detail";
 
 const loadProduct = cache(async (slug: string) => {
   const supabase = await createClient();
@@ -49,18 +44,17 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   if (!productRow.is_active && !isComingSoon) notFound();
   if (isComingSoon && !primaryImage) notFound();
 
-
   const product = {
     id: productRow.id,
     slug: productRow.slug,
     name: productRow.name,
-    description: productRow.description,
-    shortDescription: productRow.short_description ?? productRow.description,
+    description: productRow.description ?? "",
+    shortDescription: productRow.short_description ?? productRow.description ?? "",
     price: Number(productRow.price),
     compareAtPrice: productRow.compare_at_price === null ? undefined : Number(productRow.compare_at_price),
     category: toOneRelation(productRow.categories)?.name || "Uncategorized",
     image: primaryImage ?? "",
-    weight: productRow.stock_quantity !== null ? `${productRow.stock_quantity} in stock` : "",
+    weight: publicStockLabel(productRow.track_inventory, productRow.stock_quantity),
     stockQuantity: productRow.stock_quantity,
     trackInventory: productRow.track_inventory !== false,
     isFeatured: Boolean(productRow.is_featured),
@@ -100,7 +94,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     compareAtPrice: item.compare_at_price === null ? undefined : Number(item.compare_at_price),
     category: toOneRelation(item.categories)?.name || "Uncategorized",
     image,
-    weight: item.stock_quantity !== null ? `${item.stock_quantity} in stock` : "",
+    weight: publicStockLabel(item.track_inventory, item.stock_quantity),
     stockQuantity: item.stock_quantity,
     trackInventory: item.track_inventory !== false,
     isFeatured: Boolean(item.is_featured),
@@ -110,9 +104,22 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   }).filter((item): item is NonNullable<typeof item> => item !== null);
 
   const currentProductPath = buildProductPath(product.slug);
-  return <><SiteHeader /><main className="mx-auto max-w-7xl px-5 py-10 lg:px-8"><SmartBackButton /><nav aria-label="Breadcrumb" className="mt-2 text-sm text-muted"><Link href="/">Home</Link> <span className="mx-2">/</span> <Link href="/shop">Shop</Link> <span className="mx-2">/</span> <span>{product.name}</span></nav>
-    <div className="mt-10 grid gap-10 lg:grid-cols-2 lg:items-start"><div className="relative aspect-square overflow-hidden rounded-3xl bg-[#eadfce]"><ProductImage alt={product.name} className="object-cover" fill loading="eager" priority sizes="(max-width: 1024px) 100vw, 50vw" src={product.image} />{product.isComingSoon ? <span className="absolute left-4 top-4 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white">Coming Soon</span> : null}</div><div className="lg:py-8"><p className="text-sm text-muted">{product.category}</p><div className="flex items-start justify-between gap-4"><h1 className="mt-3 text-4xl font-semibold text-forest-green">{product.name}</h1><WishlistButton productId={product.id} productName={product.name} /></div>{product.isComingSoon ? <p className="mt-4 text-2xl font-semibold text-forest-green">Coming soon</p> : <p className="mt-4 text-2xl font-semibold text-forest-green">${product.price.toFixed(2)}</p>}{product.isComingSoon ? <p className="mt-2 text-sm text-muted">This product is not available to order yet.</p> : <p className="mt-2 text-sm text-muted">{product.weight}</p>}<p className="mt-8 max-w-lg leading-7 text-muted">{product.shortDescription || product.description}</p><div className="mt-10">{product.isComingSoon ? <p className="rounded-xl border border-forest-green/15 bg-[#f5f0e6] px-4 py-3 text-sm text-muted">Ordering will open when this product becomes Active.</p> : <AddToCart product={product} />}</div></div></div>
-    <section className="mt-16 border-t border-black/10 pt-10"><div className="flex flex-wrap items-baseline justify-between gap-3"><h2 className="text-3xl font-semibold text-forest-green">Customer Reviews</h2><p className="text-sm text-muted">{reviewSummary?.review_count ? <><span className="font-semibold text-gold" aria-hidden="true">{(() => { const stars = starDisplay(Number(reviewSummary.average_rating)); return `${"★".repeat(stars.filled)}${"☆".repeat(stars.empty)}`; })()}</span> {Number(reviewSummary.average_rating).toFixed(1)} · {reviewSummary.review_count} {reviewSummary.review_count === 1 ? "review" : "reviews"}</> : "No reviews yet"}</p></div><div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.75fr)]"><div className="space-y-6">{reviews?.length ? reviews.map((review) => { const stars = starDisplay(review.rating); return <article className="border-b border-black/10 pb-6" key={review.id}><p className="text-gold" aria-label={`${stars.filled} out of 5 stars`}>{"★".repeat(stars.filled)}{"☆".repeat(stars.empty)}</p>{review.review_title ? <h3 className="mt-2 font-semibold text-forest-green">{review.review_title}</h3> : null}{review.review_text && <p className="mt-3 leading-7 text-foreground">&ldquo;{review.review_text}&rdquo;</p>}<p className="mt-3 text-sm text-muted">{review.display_name}{review.verified_purchase ? " · Verified Purchase" : ""} · {new Date(review.created_at).toLocaleDateString()}</p></article>; }) : <p className="text-sm text-muted">Be the first to share your experience with this product.</p>}</div><ProductReviewForm isAuthenticated={Boolean(user)} productId={product.id} productSlug={product.slug} review={ownReview} /></div></section>
-    <RelatedProducts products={related.length ? related : []} returnTo={returnTo ?? currentProductPath} />
-  </main><Footer /></>;
+  return (
+    <>
+      <SiteHeader />
+      <div className="mx-auto max-w-7xl px-5 pt-6 lg:px-8">
+        <SmartBackButton />
+      </div>
+      <ProductStorefrontDetail
+        isAuthenticated={Boolean(user)}
+        ownReview={ownReview}
+        product={product}
+        related={related}
+        returnTo={returnTo ?? currentProductPath}
+        reviews={reviews ?? []}
+        reviewSummary={reviewSummary}
+      />
+      <Footer />
+    </>
+  );
 }

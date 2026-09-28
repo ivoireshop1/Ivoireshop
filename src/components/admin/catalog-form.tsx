@@ -4,6 +4,10 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import { fillProductDetailsWithAi } from "@/src/lib/catalog/product-ai-actions";
 import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
+import {
+  isImportedPlaceholderSlug,
+  slugifyProductName,
+} from "@/src/lib/catalog/product-slug";
 import { useState, useRef, type ChangeEvent, type FormEvent } from "react";
 
 export type CategoryOption = { id: string; name: string; slug?: string };
@@ -34,11 +38,7 @@ type ImageItem = {
 };
 
 function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return slugifyProductName(text);
 }
 
 export function ProductForm({
@@ -55,7 +55,11 @@ export function ProductForm({
   // 1. Basic Info State
   const [name, setName] = useState(product?.name ?? "");
   const [slug, setSlug] = useState(product?.slug ?? "");
-  const [isSlugCustomized, setIsSlugCustomized] = useState(Boolean(product?.slug));
+  const [isSlugCustomized, setIsSlugCustomized] = useState(() => {
+    if (product?.is_active) return true;
+    if (!product?.slug) return false;
+    return !isImportedPlaceholderSlug(product.slug);
+  });
   const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
   const [description, setDescription] = useState(product?.description ?? "");
   const [shortDescription, setShortDescription] = useState(product?.short_description ?? "");
@@ -145,7 +149,7 @@ export function ProductForm({
       if (result.sku && !String(product.sku ?? "").trim()) setSku(result.sku);
       if (result.replaceName && result.suggestions.name) {
         setName(result.suggestions.name);
-        if (!isSlugCustomized || slug === slugify(name)) {
+        if (!preserved.isActive && (!isSlugCustomized || isImportedPlaceholderSlug(slug) || slug === slugify(name))) {
           setSlug(slugify(result.suggestions.name));
         }
       } else if (result.suggestions.name && result.suggestions.name !== name) {
@@ -167,7 +171,7 @@ export function ProductForm({
   function applyPendingAiName() {
     if (!pendingAiName) return;
     setName(pendingAiName);
-    if (!isSlugCustomized) setSlug(slugify(pendingAiName));
+    if (!product?.is_active && !isSlugCustomized) setSlug(slugify(pendingAiName));
     setPendingAiName(null);
   }
 

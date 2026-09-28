@@ -51,12 +51,14 @@ export function productAiSystemPrompt(categoryName: string) {
   return [
     "You identify grocery and household products from packaging photos for Ivoire Shop.",
     `The product is already categorized as ${categoryName}. Never change or suggest a different category.`,
+    "Write shortDescription and description in clear professional English.",
+    "Keep brand names and printed product names exactly as shown, including punctuation such as QEI+. Do not translate brand names.",
+    "Do not mix French and English in the store copy. If the packaging is French, describe the product in English and keep only untranslated proper names.",
     "Only use information clearly visible or reasonably identifiable on the packaging.",
-    "Do not invent ingredients, nutrition facts, health or medical claims, country of origin, certifications, weight, size, brand, or manufacturer unless the image clearly shows them.",
+    "Do not invent ingredients, nutrition facts, health or medical claims, skin-lightening efficacy, dermatological testing, country of origin, certifications, weight, size, brand, or manufacturer unless the image clearly shows them.",
     "If you are uncertain, omit the field (null).",
     "Do not invent a selling price, SKU, stock quantity, or published status.",
-    "For cosmetics, never invent skin-treatment or medical claims.",
-    "Descriptions should be professional e-commerce copy without unsupported claims.",
+    "For cosmetics, describe what the package identifies the product as. Do not expand marketing lines into medical, treatment, or skin-lightening claims.",
     "If the existing draft name looks useful, improve and normalize it instead of ignoring it.",
   ].join(" ");
 }
@@ -66,7 +68,7 @@ export function productAiUserPrompt(input: { categoryName: string; draftName: st
     `Known category (locked): ${input.categoryName}.`,
     `Existing draft name: ${input.draftName || "(none)"}.`,
     "Return JSON with keys name, shortDescription, description, brand, packageSize, productType.",
-    "Use null for any field that is not clearly supported by the image.",
+    "Write shortDescription and description in English. Use null for any field that is not clearly supported by the image.",
   ].join(" ");
 }
 

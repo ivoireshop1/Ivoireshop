@@ -6,6 +6,7 @@ import { requireAdmin } from "@/src/lib/auth/guards";
 import { canonicalSlugForName, isAssignableCategory, isCanonicalSlug } from "@/src/lib/catalog/canonical-categories";
 import { isPersistentImageUrl, productImagesObjectPath } from "@/src/lib/catalog/image-url";
 import { resolvePersistedSku } from "@/src/lib/catalog/sku";
+import { uniqueProductSlug } from "@/src/lib/catalog/product-slug";
 import { nextOrderStatuses } from "@/src/lib/orders/status";
 
 function textValue(formData: FormData, key: string) {
@@ -288,11 +289,17 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
   const isActive = wantsActive;
   const normalizedStockQuantity = !trackInventory ? null : status === "sold_out" ? 0 : stockQuantityValue;
 
-  const { data: skuRows } = await supabase.from("products").select("id, sku").not("sku", "is", null);
+  const { data: skuRows } = await supabase.from("products").select("id, sku, slug").not("sku", "is", null);
   const takenSkus = (skuRows ?? [])
     .filter((row) => !id || row.id !== id)
     .map((row) => String(row.sku ?? ""))
     .filter(Boolean);
+  const { data: slugRows } = await supabase.from("products").select("id, slug");
+  const takenSlugs = (slugRows ?? [])
+    .filter((row) => !id || row.id !== id)
+    .map((row) => String(row.slug ?? ""))
+    .filter(Boolean);
+  const uniqueSlug = uniqueProductSlug(slug, takenSlugs);
   const sku = id
     ? resolvePersistedSku({
         existingSku,
@@ -305,7 +312,7 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
 
   const values = {
     name,
-    slug,
+    slug: uniqueSlug,
     category_id: categoryId,
     description,
     short_description: textValue(formData, "short_description") || null,
@@ -382,7 +389,7 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
   revalidatePath("/");
   revalidatePath("/shop");
   revalidatePath("/categories");
-  if (slug) revalidatePath(`/product/${slug}`);
+  if (uniqueSlug) revalidatePath(`/product/${uniqueSlug}`);
   return { success: true, id: savedProduct?.id ?? id };
 }
 
