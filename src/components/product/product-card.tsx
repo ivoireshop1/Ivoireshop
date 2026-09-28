@@ -28,7 +28,7 @@ export function ProductCard({ product, returnTo }: { product: Product; returnTo?
         <p className="text-xs text-muted">{product.category}</p>
         <Link className="mt-1 block break-words font-semibold text-foreground hover:text-forest-green" href={href}>{product.name}</Link>
         <p className="mt-1 text-xs text-muted">{product.isComingSoon ? "Preview" : stockLabel}</p>
-        <p className="mt-3 font-semibold text-forest-green">{product.isComingSoon ? "Coming soon" : `$${product.price.toFixed(2)}`}</p>
+        <p className="mt-3 font-semibold text-forest-green">{product.isComingSoon || !Number.isFinite(product.price) ? "Coming soon" : `$${product.price.toFixed(2)}`}</p>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <WishlistButton productId={product.id} productName={product.name} />
           {product.isComingSoon ? null : cartItem ? (

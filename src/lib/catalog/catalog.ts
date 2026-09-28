@@ -106,8 +106,12 @@ export async function getProductBySlug(slug: string): Promise<Product | undefine
 }
 
 export async function getNewArrivalProducts(limit = 4): Promise<Product[]> {
-  const products = await getProducts();
-  return products.filter((product) => product.isNew && product.price > 0 && product.image).slice(0, limit);
+  try {
+    const products = await getProducts();
+    return products.filter((product) => product.isNew && product.price > 0 && product.image).slice(0, limit);
+  } catch {
+    return [];
+  }
 }
 
 export async function getComingSoonProducts(limit = 4): Promise<Product[]> {

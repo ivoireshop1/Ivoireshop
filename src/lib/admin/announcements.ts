@@ -105,20 +105,25 @@ export async function listAnnouncements() {
 }
 
 export async function getActiveStorefrontBillboard() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("storefront_announcements")
-    .select("id, title, description, badge, cta_label, cta_destination, image_url, is_published, starts_at, ends_at, priority")
-    .eq("is_published", true)
-    .order("priority", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(5);
-  const now = Date.now();
-  return (data ?? []).find((row) => {
-    if (row.starts_at && new Date(row.starts_at).getTime() > now) return false;
-    if (row.ends_at && new Date(row.ends_at).getTime() < now) return false;
-    return true;
-  }) ?? null;
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("storefront_announcements")
+      .select("id, title, description, badge, cta_label, cta_destination, image_url, is_published, starts_at, ends_at, priority")
+      .eq("is_published", true)
+      .order("priority", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(5);
+    if (error) return null;
+    const now = Date.now();
+    return (data ?? []).find((row) => {
+      if (row.starts_at && new Date(row.starts_at).getTime() > now) return false;
+      if (row.ends_at && new Date(row.ends_at).getTime() < now) return false;
+      return true;
+    }) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function setAnnouncementPublished(formData: FormData) {
