@@ -47,7 +47,7 @@ export function checkoutFailure(code?: string, message?: string): CheckoutRespon
   if (code === "P0001" && message === "This checkout belongs to a different session.") {
     return { success: false, error: "This pending order was started with a different sign-in state. Return to that account (or sign out if you checked out as a guest), then retry it.", retrySame: true };
   }
-  const known = ["Your cart is empty.", "A valid name and email are required.", "A valid phone number is required.", "A shipping address is required.", "Your cart contains an invalid item.", "A product in your cart is no longer available.", "Some items are no longer available in the requested quantity."];
+  const known = ["Your cart is empty.", "A valid name and email are required.", "A valid phone number is required.", "A shipping address is required.", "Your cart contains an invalid item.", "A product in your cart is no longer available.", "Some items are no longer available in the requested quantity.", "Ordering is temporarily unavailable. Please check back soon."];
   if (code === "P0001" && message && known.includes(message)) return { success: false, error: message, retrySame: false };
   return { success: false, error: "We could not confirm your order. Your cart is safe. Retry this order to check its status without creating a duplicate.", retrySame: true };
 }

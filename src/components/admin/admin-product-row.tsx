@@ -25,6 +25,8 @@ export type AdminProductRowData = {
   price: number | string | null;
   stockQuantity: number | string | null;
   isActive: boolean;
+  hasImage: boolean;
+  hasCategory: boolean;
   isFeatured: boolean;
 };
 
@@ -77,6 +79,12 @@ export function AdminProductRow({
   const priceLabel = priceStatusFromDraft(priceInput);
   const inventoryLabel = inventoryStatusFromDraft(stockInput);
   const savedPriceLabel = persistedPrice === null ? null : `Saved $${persistedPrice.toFixed(2)}`;
+  const readinessNeeds: string[] = [];
+  if (!parsedPrice.ok || parsedPrice.value === null || parsedPrice.value <= 0) readinessNeeds.push("Price");
+  if (!parsedStock.ok || parsedStock.value === null) readinessNeeds.push("Inventory");
+  if (!product.hasImage) readinessNeeds.push("Image");
+  if (!product.hasCategory) readinessNeeds.push("Category");
+  const readyToPublish = readinessNeeds.length === 0;
   const isDirty =
     priceInput !== formatPriceDisplay(persistedPrice) ||
     stockInput !== formatStockInput(persistedStock) ||
@@ -167,6 +175,9 @@ export function AdminProductRow({
 
   return (
     <article className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4 lg:grid lg:grid-cols-[1.6fr_0.8fr_0.9fr_0.9fr_0.9fr_0.8fr_0.9fr] lg:items-start lg:gap-3 lg:p-3">
+      <p className={`mb-3 text-xs font-semibold uppercase tracking-[0.14em] lg:col-span-7 ${readyToPublish ? "text-[#173f35]" : "text-[#7c5d1a]"}`}>
+        {readyToPublish ? "Ready to publish" : `Needs: ${readinessNeeds.join(", ")}`}
+      </p>
       <div className="flex items-center gap-3">
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-[#173f35]/10 bg-white lg:h-14 lg:w-14">
           {product.imageUrl ? (

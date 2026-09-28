@@ -7,7 +7,7 @@ import { CartEmptyState } from "./cart-empty-state";
 import { CartItem } from "./cart-item";
 import { CartSummary } from "./cart-summary";
 
-export function CartPage() {
+export function CartPage({ storeOpen }: { storeOpen: boolean }) {
   const { items, subtotal, isLoaded } = useCart();
 
   if (!isLoaded) return <main className="mx-auto w-full max-w-7xl px-5 py-16 lg:px-8"><p className="text-muted">Loading cart...</p></main>;
@@ -40,7 +40,7 @@ export function CartPage() {
             ))}
           </section>
 
-          <CartSummary items={items} subtotal={subtotal} />
+          <CartSummary items={items} storeOpen={storeOpen} subtotal={subtotal} />
         </div>
       )}
     </main>

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import ts from 'typescript';
-let rpcResult, rpcCalls, cachePaths, throwNetwork=false, cacheFailure=false;
+let rpcResult, rpcCalls, cachePaths, throwNetwork=false, cacheFailure=false, storeOpen=true;
 const local=new Map(),session=new Map();
 const storage=map=>({getItem:key=>map.get(key)??null,setItem:(key,value)=>map.set(key,String(value)),removeItem:key=>map.delete(key)});
 const cache=new Map();
@@ -13,7 +13,10 @@ function load(file){
  const exports={};
  const require=id=>{
   if(id==='next/cache')return {revalidatePath(p){if(cacheFailure)throw Error('cache');cachePaths.push(p)}};
-  if(id==='@/src/lib/supabase/server')return {createClient:async()=>({rpc:async(name,args)=>{rpcCalls.push({name,args});if(throwNetwork)throw Error('network');return rpcResult;}})};
+  if(id==='@/src/lib/supabase/server')return {createClient:async()=>({
+    from(){return {select(){return this},eq(){return this},maybeSingle:async()=>({data:{is_open:storeOpen}})}},
+    rpc:async(name,args)=>{rpcCalls.push({name,args});if(throwNetwork)throw Error('network');return rpcResult;},
+  })};
   if(id.startsWith('@/'))return load(id.slice(2)+'.ts');
   if(id.startsWith('.'))return load(path.resolve(path.dirname(file),id)+'.ts');
   throw Error(id);
@@ -29,8 +32,9 @@ const {sanitizeReturnPath}=load('src/lib/navigation/smart-navigation.ts');
 const id='20000000-0000-4000-8000-000000000001';
 const request=()=>({items:[{product_id:id,quantity:2}],customerName:'Test',customerEmail:'test@example.com',customerPhone:'1234567890',address:{address_line_1:'1 Main St',city:'Test',country:'US'},fulfillmentMethod:'delivery',idempotencyKey:crypto.randomUUID()});
 let count=0;
-async function test(name,fn){rpcCalls=[];cachePaths=[];throwNetwork=false;cacheFailure=false;local.clear();session.clear();rpcResult={data:[{order_id:id,order_number:'IV-TEST',status:'pending',total:'24.00'}],error:null};await fn();count++;console.log('PASS '+name)}
+async function test(name,fn){rpcCalls=[];cachePaths=[];throwNetwork=false;cacheFailure=false;storeOpen=true;local.clear();session.clear();rpcResult={data:[{order_id:id,order_number:'IV-TEST',status:'pending',total:'24.00'}],error:null};await fn();count++;console.log('PASS '+name)}
 await test('actual action sends only IDs/quantities and uses RPC total',async()=>{const r=await placeCheckoutOrder({...request(),price:0.01,total:0.01});assert.equal(r.success,true);assert.equal(r.receipt.total,24);assert.equal(rpcCalls[0].name,'create_checkout_order');assert.deepEqual(Object.keys(rpcCalls[0].args.p_items[0]).sort(),['product_id','quantity']);assert.ok(!JSON.stringify(rpcCalls[0].args).includes('0.01'));});
+await test('closed store rejects new orders before RPC',async()=>{storeOpen=false;const r=await placeCheckoutOrder(request());assert.equal(r.success,false);assert.match(r.error,/temporarily unavailable/);assert.equal(rpcCalls.length,0)});
 await test('invalid contact rejected before RPC',async()=>{for(const change of [{customerName:''},{customerEmail:'bad'},{customerPhone:'bad'},{address:{}},{fulfillmentMethod:'invalid'}])assert.equal((await placeCheckoutOrder({...request(),...change})).success,false);assert.equal(rpcCalls.length,0)});
 await test('invalid/stale cart shape rejected before RPC',async()=>{for(const items of [[],null,[{product_id:'bad',quantity:1}],[{product_id:id,quantity:-1}],[{product_id:id,quantity:1.2}]])assert.equal((await placeCheckoutOrder({...request(),items})).success,false);assert.equal(rpcCalls.length,0)});
 await test('RPC rejection preserves actionable stock error',async()=>{rpcResult={data:null,error:{code:'P0001',message:'Some items are no longer available in the requested quantity.'}};const r=await placeCheckoutOrder(request());assert.equal(r.success,false);assert.equal(r.retrySame,false);assert.match(r.error,/requested quantity/);assert.equal(cachePaths.length,0)});

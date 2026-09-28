@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { canonicalSlugForName, isCanonicalSlug } from "@/src/lib/catalog/canonical-categories";
-import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
+import { isPersistentImageUrl, productImagesObjectPath } from "@/src/lib/catalog/image-url";
 import { nextOrderStatuses } from "@/src/lib/orders/status";
 
 function textValue(formData: FormData, key: string) {
@@ -61,11 +61,16 @@ export async function createCategory(formData: FormData) {
     redirect("/admin/categories?error=canonical_duplicate");
   }
 
+  const imageUrl = textValue(formData, "image_url") || null;
+  if (imageUrl && !isPersistentImageUrl(imageUrl)) {
+    redirect("/admin/categories?error=category_image_invalid");
+  }
+
   const { error } = await supabase.from("categories").insert({
     name,
     slug,
     description: textValue(formData, "description") || null,
-    image_url: textValue(formData, "image_url") || null,
+    image_url: imageUrl,
     is_active: formData.get("is_active") === "on",
   });
 
@@ -90,7 +95,7 @@ export async function updateCategory(formData: FormData) {
     redirect("/admin/categories?error=category_required");
   }
 
-  const { data: existing } = await supabase.from("categories").select("slug").eq("id", id).maybeSingle();
+  const { data: existing } = await supabase.from("categories").select("slug, image_url").eq("id", id).maybeSingle();
   if (existing && isCanonicalSlug(existing.slug) && (slug !== existing.slug || canonicalSlugForName(name, slug) !== existing.slug)) {
     redirect("/admin/categories?error=canonical_locked");
   }
@@ -101,19 +106,30 @@ export async function updateCategory(formData: FormData) {
     redirect("/admin/categories?error=canonical_duplicate");
   }
 
+  const imageUrl = textValue(formData, "image_url") || null;
+  if (imageUrl && !isPersistentImageUrl(imageUrl)) {
+    redirect("/admin/categories?error=category_image_invalid");
+  }
+
   const { error } = await supabase
     .from("categories")
     .update({
       name,
       slug,
       description: textValue(formData, "description") || null,
-      image_url: textValue(formData, "image_url") || null,
+      image_url: imageUrl,
       is_active: formData.get("is_active") === "on",
     })
     .eq("id", id);
 
   if (error) {
     redirect("/admin/categories?error=category_update_failed");
+  }
+
+  const previousPath = existing?.image_url ? productImagesObjectPath(existing.image_url) : null;
+  const nextPath = imageUrl ? productImagesObjectPath(imageUrl) : null;
+  if (previousPath && previousPath !== nextPath) {
+    await supabase.storage.from("product-images").remove([previousPath]);
   }
 
   revalidatePath("/admin/categories");

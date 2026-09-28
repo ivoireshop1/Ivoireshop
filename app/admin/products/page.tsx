@@ -2,11 +2,13 @@ import Link from "next/link";
 import { AdminProductRow } from "@/src/components/admin/admin-product-row";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { deleteProduct, duplicateProduct } from "@/src/lib/catalog/actions";
+import { productNeedsReview } from "@/src/lib/catalog/product-readiness";
+import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
 
 export default async function AdminProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; success?: string; search?: string; status?: string; inventory?: string; category?: string; featured?: string }>;
+  searchParams: Promise<{ error?: string; success?: string; search?: string; status?: string; inventory?: string; category?: string; featured?: string; review?: string }>;
 }) {
   const params = await searchParams;
   const { supabase } = await requireAdmin();
@@ -15,6 +17,7 @@ export default async function AdminProductsPage({
   const inventoryFilter = params.inventory ?? "all";
   const categoryFilter = params.category ?? "all";
   const featuredFilter = params.featured ?? "all";
+  const reviewFilter = params.review ?? "all";
 
   const [{ data: categories, error: categoriesError }, { data: products, error: productsError }] = await Promise.all([
     supabase.from("categories").select("id, name").eq("is_active", true).order("name"),
@@ -46,8 +49,21 @@ export default async function AdminProductsPage({
       featuredFilter === "all" ||
       (featuredFilter === "featured" && product.is_featured) ||
       (featuredFilter === "not_featured" && !product.is_featured);
+    const nestedImages = (product as { product_images?: Array<{ image_url?: string | null }> | null }).product_images ?? null;
+    const imageUrl = Array.isArray(nestedImages) ? nestedImages[0]?.image_url ?? null : null;
+    const reviewMatches =
+      reviewFilter !== "needs-review" ||
+      productNeedsReview({
+        name: product.name,
+        categoryId: product.category_id,
+        price: product.price,
+        stockQuantity: product.stock_quantity,
+        isActive: product.is_active,
+        imageUrl,
+        images: nestedImages,
+      });
 
-    return nameMatches && categoryMatches && statusMatches && inventoryMatches && featuredMatches;
+    return nameMatches && categoryMatches && statusMatches && inventoryMatches && featuredMatches && reviewMatches;
   });
 
   return (
@@ -75,6 +91,16 @@ export default async function AdminProductsPage({
 
       <p className="text-sm text-[#6b6b6b]">
         Manage your store catalog, inventory, pricing and availability.
+        {reviewFilter === "needs-review" ? " Showing products that still need review before they should stay or become Active." : ""}
+      </p>
+      <p className="text-sm">
+        <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products?review=needs-review">
+          Products needing review
+        </Link>
+        {" · "}
+        <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products">
+          All products
+        </Link>
       </p>
 
       {params.error && (
@@ -100,6 +126,7 @@ export default async function AdminProductsPage({
 
       <section className="rounded-[28px] border border-[#173f35]/10 bg-white p-4 shadow-[0_12px_32px_rgba(23,63,53,0.04)]">
         <form className="grid gap-3 lg:grid-cols-[1.4fr_repeat(3,minmax(0,1fr))_0.8fr_0.8fr]" method="get">
+          {reviewFilter === "needs-review" ? <input name="review" type="hidden" value="needs-review" /> : null}
           <label className="block text-sm text-[#6b6b6b]">
             <span className="mb-2 block text-[11px] font-medium uppercase tracking-[0.2em] text-[#6b6b6b]">Search</span>
             <input
@@ -200,6 +227,8 @@ export default async function AdminProductsPage({
                     stockQuantity: product.stock_quantity,
                     isActive: product.is_active,
                     isFeatured: product.is_featured,
+                    hasImage: Boolean(imageUrl && isPersistentImageUrl(imageUrl)),
+                    hasCategory: Boolean(product.category_id) && categoryName !== "Uncategorized",
                   }}
                 />
               );

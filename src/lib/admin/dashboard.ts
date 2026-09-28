@@ -1,10 +1,14 @@
 import { createClient } from "@/src/lib/supabase/server";
+import { productMissingRequirements, productNeedsReview, productReadyToPublish } from "@/src/lib/catalog/product-readiness";
+import { describeStoreStatus, getStoreStatus } from "@/src/lib/store/status";
+import { startOfStoreDayIso, storeGreetingAt } from "@/src/lib/store/timezone";
 
 export type AdminDashboardMetric = {
   label: string;
   value: string;
   detail: string;
   tone: "positive" | "warning" | "neutral" | "danger";
+  href?: string;
 };
 
 export type AdminActionItem = {
@@ -39,33 +43,32 @@ export type AdminRevenuePoint = {
 };
 
 export type AdminStoreStatus = {
+  isOpen: boolean;
   label: string;
   description: string;
   tone: "positive" | "warning" | "neutral";
+  updatedAt: string | null;
 };
 
 export async function getAdminDashboardData() {
   const supabase = await createClient();
-  const now = new Date();
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
-
-  const sevenDaysAgo = new Date(now);
-  sevenDaysAgo.setDate(now.getDate() - 6);
+  const startOfToday = startOfStoreDayIso();
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
   sevenDaysAgo.setHours(0, 0, 0, 0);
 
-  const [todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult] =
+  const [todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult, pendingReviewsResult, storeStatusRow] =
     await Promise.all([
       supabase
         .from("orders")
         .select("id, order_number, customer_name, total, status, payment_status, created_at")
-        .gte("created_at", startOfToday.toISOString())
+        .gte("created_at", startOfToday)
         .order("created_at", { ascending: false }),
       supabase
         .from("profiles")
         .select("id, created_at")
-        .gte("created_at", startOfToday.toISOString()),
-      supabase.from("products").select("id, name, stock_quantity, is_active").order("stock_quantity", { ascending: true }),
+        .gte("created_at", startOfToday),
+      supabase.from("products").select("id, name, stock_quantity, is_active, price, category_id, product_images(image_url)").order("stock_quantity", { ascending: true }),
       supabase
         .from("orders")
         .select("id, order_number, customer_name, total, status, created_at")
@@ -73,6 +76,8 @@ export async function getAdminDashboardData() {
         .limit(5),
       supabase.from("order_items").select("order_id, product_id, product_name, quantity, product_price"),
       supabase.from("orders").select("id, status, payment_status, total"),
+      supabase.from("product_reviews").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      getStoreStatus(),
     ]);
 
   if ([todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult].some((result) => result.error)) {
@@ -84,6 +89,37 @@ export async function getAdminDashboardData() {
   const recentOrders = recentOrdersResult.data ?? [];
   const orderItems = orderItemsResult.data ?? [];
   const allOrders = allOrdersResult.data ?? [];
+  const pendingReviewCount = pendingReviewsResult.count ?? 0;
+  const store = storeStatusRow;
+
+  const catalogStats = {
+    total: products.length,
+    active: products.filter((product) => product.is_active).length,
+    needReview: products.filter((product) =>
+      productNeedsReview({
+        name: product.name,
+        categoryId: product.category_id,
+        price: product.price,
+        stockQuantity: product.stock_quantity,
+        isActive: product.is_active,
+        images: product.product_images,
+      }),
+    ).length,
+    needsPricing: products.filter((product) => productMissingRequirements({ name: product.name, categoryId: product.category_id, price: product.price, stockQuantity: product.stock_quantity, isActive: product.is_active, images: product.product_images }).includes("Price")).length,
+    needsInventory: products.filter((product) => productMissingRequirements({ name: product.name, categoryId: product.category_id, price: product.price, stockQuantity: product.stock_quantity, isActive: product.is_active, images: product.product_images }).includes("Inventory")).length,
+    needsImage: products.filter((product) => productMissingRequirements({ name: product.name, categoryId: product.category_id, price: product.price, stockQuantity: product.stock_quantity, isActive: product.is_active, images: product.product_images }).includes("Image")).length,
+    draft: products.filter((product) => !product.is_active).length,
+    readyToPublish: products.filter((product) =>
+      productReadyToPublish({
+        name: product.name,
+        categoryId: product.category_id,
+        price: product.price,
+        stockQuantity: product.stock_quantity,
+        isActive: product.is_active,
+        images: product.product_images,
+      }),
+    ).length,
+  };
 
   const revenueToday = todayOrders
     .filter((order) => order.payment_status === "paid")
@@ -122,6 +158,20 @@ export async function getAdminDashboardData() {
       description: "Orders in motion",
       href: "/admin/orders",
       tone: "positive",
+    },
+    {
+      title: "Products needing review",
+      count: catalogStats.needReview,
+      description: `${catalogStats.readyToPublish} ready to publish`,
+      href: "/admin/products?review=needs-review",
+      tone: catalogStats.needReview > 0 ? "warning" : "positive",
+    },
+    {
+      title: "Reviews awaiting moderation",
+      count: pendingReviewCount,
+      description: "Pending customer reviews",
+      href: "/admin/reviews?status=pending",
+      tone: pendingReviewCount > 0 ? "warning" : "positive",
     },
   ];
 
@@ -168,18 +218,22 @@ export async function getAdminDashboardData() {
     createdAt: order.created_at,
   }));
 
+  const described = describeStoreStatus(store);
   const storeStatus: AdminStoreStatus = {
-    label: "Store open",
-    description: "No storefront closure state is currently configured. This is a future store-control layer.",
-    tone: "positive",
+    isOpen: store.isOpen,
+    label: described.label,
+    description: described.description,
+    tone: described.tone,
+    updatedAt: store.updatedAt,
   };
 
   const metrics: AdminDashboardMetric[] = [
     {
       label: "Total products",
-      value: String(products.length),
-      detail: `${products.filter((product) => product.is_active).length} active`,
-      tone: "positive",
+      value: String(catalogStats.total),
+      detail: `${catalogStats.active} active · ${catalogStats.needReview} need review`,
+      tone: catalogStats.needReview > 0 ? "warning" : "positive",
+      href: "/admin/products?review=needs-review",
     },
     {
       label: "Total orders",
@@ -215,6 +269,9 @@ export async function getAdminDashboardData() {
     pendingOrderCount: allOrders.filter((order) => ["pending", "confirmed", "processing"].includes(order.status)).length,
     todaysRevenue: revenueToday,
     averageOrderValue: orderCountToday > 0 ? revenueToday / orderCountToday : 0,
+    greeting: storeGreetingAt(new Date()),
+    catalogStats,
+    pendingReviewCount,
   };
 }
 

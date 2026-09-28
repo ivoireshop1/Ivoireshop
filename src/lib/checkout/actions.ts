@@ -3,14 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/src/lib/supabase/server";
 import { checkoutFailure, validateCheckout, type CheckoutResponse } from "./checkout-validation";
+import { STORE_CLOSED_MESSAGE, STORE_SETTINGS_ID } from "@/src/lib/store/constants";
 
 export async function placeCheckoutOrder(input: unknown): Promise<CheckoutResponse> {
   const validated = validateCheckout(input);
   if (validated.error) return { success: false, error: validated.error, retrySame: false };
   const request = validated.request!;
   try {
-    // Uses the caller's guest/auth session. Prices and inventory remain owned by the RPC.
     const supabase = await createClient();
+    const { data: store } = await supabase.from("store_settings").select("is_open").eq("id", STORE_SETTINGS_ID).maybeSingle();
+    if (store && store.is_open === false) {
+      return { success: false, error: STORE_CLOSED_MESSAGE, retrySame: false };
+    }
     const { data, error } = await supabase.rpc("create_checkout_order", {
       p_items: request.items,
       p_customer_name: request.customerName,

@@ -7,3 +7,10 @@ export function isPersistentImageUrl(value: string): boolean {
     return false;
   }
 }
+
+export function productImagesObjectPath(value: string) {
+  const marker = "/storage/v1/object/public/product-images/";
+  const index = value.indexOf(marker);
+  if (index === -1) return null;
+  return decodeURIComponent(value.slice(index + marker.length).split("?")[0]);
+}

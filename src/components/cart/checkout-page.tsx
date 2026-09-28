@@ -8,11 +8,12 @@ import { useRouter } from "next/navigation";
 import { placeCheckoutOrder } from "@/src/lib/checkout/actions";
 import { validateCheckout } from "@/src/lib/checkout/checkout-validation";
 import { readCheckoutAttempt, storeCheckoutAttempt, forgetCheckoutAttempt, type CheckoutAttempt } from "@/src/lib/checkout/checkout-session";
+import { STORE_CLOSED_MESSAGE } from "@/src/lib/store/constants";
 import { FulfillmentMethodCards } from "@/src/components/checkout/fulfillment-method-cards";
 import { useFulfillmentMethod } from "@/src/lib/fulfillment/use-fulfillment-method";
 
 
-export function CheckoutPage() {
+export function CheckoutPage({ storeOpen }: { storeOpen: boolean }) {
   const { items, subtotal, isLoaded, completePurchase } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -142,7 +143,9 @@ export function CheckoutPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Secure checkout</p>
         <h1 className="mt-2 text-4xl font-semibold text-forest-green">Checkout</h1>
         <p className="mt-4 max-w-lg leading-7 text-muted">
-          Choose pickup or delivery, then place your order. Payment will be collected separately.
+          {storeOpen
+            ? "Choose pickup or delivery, then place your order. Payment will be collected separately."
+            : STORE_CLOSED_MESSAGE}
         </p>
         {attempt && <div role="status" className="mt-6 space-y-2 rounded-xl border border-gold/40 bg-white p-4 text-sm break-words"><p>A previous order request is awaiting confirmation. Retry it below before starting another order. Your original items and details will be used.</p><p>{attempt.request.customerName} &middot; {attempt.request.customerEmail}</p><p>{attempt.request.fulfillmentMethod === "delivery" ? [attempt.request.address.address_line_1, attempt.request.address.city, attempt.request.address.country].filter(Boolean).join(", ") : "Local pickup"}</p></div>}
         <form className="mt-8 space-y-7" onSubmit={handleSubmit}>
@@ -203,7 +206,7 @@ export function CheckoutPage() {
             </div>
             <button
               className="rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isSubmitting || (!attempt && items.length === 0)}
+              disabled={!storeOpen || isSubmitting || (!attempt && items.length === 0)}
               type="submit"
             >
               {isSubmitting ? "Confirming order..." : attempt ? "Retry pending order" : "Place order"}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminCard } from "@/src/components/admin/admin-card";
+import { StoreStatusControl } from "@/src/components/admin/store-status-control";
 import { getAdminDashboardData } from "@/src/lib/admin/dashboard";
 
 export async function DashboardOverview() {
@@ -10,38 +11,60 @@ export async function DashboardOverview() {
       <section className="rounded-[28px] border border-[#173f35]/10 bg-[linear-gradient(180deg,#fffdf9_0%,#f7f1e8_100%)] p-6 shadow-[0_18px_50px_rgba(23,63,53,0.06)]">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#b8964c]">Good afternoon</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#b8964c]">{dashboard.greeting}</p>
             <h2 className="mt-2 text-3xl font-semibold text-[#173f35]">Here&apos;s what&apos;s happening with Ivoire Shop today.</h2>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full border border-[#173f35]/10 bg-white/80 px-3 py-1.5 text-sm text-[#173f35]">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#173f35]" />
+            <span className={`h-2.5 w-2.5 rounded-full ${dashboard.storeStatus.isOpen ? "bg-[#173f35]" : "bg-[#7f1d1d]"}`} />
             {dashboard.storeStatus.label}
           </div>
         </div>
       </section>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {dashboard.metrics.map((metric) => (
-          <div key={metric.label} className="rounded-2xl border border-[#173f35]/10 bg-white p-5 shadow-[0_10px_22px_rgba(23,63,53,0.04)]">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-[#6b6b6b]">{metric.label}</p>
-              <span className={`rounded-full px-2 py-1 text-[10px] font-medium uppercase tracking-[0.14em] ${
-                metric.tone === "positive"
-                  ? "bg-[#173f35]/8 text-[#173f35]"
-                  : metric.tone === "warning"
-                    ? "bg-[#b8964c]/15 text-[#7c5d1a]"
-                    : metric.tone === "danger"
-                      ? "bg-[#7f1d1d]/10 text-[#7f1d1d]"
-                      : "bg-[#f3efe9] text-[#173f35]"
-              }`}>
-                {metric.tone}
-              </span>
+        {dashboard.metrics.map((metric) => {
+          const Card = (
+            <div className="rounded-2xl border border-[#173f35]/10 bg-white p-5 shadow-[0_10px_22px_rgba(23,63,53,0.04)]">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-[#6b6b6b]">{metric.label}</p>
+                <span className={`rounded-full px-2 py-1 text-[10px] font-medium uppercase tracking-[0.14em] ${
+                  metric.tone === "positive"
+                    ? "bg-[#173f35]/8 text-[#173f35]"
+                    : metric.tone === "warning"
+                      ? "bg-[#b8964c]/15 text-[#7c5d1a]"
+                      : metric.tone === "danger"
+                        ? "bg-[#7f1d1d]/10 text-[#7f1d1d]"
+                        : "bg-[#f3efe9] text-[#173f35]"
+                }`}>
+                  {metric.tone}
+                </span>
+              </div>
+              <p className="mt-4 text-3xl font-semibold text-[#173f35]">{metric.value}</p>
+              <p className="mt-2 text-sm text-[#6b6b6b]">{metric.detail}</p>
             </div>
-            <p className="mt-4 text-3xl font-semibold text-[#173f35]">{metric.value}</p>
-            <p className="mt-2 text-sm text-[#6b6b6b]">{metric.detail}</p>
-          </div>
-        ))}
+          );
+          return metric.href ? <Link href={metric.href} key={metric.label}>{Card}</Link> : <div key={metric.label}>{Card}</div>;
+        })}
       </div>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {[
+          { label: "Needs pricing", value: dashboard.catalogStats.needsPricing },
+          { label: "Needs inventory", value: dashboard.catalogStats.needsInventory },
+          { label: "Needs image", value: dashboard.catalogStats.needsImage },
+          { label: "Draft / ready for review", value: dashboard.catalogStats.draft },
+          { label: "Ready to publish", value: dashboard.catalogStats.readyToPublish },
+        ].map((item) => (
+          <Link
+            className="rounded-2xl border border-[#173f35]/10 bg-white p-4 text-sm shadow-[0_10px_22px_rgba(23,63,53,0.04)]"
+            href="/admin/products?review=needs-review"
+            key={item.label}
+          >
+            <p className="text-[#6b6b6b]">{item.label}</p>
+            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{item.value}</p>
+          </Link>
+        ))}
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-[1.4fr_0.95fr]">
         <AdminCard title="Needs attention" action={<Link href="/admin/inventory" className="text-sm text-[#173f35] underline-offset-2 hover:underline">Review all</Link>}>
@@ -75,11 +98,15 @@ export async function DashboardOverview() {
           </div>
         </AdminCard>
 
-        <AdminCard title="Store status" action={<span className="rounded-full border border-[#173f35]/10 bg-[#173f35]/5 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-[#173f35]">Live</span>}>
+        <AdminCard title="Store status" action={<span className={`rounded-full border px-2 py-1 text-[10px] font-medium uppercase tracking-[0.18em] ${dashboard.storeStatus.isOpen ? "border-[#173f35]/10 bg-[#173f35]/5 text-[#173f35]" : "border-[#7f1d1d]/20 bg-[#7f1d1d]/5 text-[#7f1d1d]"}`}>{dashboard.storeStatus.isOpen ? "Open" : "Closed"}</span>}>
           <div className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4">
             <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-[#6b6b6b]">Current status</p>
-            <p className="mt-3 text-2xl font-semibold text-[#173f35]">{dashboard.storeStatus.label}</p>
+            <p className="mt-3 flex items-center gap-2 text-2xl font-semibold text-[#173f35]">
+              <span className={`h-2.5 w-2.5 rounded-full ${dashboard.storeStatus.isOpen ? "bg-[#173f35]" : "bg-[#7f1d1d]"}`} />
+              {dashboard.storeStatus.label}
+            </p>
             <p className="mt-2 text-sm text-[#6b6b6b]">{dashboard.storeStatus.description}</p>
+            <StoreStatusControl isOpen={dashboard.storeStatus.isOpen} />
           </div>
 
           <div className="mt-5 space-y-3">

@@ -12,7 +12,7 @@ export async function setProductReviewStatus(formData: FormData) {
   const { supabase } = await requireAdmin();
   const id = textValue(formData, "id");
   const status = textValue(formData, "status");
-  if (!id || !["published", "hidden"].includes(status)) redirect("/admin/reviews?error=review_update_failed");
+  if (!id || !["pending", "published", "hidden"].includes(status)) redirect("/admin/reviews?error=review_update_failed");
   const { error } = await supabase.from("product_reviews").update({ status }).eq("id", id);
   if (error) redirect("/admin/reviews?error=review_update_failed");
   revalidatePath("/", "layout");

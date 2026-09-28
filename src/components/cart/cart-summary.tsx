@@ -1,6 +1,15 @@
 import Link from "next/link";
+import { STORE_CLOSED_MESSAGE } from "@/src/lib/store/constants";
 
-export function CartSummary({ subtotal, items }: { subtotal: number; items: Array<{ price: number; compareAtPrice?: number; quantity: number }> }) {
+export function CartSummary({
+  subtotal,
+  items,
+  storeOpen,
+}: {
+  subtotal: number;
+  items: Array<{ price: number; compareAtPrice?: number; quantity: number }>;
+  storeOpen: boolean;
+}) {
   const total = subtotal;
   const savings = items.reduce((sum, item) => {
     const listPrice = item.compareAtPrice ?? item.price;
@@ -43,9 +52,13 @@ export function CartSummary({ subtotal, items }: { subtotal: number; items: Arra
         </p>
       )}
 
-      <Link className="mt-5 flex justify-center rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white transition hover:bg-forest-green/90" href="/checkout">
-        Proceed to checkout
-      </Link>
+      {storeOpen ? (
+        <Link className="mt-5 flex justify-center rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white transition hover:bg-forest-green/90" href="/checkout">
+          Proceed to checkout
+        </Link>
+      ) : (
+        <p className="mt-5 rounded-xl border border-forest-green/10 bg-white/60 px-3 py-3 text-sm text-muted">{STORE_CLOSED_MESSAGE}</p>
+      )}
     </aside>
   );
 }

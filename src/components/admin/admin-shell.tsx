@@ -13,6 +13,7 @@ const navigation = [
   { href: "/admin/inventory", label: "Inventory" },
   { href: "/admin/orders", label: "Orders" },
   { href: "/admin/customers", label: "Customers" },
+  { href: "/admin/reviews", label: "Reviews" },
   { href: "/admin/account", label: "Account/Security" },
   { href: "/", label: "View Store" },
 ];

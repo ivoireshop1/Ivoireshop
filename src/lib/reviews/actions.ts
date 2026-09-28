@@ -28,6 +28,10 @@ export async function saveProductReview(_: ReviewActionState, formData: FormData
   if (reviewText.length > 1000) {
     return { error: "Review text must be 1,000 characters or fewer.", success: false };
   }
+  const reviewTitle = textValue(formData, "review_title");
+  if (reviewTitle.length > 120) {
+    return { error: "Review title must be 120 characters or fewer.", success: false };
+  }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -37,6 +41,7 @@ export async function saveProductReview(_: ReviewActionState, formData: FormData
     p_product_id: productId,
     p_rating: rating,
     p_review_text: reviewText || null,
+    p_review_title: textValue(formData, "review_title") || null,
   });
   if (error) return { error: error.message, success: false };
 

@@ -18,7 +18,7 @@ async function checkout(items=[{product_id:a,quantity:2}],key=crypto.randomUUID(
  return (await db.query('select * from create_checkout_order($1,$2,$3,$4,$5,$6,$7)',params)).rows[0];
 }
 const stock=async id=>(await db.query('select stock_quantity from products where id=$1',[id])).rows[0].stock_quantity;
-async function reset(){await db.exec(`reset role; select set_config('request.jwt.claim.sub','',false); delete from order_items; delete from orders; update products set stock_quantity=10,price=10,is_active=true; update categories set is_active=true;`);}
+async function reset(){await db.exec(`reset role; select set_config('request.jwt.claim.sub','',false); delete from order_items; delete from orders; update products set stock_quantity=10,price=10,is_active=true; update categories set is_active=true; do $$ begin if to_regclass('public.store_settings') is not null then update public.store_settings set is_open=true where id='default'; end if; end $$;`);}
 await reset();await db.exec(`update products set stock_quantity=null where id='${a}'`);assert.ok((await checkout()).order_id);console.log('REPRODUCED baseline: NULL stock accepted');
 await reset();await db.exec(`update products set price='NaN' where id='${a}'`);assert.equal((await checkout()).total,'NaN');console.log('REPRODUCED baseline: non-finite database price accepted');
 await reset();assert.equal(Number((await checkout(null)).total),0);console.log('REPRODUCED baseline: NULL cart creates zero-value order');
@@ -26,6 +26,7 @@ await reset();assert.ok((await checkout(undefined,undefined,{phone:null,address:
 await reset();const leakedKey=crypto.randomUUID();const guest=await checkout(undefined,leakedKey);await db.exec(`select set_config('request.jwt.claim.sub','${user}',false)`);assert.equal((await checkout(undefined,leakedKey)).order_id,guest.order_id);console.log('REPRODUCED baseline: checkout key replayed from a different auth identity');
 await reset();await db.exec('set role anon');await assert.rejects(db.query('select * from products'),/permission denied for function is_admin/);console.log('REPRODUCED baseline: guest catalog RLS helper lacks EXECUTE permission');await db.exec('reset role');
 await db.exec(migration('20260923010000_harden_existing_checkout.sql'));
+await db.exec(migration('20260928020000_store_operations.sql'));
 let passed=0;
 async function test(name,fn){await reset();await fn();passed++;console.log('PASS '+name);}
 await test('quantity > 1 uses database price, ignoring browser price',async()=>{const r=await checkout([{product_id:a,quantity:3,price:0.01}]);assert.equal(Number(r.total),30);assert.equal(await stock(a),7);});
@@ -44,6 +45,8 @@ await test('duplicate product lines cannot oversell',async()=>{await assert.reje
 await test('authenticated order ownership and cross-user retry rejected',async()=>{await db.exec(`select set_config('request.jwt.claim.sub','${user}',false)`);const key=crypto.randomUUID();const r=await checkout(undefined,key);assert.equal((await db.query('select user_id from orders where id=$1',[r.order_id])).rows[0].user_id,user);await db.exec(`select set_config('request.jwt.claim.sub','',false)`);await assert.rejects(checkout(undefined,key),/different session/);});
 await test('guest catalog allowed; guest order reads hidden',async()=>{await db.exec('set role anon');await checkout();assert.equal((await db.query('select * from products')).rows.length,2);assert.equal((await db.query('select * from orders')).rows.length,0);await assert.rejects(db.query("insert into products(name,slug,category_id,price,stock_quantity) values('forbidden','forbidden','10000000-0000-4000-8000-000000000001',1,1)"),/row-level security/);});
 await test('authenticated customer reads own orders only',async()=>{await checkout();await db.exec(`select set_config('request.jwt.claim.sub','${user}',false)`);await checkout();await db.exec('set role authenticated');assert.equal((await db.query('select * from orders')).rows.length,1);assert.equal((await db.query('select * from order_items')).rows.length,1);});
+await test('closed store rejects new orders',async()=>{await db.exec(`update store_settings set is_open=false where id='default'`);await assert.rejects(checkout(),/temporarily unavailable/);assert.equal(await stock(a),10);assert.equal((await db.query('select * from orders')).rows.length,0);});
+await test('closed store still returns the same completed checkout key',async()=>{const key=crypto.randomUUID();const first=await checkout(undefined,key);await db.exec(`update store_settings set is_open=false where id='default'`);const second=await checkout(undefined,key);assert.equal(first.order_id,second.order_id);assert.equal(await stock(a),8);});
 
 await db.exec(`reset role; select set_config('request.jwt.claim.sub','',false); create schema storage;
 create table storage.buckets(id text primary key,name text,public boolean);
