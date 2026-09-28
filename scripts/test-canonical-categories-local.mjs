@@ -28,4 +28,12 @@ test('current inactive assignment remains visible for existing product',()=>{
   ],'2');
   assert.equal(options.some((c)=>c.id==='2'),true);
 });
+test('assignment options sort canonical names',()=>{
+  const options=categoriesForProductAssignment([
+    {id:'3',is_active:true,name:'Ivoire Market'},
+    {id:'1',is_active:true,name:'Foods'},
+    {id:'2',is_active:true,name:'Cosmetics'},
+  ]);
+  assert.deepEqual(options.map((c)=>c.name),['Cosmetics','Foods','Ivoire Market']);
+});
 console.log(`${n} canonical category tests passed.`);

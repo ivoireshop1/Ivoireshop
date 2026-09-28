@@ -10,7 +10,8 @@ type ProductRow = {
   name: string;
   slug: string;
   price: number | string;
-  stock_quantity: number;
+  stock_quantity: number | null;
+  track_inventory?: boolean | null;
   is_active: boolean;
   product_images?: { image_url: string; position: number }[] | null;
 };
@@ -38,7 +39,7 @@ export function ReorderButton({ orderId }: { orderId: string }) {
     setAddedToCart(false);
     const { data, error } = await createClient()
       .from("order_items")
-      .select("product_id, quantity, products(id, name, slug, price, stock_quantity, is_active, product_images(image_url, position))")
+      .select("product_id, quantity, products(id, name, slug, price, stock_quantity, track_inventory, is_active, product_images(image_url, position))")
       .eq("order_id", orderId);
     setIsLoading(false);
     if (error) {
@@ -50,11 +51,16 @@ export function ReorderButton({ orderId }: { orderId: string }) {
     let unavailable = 0;
     for (const item of (data ?? []) as OrderItemRow[]) {
       const product = nestedProduct(item.products);
-      if (!product || !product.is_active || product.stock_quantity < 1) {
+      if (!product || !product.is_active) {
         unavailable += 1;
         continue;
       }
-      const quantity = Math.min(item.quantity, product.stock_quantity);
+      const tracked = product.track_inventory !== false;
+      if (tracked && (product.stock_quantity == null || product.stock_quantity < 1)) {
+        unavailable += 1;
+        continue;
+      }
+      const quantity = tracked ? Math.min(item.quantity, Number(product.stock_quantity)) : item.quantity;
       const image = product.product_images?.slice().sort((a, b) => a.position - b.position)[0]?.image_url ?? "";
       addItem({
         productId: product.id,

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Product } from "@/src/types/catalog";
 import { useCart } from "@/src/lib/cart/cart-context";
+import { remainingPurchasableQuantity } from "@/src/lib/catalog/inventory";
 import { QuantitySelector } from "./quantity-selector";
 
 export function AddToCart({ product }: { product: Product }) {
@@ -12,7 +13,7 @@ export function AddToCart({ product }: { product: Product }) {
   const [added, setAdded] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const cartItem = items.find((item) => item.productId === product.id);
-  const remaining = product.stockQuantity == null ? 0 : Math.max(0, product.stockQuantity - (cartItem?.quantity ?? 0));
+  const remaining = remainingPurchasableQuantity(product.trackInventory, product.stockQuantity, cartItem?.quantity ?? 0);
   const unavailable = product.isComingSoon || remaining === 0 || product.price <= 0;
 
   if (product.isComingSoon) {
@@ -43,7 +44,7 @@ export function AddToCart({ product }: { product: Product }) {
   return (
     <div className="flex flex-wrap items-center gap-4">
       <QuantitySelector value={quantity} onChange={setQuantity} max={remaining} />
-      {unavailable && <p role="status" className="text-sm text-muted">{product.stockQuantity === 0 ? "Out of stock" : remaining === 0 && cartItem ? "All available units are in your cart" : "Currently unavailable"}</p>}
+      {unavailable && <p role="status" className="text-sm text-muted">{product.trackInventory !== false && product.stockQuantity === 0 ? "Out of stock" : remaining === 0 && cartItem ? "All available units are in your cart" : "Currently unavailable"}</p>}
 
       {cartItem ? (
         <div className="flex items-center gap-2 rounded-lg border border-forest-green/20 bg-[#f5f0e6] px-4 py-3 text-sm font-semibold text-forest-green">

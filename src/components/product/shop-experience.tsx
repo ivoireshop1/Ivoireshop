@@ -30,6 +30,7 @@ type ProductRow = {
   is_featured: boolean;
   is_new_arrival?: boolean;
   stock_quantity: number | null;
+  track_inventory?: boolean | null;
   categories?: { name: string | null } | Array<{ name: string | null }> | null;
   product_images?: Array<{ image_url: string; position: number }> | null;
 };
@@ -49,7 +50,7 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "", ne
       const supabase = createClient();
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, slug, description, short_description, price, compare_at_price, is_featured, is_new_arrival, stock_quantity, categories(name), product_images(image_url, position)")
+        .select("id, name, slug, description, short_description, price, compare_at_price, is_featured, is_new_arrival, stock_quantity, track_inventory, categories(name), product_images(image_url, position)")
         .eq("is_active", true)
         .order("created_at", { ascending: false });
 
@@ -71,6 +72,7 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "", ne
         image: row.product_images?.slice().sort((a: { position: number }, b: { position: number }) => a.position - b.position)[0]?.image_url ?? "",
         weight: row.stock_quantity !== null ? `${row.stock_quantity} in stock` : "",
         stockQuantity: row.stock_quantity,
+        trackInventory: row.track_inventory !== false,
         isFeatured: Boolean(row.is_featured),
         isNew: Boolean(row.is_new_arrival),
         isPopular: false,

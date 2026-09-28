@@ -32,7 +32,8 @@ export function priceStatusFromDraft(raw: string) {
   return `$${parsed.value.toFixed(2)}`;
 }
 
-export function inventoryStatusFromDraft(raw: string) {
+export function inventoryStatusFromDraft(raw: string, trackInventory = true) {
+  if (!trackInventory) return "Inventory not tracked";
   const parsed = parseStockInput(raw);
   if (!parsed.ok) return null;
   if (parsed.value === null) return "Needs stock";
@@ -41,12 +42,17 @@ export function inventoryStatusFromDraft(raw: string) {
   return "In stock";
 }
 
-export function draftsReadyForActivation(priceInput: string, stockInput: string): { ok: true } | { ok: false; error: string } {
+export function draftsReadyForActivation(
+  priceInput: string,
+  stockInput: string,
+  trackInventory = true,
+): { ok: true } | { ok: false; error: string } {
   const price = parsePriceInput(priceInput);
   if (!price.ok) return price;
   if (price.value === null || price.value <= 0) {
     return { ok: false, error: "Add a valid price before activating this product." };
   }
+  if (!trackInventory) return { ok: true };
   const stock = parseStockInput(stockInput);
   if (!stock.ok) return stock;
   if (stock.value === null) {

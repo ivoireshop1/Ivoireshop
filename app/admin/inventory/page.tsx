@@ -7,7 +7,7 @@ export default async function AdminInventoryPage({ searchParams }: { searchParam
   const { supabase } = await requireAdmin();
   const { data: products, error } = await supabase
     .from("products")
-    .select("id, name, sku, stock_quantity, is_active, categories(name)")
+    .select("id, name, sku, stock_quantity, track_inventory, is_active, categories(name)")
     .order("stock_quantity", { ascending: true });
 
   if (error) throw new Error("Unable to load inventory.");
@@ -32,14 +32,15 @@ export default async function AdminInventoryPage({ searchParams }: { searchParam
       </form>
       {items.length === 0 ? <div className="rounded-2xl border border-dashed border-[#173f35]/20 bg-white p-10 text-center text-[#6b6b6b]">No inventory items match these filters.</div> : <div className="space-y-3">{items.map((product) => {
         const category = toOneRelation(product.categories as { name?: string } | { name?: string }[] | null)?.name ?? "Uncategorized";
+        const tracked = product.track_inventory !== false;
         const stock = Number(product.stock_quantity);
-        const state = stock === 0 ? "Out of stock" : stock <= 5 ? "Low stock" : "In stock";
+        const state = !tracked ? "Inventory not tracked" : stock === 0 ? "Out of stock" : stock <= 5 ? "Low stock" : "In stock";
         return <form action={updateInventory} className="grid items-center gap-3 rounded-2xl border border-[#173f35]/10 bg-white p-4 md:grid-cols-[1.4fr_0.8fr_0.7fr_0.8fr]" key={product.id}>
           <input name="id" type="hidden" value={product.id} />
           <div><p className="font-medium text-[#173f35]">{product.name}</p><p className="text-xs text-[#6b6b6b]">{category}{product.sku ? ` · ${product.sku}` : ""}</p></div>
-          <p className={stock === 0 ? "text-sm text-red-700" : stock <= 5 ? "text-sm text-[#7c5d1a]" : "text-sm text-[#173f35]"}>{state}</p>
-          <input className="rounded-xl border border-[#173f35]/15 px-3 py-2" min="0" name="stock_quantity" type="number" defaultValue={stock} />
-          <button className="rounded-xl bg-[#173f35] px-4 py-2 text-sm text-white">Save stock</button>
+          <p className={!tracked ? "text-sm text-[#173f35]" : stock === 0 ? "text-sm text-red-700" : stock <= 5 ? "text-sm text-[#7c5d1a]" : "text-sm text-[#173f35]"}>{state}</p>
+          {tracked ? <input className="rounded-xl border border-[#173f35]/15 px-3 py-2" min="0" name="stock_quantity" type="number" defaultValue={stock} /> : <p className="text-sm text-[#6b6b6b]">Quantity not required</p>}
+          {tracked ? <button className="rounded-xl bg-[#173f35] px-4 py-2 text-sm text-white">Save stock</button> : <span />}
         </form>;
       })}</div>}
     </div>

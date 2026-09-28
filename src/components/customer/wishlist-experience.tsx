@@ -6,10 +6,11 @@ import { useState } from "react";
 import { useWishlist } from "@/src/lib/wishlist/wishlist-context";
 import { useCart } from "@/src/lib/cart/cart-context";
 import type { WishlistItem } from "@/src/types/wishlist";
+import { productIsSoldOut, remainingPurchasableQuantity } from "@/src/lib/catalog/inventory";
 
 function availabilityLabel(item: WishlistItem) {
   if (!item.product) return "No longer available";
-  if (!(Number(item.product.stockQuantity) > 0)) return "Sold Out";
+  if (productIsSoldOut(item.product.trackInventory, item.product.stockQuantity)) return "Sold Out";
   return "Available";
 }
 
@@ -64,7 +65,7 @@ export function WishlistExperience() {
                     <button
                       aria-label={isSoldOut ? `${product.name} is sold out` : `Add another ${product.name} to cart`}
                       className="font-semibold text-forest-green underline underline-offset-4 disabled:cursor-not-allowed disabled:text-muted disabled:no-underline"
-                      disabled={isSoldOut || (cartItem?.quantity ?? 0) >= Number(product.stockQuantity)}
+                      disabled={isSoldOut || remainingPurchasableQuantity(product.trackInventory, product.stockQuantity, cartItem?.quantity ?? 0) <= 0}
                       onClick={() => { addItem({ productId: product.id, slug: product.slug, name: product.name, price: product.price, image: product.image, quantity: 1 }); setAddedId(product.id); }}
                       type="button"
                     >

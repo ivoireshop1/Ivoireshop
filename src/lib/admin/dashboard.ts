@@ -68,7 +68,7 @@ export async function getAdminDashboardData() {
         .from("profiles")
         .select("id, created_at")
         .gte("created_at", startOfToday),
-      supabase.from("products").select("id, name, stock_quantity, is_active, price, category_id, product_images(image_url)").order("stock_quantity", { ascending: true }),
+      supabase.from("products").select("id, name, stock_quantity, track_inventory, is_active, price, category_id, product_images(image_url)").order("stock_quantity", { ascending: true }),
       supabase
         .from("orders")
         .select("id, order_number, customer_name, total, status, created_at")
@@ -101,13 +101,14 @@ export async function getAdminDashboardData() {
         categoryId: product.category_id,
         price: product.price,
         stockQuantity: product.stock_quantity,
+        trackInventory: product.track_inventory,
         isActive: product.is_active,
         images: product.product_images,
       }),
     ).length,
-    needsPricing: products.filter((product) => productMissingRequirements({ name: product.name, categoryId: product.category_id, price: product.price, stockQuantity: product.stock_quantity, isActive: product.is_active, images: product.product_images }).includes("Price")).length,
-    needsInventory: products.filter((product) => productMissingRequirements({ name: product.name, categoryId: product.category_id, price: product.price, stockQuantity: product.stock_quantity, isActive: product.is_active, images: product.product_images }).includes("Inventory")).length,
-    needsImage: products.filter((product) => productMissingRequirements({ name: product.name, categoryId: product.category_id, price: product.price, stockQuantity: product.stock_quantity, isActive: product.is_active, images: product.product_images }).includes("Image")).length,
+    needsPricing: products.filter((product) => productMissingRequirements({ name: product.name, categoryId: product.category_id, price: product.price, stockQuantity: product.stock_quantity, trackInventory: product.track_inventory, isActive: product.is_active, images: product.product_images }).includes("Price")).length,
+    needsInventory: products.filter((product) => productMissingRequirements({ name: product.name, categoryId: product.category_id, price: product.price, stockQuantity: product.stock_quantity, trackInventory: product.track_inventory, isActive: product.is_active, images: product.product_images }).includes("Inventory")).length,
+    needsImage: products.filter((product) => productMissingRequirements({ name: product.name, categoryId: product.category_id, price: product.price, stockQuantity: product.stock_quantity, trackInventory: product.track_inventory, isActive: product.is_active, images: product.product_images }).includes("Image")).length,
     draft: products.filter((product) => !product.is_active).length,
     readyToPublish: products.filter((product) =>
       productReadyToPublish({
@@ -115,6 +116,7 @@ export async function getAdminDashboardData() {
         categoryId: product.category_id,
         price: product.price,
         stockQuantity: product.stock_quantity,
+        trackInventory: product.track_inventory,
         isActive: product.is_active,
         images: product.product_images,
       }),
@@ -127,8 +129,8 @@ export async function getAdminDashboardData() {
 
   const orderCountToday = todayOrders.length;
   const newCustomersToday = todayCustomers.length;
-  const lowStockProducts = products.filter((product) => Number(product.stock_quantity) > 0 && Number(product.stock_quantity) <= 5);
-  const outOfStockProducts = products.filter((product) => Number(product.stock_quantity) <= 0);
+  const lowStockProducts = products.filter((product) => product.track_inventory !== false && Number(product.stock_quantity) > 0 && Number(product.stock_quantity) <= 5);
+  const outOfStockProducts = products.filter((product) => product.track_inventory !== false && Number(product.stock_quantity) <= 0);
 
   const actionItems: AdminActionItem[] = [
     {

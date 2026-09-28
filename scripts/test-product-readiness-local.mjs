@@ -60,6 +60,13 @@ test("missing inventory is not ready", () => {
   assert.ok(productMissingRequirements({ ...complete, stockQuantity: null }).includes("Inventory"));
 });
 
+test("untracked products do not require inventory", () => {
+  assert.equal(productMissingRequirements({ ...complete, stockQuantity: null, trackInventory: false }).join(","), "");
+  assert.equal(productReadyToPublish({ ...complete, stockQuantity: null, trackInventory: false, isActive: false }), true);
+});
+
+console.log(`${n} product readiness tests passed`);
+
 test("blob urls are not images", () => {
   assert.ok(productMissingRequirements({ ...complete, imageUrl: "blob:https://x/1" }).includes("Image"));
 });

@@ -7,6 +7,7 @@ import type { Product } from "@/src/types/catalog";
 import { useCart } from "@/src/lib/cart/cart-context";
 import { WishlistButton } from "@/src/components/wishlist/wishlist-button";
 import { ProductBadge } from "./product-badge";
+import { publicStockLabel, remainingPurchasableQuantity } from "@/src/lib/catalog/inventory";
 import { buildProductPath } from "@/src/lib/navigation/smart-navigation";
 
 export function ProductCard({ product, returnTo }: { product: Product; returnTo?: string }) {
@@ -14,8 +15,9 @@ export function ProductCard({ product, returnTo }: { product: Product; returnTo?
   const [added, setAdded] = useState(false);
   const badge = product.isComingSoon ? "Coming Soon" : product.isNew ? "New" : product.isPopular ? "Popular" : product.isFeatured ? "Featured" : null;
   const cartItem = items.find((item) => item.productId === product.id);
-  const unavailable = product.isComingSoon || product.stockQuantity == null || product.stockQuantity <= (cartItem?.quantity ?? 0) || product.price <= 0;
-  const stockLabel = product.stockQuantity == null ? "Availability pending" : product.stockQuantity === 0 ? "Out of stock" : `${product.stockQuantity} in stock`;
+  const remaining = remainingPurchasableQuantity(product.trackInventory, product.stockQuantity, cartItem?.quantity ?? 0);
+  const unavailable = product.isComingSoon || remaining <= 0 || product.price <= 0;
+  const stockLabel = publicStockLabel(product.trackInventory, product.stockQuantity);
   function add() { if (unavailable) return; addItem({ productId: product.id, slug: product.slug, name: product.name, price: product.price, image: product.image, quantity: 1 }); setAdded(true); setTimeout(() => setAdded(false), 1600); }
   const href = buildProductPath(product.slug, returnTo);
   return (

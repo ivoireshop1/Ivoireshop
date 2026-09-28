@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/src/lib/auth/guards";
-import { canonicalSlugForName, isCanonicalSlug } from "@/src/lib/catalog/canonical-categories";
+import { canonicalSlugForName, isAssignableCategory, isCanonicalSlug } from "@/src/lib/catalog/canonical-categories";
 import { isPersistentImageUrl, productImagesObjectPath } from "@/src/lib/catalog/image-url";
 import { nextOrderStatuses } from "@/src/lib/orders/status";
 
@@ -35,7 +35,7 @@ export type SaveProductResult =
   | { success: false; code: string; error: string };
 
 const SAVE_ERRORS: Record<string, string> = {
-  product_required: "Enter a valid name, category, price, and whole-number stock quantity.",
+  product_required: "Enter a valid name, category, and price.",
   missing_name: "Add a product name before publishing.",
   missing_category: "Add a category before publishing.",
   missing_price: "Add a valid price before publishing.",
@@ -207,6 +207,7 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
   const description = textValue(formData, "description");
   const priceInput = textValue(formData, "price");
   const stockQuantityInput = textValue(formData, "stock_quantity");
+  const trackInventory = formData.get("track_inventory") === "on";
   const price = priceInput ? moneyAmount(priceInput) : null;
   const stockQuantityValue = stockQuantityInput ? positiveNumber(stockQuantityInput) : null;
   const compareAtPriceValue = textValue(formData, "compare_at_price")
@@ -223,10 +224,24 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
     !slug ||
     !categoryId ||
     (priceInput && price === null) ||
-    (stockQuantityInput && (stockQuantityValue === null || !Number.isInteger(stockQuantityValue))) ||
+    (trackInventory && stockQuantityInput && (stockQuantityValue === null || !Number.isInteger(stockQuantityValue))) ||
     (textValue(formData, "compare_at_price") && compareAtPriceValue === null)
   ) {
     return saveError("product_required");
+  }
+
+  const { data: categoryRow } = await supabase
+    .from("categories")
+    .select("id, slug, is_active")
+    .eq("id", categoryId)
+    .maybeSingle();
+  let currentCategoryId: string | null = null;
+  if (id) {
+    const { data: existing } = await supabase.from("products").select("category_id").eq("id", id).maybeSingle();
+    currentCategoryId = existing?.category_id ?? null;
+  }
+  if (!categoryRow || !isAssignableCategory(categoryRow, currentCategoryId)) {
+    return saveError("missing_category");
   }
 
   const imagesJsonRaw = textValue(formData, "images_json");
@@ -260,15 +275,15 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
   if (wantsActive) {
     if (!categoryId) return saveError("missing_category");
     if (price === null || price <= 0) return saveError("missing_price");
-    if (stockQuantityValue === null || stockQuantityValue < 0 || !Number.isInteger(stockQuantityValue)) {
+    if (trackInventory && (stockQuantityValue === null || stockQuantityValue < 0 || !Number.isInteger(stockQuantityValue))) {
       return saveError("missing_stock");
     }
     if (imageUrls.length === 0) return saveError("missing_image");
   }
 
-  const hasCompletePricing = price !== null && stockQuantityValue !== null && Number.isInteger(stockQuantityValue);
+  const hasCompletePricing = price !== null && price > 0;
   const isActive = wantsActive;
-  const normalizedStockQuantity = status === "sold_out" ? 0 : stockQuantityValue;
+  const normalizedStockQuantity = !trackInventory ? null : status === "sold_out" ? 0 : stockQuantityValue;
 
   const values = {
     name,
@@ -280,6 +295,7 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
     compare_at_price: compareAtPriceValue,
     sku: textValue(formData, "sku") || null,
     stock_quantity: normalizedStockQuantity,
+    track_inventory: trackInventory,
     is_active: false,
     is_featured: isFeatured,
     is_new_arrival: isNewArrival,
@@ -372,7 +388,8 @@ export async function duplicateProduct(formData: FormData) {
       compare_at_price: product.compare_at_price,
       category_id: product.category_id,
       sku: product.sku ? `${product.sku}-copy` : null,
-      stock_quantity: product.stock_quantity ?? 0,
+      stock_quantity: product.track_inventory === false ? product.stock_quantity : product.stock_quantity ?? 0,
+      track_inventory: product.track_inventory !== false,
       is_active: product.is_active,
       is_featured: false,
     })
@@ -429,6 +446,11 @@ export async function updateInventory(formData: FormData) {
 
   if (!id || stockQuantity === null || !Number.isInteger(stockQuantity)) {
     redirect("/admin/inventory?error=invalid_stock");
+  }
+
+  const { data: product } = await supabase.from("products").select("track_inventory").eq("id", id).maybeSingle();
+  if (!product || product.track_inventory === false) {
+    redirect("/admin/inventory?error=inventory_not_tracked");
   }
 
   const { error } = await supabase

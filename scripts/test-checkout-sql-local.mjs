@@ -18,7 +18,8 @@ async function checkout(items=[{product_id:a,quantity:2}],key=crypto.randomUUID(
  return (await db.query('select * from create_checkout_order($1,$2,$3,$4,$5,$6,$7)',params)).rows[0];
 }
 const stock=async id=>(await db.query('select stock_quantity from products where id=$1',[id])).rows[0].stock_quantity;
-async function reset(){await db.exec(`reset role; select set_config('request.jwt.claim.sub','',false); delete from order_items; delete from orders; update products set stock_quantity=10,price=10,is_active=true; update categories set is_active=true; do $$ begin if to_regclass('public.store_settings') is not null then update public.store_settings set is_open=true where id='default'; end if; end $$;`);}
+let trackingReady=false;
+async function reset(){await db.exec(`reset role; select set_config('request.jwt.claim.sub','',false); delete from order_items; delete from orders; update products set stock_quantity=10,price=10,is_active=true${trackingReady?',track_inventory=true':''}; update categories set is_active=true; do $$ begin if to_regclass('public.store_settings') is not null then update public.store_settings set is_open=true where id='default'; end if; if to_regclass('public.profiles') is not null then alter table public.profiles disable trigger profiles_prevent_role_change; update public.profiles set role='customer'; alter table public.profiles enable trigger profiles_prevent_role_change; end if; end $$;`);}
 await reset();await db.exec(`update products set stock_quantity=null where id='${a}'`);assert.ok((await checkout()).order_id);console.log('REPRODUCED baseline: NULL stock accepted');
 await reset();await db.exec(`update products set price='NaN' where id='${a}'`);assert.equal((await checkout()).total,'NaN');console.log('REPRODUCED baseline: non-finite database price accepted');
 await reset();assert.equal(Number((await checkout(null)).total),0);console.log('REPRODUCED baseline: NULL cart creates zero-value order');
@@ -27,6 +28,8 @@ await reset();const leakedKey=crypto.randomUUID();const guest=await checkout(und
 await reset();await db.exec('set role anon');await assert.rejects(db.query('select * from products'),/permission denied for function is_admin/);console.log('REPRODUCED baseline: guest catalog RLS helper lacks EXECUTE permission');await db.exec('reset role');
 await db.exec(migration('20260923010000_harden_existing_checkout.sql'));
 await db.exec(migration('20260928020000_store_operations.sql'));
+await db.exec(migration('20260928054603_optional_inventory_bulk_categories.sql'));
+trackingReady=true;
 let passed=0;
 async function test(name,fn){await reset();await fn();passed++;console.log('PASS '+name);}
 await test('quantity > 1 uses database price, ignoring browser price',async()=>{const r=await checkout([{product_id:a,quantity:3,price:0.01}]);assert.equal(Number(r.total),30);assert.equal(await stock(a),7);});
@@ -35,6 +38,23 @@ await test('exact remaining stock reaches zero',async()=>{await checkout([{produ
 await test('insufficient stock rolls back all prior decrements',async()=>{await assert.rejects(checkout([{product_id:a,quantity:2},{product_id:b,quantity:11}]),/requested quantity/);assert.equal(await stock(a),10);assert.equal((await db.query('select * from orders')).rows.length,0);});
 await test('zero stock rejected',async()=>{await db.exec(`update products set stock_quantity=0 where id='${a}'`);await assert.rejects(checkout(),/requested quantity/);});
 await test('NULL stock rejected',async()=>{await db.exec(`update products set stock_quantity=null where id='${a}'`);await assert.rejects(checkout(),/requested quantity/);});
+await test('untracked product with NULL stock can checkout without decrement',async()=>{
+  await db.exec(`update products set track_inventory=false, stock_quantity=null where id='${a}'`);
+  const r=await checkout();
+  assert.ok(r.order_id);
+  assert.equal(await stock(a),null);
+});
+await test('untracked zero stock can checkout without decrement',async()=>{
+  await db.exec(`update products set track_inventory=false, stock_quantity=0 where id='${a}'`);
+  const r=await checkout();
+  assert.ok(r.order_id);
+  assert.equal(await stock(a),0);
+});
+await test('tracked checkout still decrements',async()=>{
+  await db.exec(`update products set track_inventory=true, stock_quantity=10 where id='${a}'`);
+  await checkout();
+  assert.equal(await stock(a),8);
+});
 await test('NULL, zero and non-finite price rejected',async()=>{for(const price of ['null','0',"'NaN'"]){await db.exec(`update products set price=${price} where id='${a}'`);await assert.rejects(checkout(),/no longer available/);}});
 await test('inactive product and category rejected',async()=>{await db.exec(`update products set is_active=false where id='${a}'`);await assert.rejects(checkout(),/no longer available/);await db.exec(`update products set is_active=true; update categories set is_active=false`);await assert.rejects(checkout(),/no longer available/);});
 await test('NULL/empty/malformed carts rejected',async()=>{for(const cart of [null,[],{},[{product_id:a,quantity:0}],[{product_id:a,quantity:1.5}]])await assert.rejects(checkout(cart));});
@@ -47,6 +67,35 @@ await test('guest catalog allowed; guest order reads hidden',async()=>{await db.
 await test('authenticated customer reads own orders only',async()=>{await checkout();await db.exec(`select set_config('request.jwt.claim.sub','${user}',false)`);await checkout();await db.exec('set role authenticated');assert.equal((await db.query('select * from orders')).rows.length,1);assert.equal((await db.query('select * from order_items')).rows.length,1);});
 await test('closed store rejects new orders',async()=>{await db.exec(`update store_settings set is_open=false where id='default'`);await assert.rejects(checkout(),/temporarily unavailable/);assert.equal(await stock(a),10);assert.equal((await db.query('select * from orders')).rows.length,0);});
 await test('closed store still returns the same completed checkout key',async()=>{const key=crypto.randomUUID();const first=await checkout(undefined,key);await db.exec(`update store_settings set is_open=false where id='default'`);const second=await checkout(undefined,key);assert.equal(first.order_id,second.order_id);assert.equal(await stock(a),8);});
+await test('bulk category move is admin-only and atomic',async()=>{
+  const foods='10000000-0000-4000-8000-0000000000f1';
+  const market='10000000-0000-4000-8000-0000000000f3';
+  await db.exec(`insert into categories(id,name,slug,is_active) values('${foods}','Foods','foods',true),('${market}','Ivoire Market','ivoire-market',true) on conflict (slug) do update set is_active=true;`);
+  await db.exec(`update products set category_id=(select id from categories where slug='foods'), price=12, stock_quantity=7, is_featured=true, is_active=true, slug='rice' where id='${a}'`);
+  await db.exec(`select set_config('request.jwt.claim.sub','${user}',false); set role authenticated`);
+  await assert.rejects(db.query("select admin_bulk_move_canonical_category(array['"+a+"']::uuid[], 'ivoire-market')"),/administrators|42501|row-level|permission/i);
+  await db.exec("reset role");
+  await db.exec(`alter table profiles disable trigger profiles_prevent_role_change; update profiles set role='admin' where id='${user}'; alter table profiles enable trigger profiles_prevent_role_change; select set_config('request.jwt.claim.sub','${user}',false); set role authenticated`);
+  const moved=(await db.query("select admin_bulk_move_canonical_category(array['"+a+"']::uuid[], 'ivoire-market') as n")).rows[0].n;
+  assert.equal(Number(moved),1);
+  await db.exec('reset role');
+  const row=(await db.query(`select category_id, price, stock_quantity, is_featured, is_active, slug from products where id='${a}'`)).rows[0];
+  assert.equal(row.category_id,(await db.query("select id from categories where slug='ivoire-market'")).rows[0].id);
+  assert.equal(Number(row.price),12);
+  assert.equal(row.stock_quantity,7);
+  assert.equal(row.is_featured,true);
+  assert.equal(row.is_active,true);
+  assert.equal(row.slug,'rice');
+});
+await test('bulk move rejects inactive and unknown targets without changing rows',async()=>{
+  await db.exec(`update categories set is_active=false where slug='ivoire-market'`);
+  await db.exec(`alter table profiles disable trigger profiles_prevent_role_change; update profiles set role='admin' where id='${user}'; alter table profiles enable trigger profiles_prevent_role_change; select set_config('request.jwt.claim.sub','${user}',false); set role authenticated`);
+  const before=(await db.query(`select category_id from products where id='${a}'`)).rows[0].category_id;
+  await assert.rejects(db.query("select admin_bulk_move_canonical_category(array['"+a+"']::uuid[], 'ivoire-market')"));
+  await assert.rejects(db.query("select admin_bulk_move_canonical_category(array['"+a+"']::uuid[], 'rice-grains')"));
+  await db.exec('reset role');
+  assert.equal((await db.query(`select category_id from products where id='${a}'`)).rows[0].category_id,before);
+});
 
 await db.exec(`reset role; select set_config('request.jwt.claim.sub','',false); create schema storage;
 create table storage.buckets(id text primary key,name text,public boolean);
@@ -70,7 +119,7 @@ await test('admin upload allowed, public read scoped and bucket moves rejected',
 
 await test('admin sees checkout customer/items/totals/stock and can update status',async()=>{
  const order=await checkout();
- await db.exec(`select set_config('request.jwt.claim.sub','${user}',false);set role authenticated`);
+ await db.exec(`alter table profiles disable trigger profiles_prevent_role_change; update profiles set role='admin' where id='${user}'; alter table profiles enable trigger profiles_prevent_role_change; select set_config('request.jwt.claim.sub','${user}',false);set role authenticated`);
  const row=(await db.query('select * from orders where id=$1',[order.order_id])).rows[0];
  assert.equal(row.customer_name,'Test customer');assert.equal(row.customer_phone,'1234567890');assert.equal(row.fulfillment_method,'delivery');assert.equal(row.shipping_address.city,'Test');assert.equal(Number(row.subtotal),20);assert.equal(Number(row.total),20);
  assert.equal((await db.query('select quantity from order_items where order_id=$1',[order.order_id])).rows[0].quantity,2);

@@ -1,4 +1,5 @@
 import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
+import { isInventoryTracked } from "@/src/lib/catalog/inventory";
 
 export type ProductReadinessInput = {
   name?: string | null;
@@ -6,6 +7,8 @@ export type ProductReadinessInput = {
   categoryName?: string | null;
   price?: number | string | null;
   stockQuantity?: number | string | null;
+  trackInventory?: boolean | null;
+  needsCategoryReview?: boolean | null;
   isActive?: boolean;
   imageUrl?: string | null;
   images?: Array<{ image_url?: string | null } | null> | null;
@@ -22,7 +25,9 @@ export function productMissingRequirements(product: ProductReadinessInput) {
     product.stockQuantity === null || product.stockQuantity === undefined || product.stockQuantity === ""
       ? null
       : Number(product.stockQuantity);
-  if (stock === null || !Number.isInteger(stock) || stock < 0) missing.push("Inventory");
+  if (isInventoryTracked(product.trackInventory) && (stock === null || !Number.isInteger(stock) || stock < 0)) {
+    missing.push("Inventory");
+  }
   const hasImage =
     (typeof product.imageUrl === "string" && isPersistentImageUrl(product.imageUrl)) ||
     Boolean(product.images?.some((image) => typeof image?.image_url === "string" && isPersistentImageUrl(image.image_url)));
@@ -31,7 +36,7 @@ export function productMissingRequirements(product: ProductReadinessInput) {
 }
 
 export function productNeedsReview(product: ProductReadinessInput) {
-  return !product.isActive || productMissingRequirements(product).length > 0;
+  return !product.isActive || productMissingRequirements(product).length > 0 || Boolean(product.needsCategoryReview);
 }
 
 export function productReadyToPublish(product: ProductReadinessInput) {

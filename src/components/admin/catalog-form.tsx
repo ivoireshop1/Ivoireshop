@@ -18,6 +18,7 @@ export type ProductValues = {
   compare_at_price?: number | string | null;
   sku?: string | null;
   stock_quantity?: number | null;
+  track_inventory?: boolean;
   is_active?: boolean;
   is_featured?: boolean;
   is_new_arrival?: boolean;
@@ -73,6 +74,7 @@ export function ProductForm({
       ? String(product.stock_quantity)
       : "",
   );
+  const [trackInventory, setTrackInventory] = useState(product?.track_inventory !== false);
 
   // 3. Status & Featured State (independent)
   const [isActive, setIsActive] = useState(product?.is_active ?? false);
@@ -194,7 +196,7 @@ export function ProductForm({
     }
 
     const numStock = Number(stockQuantity);
-    if (!stockQuantity.trim() || !Number.isFinite(numStock) || !Number.isInteger(numStock) || numStock < 0) {
+    if (trackInventory && (!stockQuantity.trim() || !Number.isFinite(numStock) || !Number.isInteger(numStock) || numStock < 0)) {
       errors.push("Add a valid stock quantity before publishing.");
     }
 
@@ -246,7 +248,12 @@ export function ProductForm({
     formData.set("sku", sku);
     formData.set("price", price);
     formData.set("compare_at_price", compareAtPrice);
-    formData.set("stock_quantity", stockQuantity);
+    if (trackInventory) {
+      formData.set("track_inventory", "on");
+      formData.set("stock_quantity", stockQuantity);
+    } else {
+      formData.set("stock_quantity", "");
+    }
     formData.set("status", willBeActive ? "active" : "hidden");
     formData.set("save_as_draft", saveAsDraft ? "true" : "false");
     if (isFeatured) {
@@ -357,7 +364,7 @@ export function ProductForm({
                 ))}
               </select>
               <span className="mt-1 block text-xs text-[#6b6b6b]">
-                Required for every product. Select a store category.
+                Required. Choose Foods, Cosmetics, or Ivoire Market.
               </span>
             </label>
 
@@ -435,11 +442,26 @@ export function ProductForm({
           {/* Section 3: Inventory (Independent) */}
           <section className="space-y-4 rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-5">
             <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#b8964c]">
-              Inventory & Stock
+              Inventory
             </p>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#173f35]/10 bg-white p-3">
+              <input
+                checked={trackInventory}
+                className="mt-0.5 h-4 w-4 rounded accent-[#173f35]"
+                onChange={(e) => setTrackInventory(e.target.checked)}
+                type="checkbox"
+              />
+              <div>
+                <span className="block text-sm font-semibold text-[#173f35]">Track inventory</span>
+                <span className="block text-xs text-[#6b6b6b]">
+                  When on, quantity is required and checkout reduces stock. When off, quantity is not required and checkout does not change stock.
+                </span>
+              </div>
+            </label>
+            {trackInventory ? (
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm font-medium text-[#173f35]">
-                Stock Quantity (Units) <span className="text-red-600">*</span>
+                Quantity <span className="text-red-600">*</span>
                 <input
                   className="mt-2 w-full rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-[#173f35] outline-none transition focus:border-[#173f35]/35"
                   inputMode="numeric"
@@ -451,7 +473,7 @@ export function ProductForm({
                   value={stockQuantity}
                 />
                 <span className="mt-1 block text-xs text-[#6b6b6b]">
-                  Whole number of units currently available.
+                  Whole number of units currently available. Zero means out of stock.
                 </span>
               </label>
 
@@ -471,6 +493,11 @@ export function ProductForm({
                 </span>
               </div>
             </div>
+            ) : (
+              <p className="rounded-xl border border-[#173f35]/10 bg-white px-4 py-3 text-sm text-[#173f35]">
+                Inventory is not tracked for this product.
+              </p>
+            )}
           </section>
 
           {/* Section 4: Product Images (File Upload + URL Fallback) */}
@@ -703,20 +730,22 @@ export function ProductForm({
               <li className="flex items-center gap-2">
                 <span
                   className={
-                    stockQuantity.trim() &&
+                    !trackInventory ||
+                    (stockQuantity.trim() &&
                     Number.isInteger(Number(stockQuantity)) &&
-                    Number(stockQuantity) >= 0
+                    Number(stockQuantity) >= 0)
                       ? "text-emerald-700 font-bold"
                       : "text-gray-400"
                   }
                 >
-                  {stockQuantity.trim() &&
+                  {!trackInventory ||
+                  (stockQuantity.trim() &&
                   Number.isInteger(Number(stockQuantity)) &&
-                  Number(stockQuantity) >= 0
+                  Number(stockQuantity) >= 0)
                     ? "✓"
                     : "○"}
                 </span>
-                <span>Valid stock quantity (&ge; 0)</span>
+                <span>{trackInventory ? "Valid stock quantity (≥ 0)" : "Inventory tracking off"}</span>
               </li>
               <li className="flex items-center gap-2">
                 <span className={images.length > 0 ? "text-emerald-700 font-bold" : "text-gray-400"}>

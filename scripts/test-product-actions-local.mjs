@@ -21,7 +21,9 @@ const supabase = { from(table) {
     then(resolve, reject) {
       try {
         let data;
-        if (table === 'products') {
+        if (table === 'categories') {
+          data = {id:'c1', slug:'foods', is_active:true};
+        } else if (table === 'products') {
           if (operation !== 'select') { writes.push({table, operation, payload}); product = {...product, ...payload}; }
           data = {...product, product_images: images};
         } else if (table === 'product_images') {
@@ -55,8 +57,8 @@ function load(file) {
 const actions=load('src/lib/catalog/admin-actions.ts');
 const {saveProduct}=load('src/lib/catalog/actions.ts');
 const {isPersistentImageUrl}=load('src/lib/catalog/image-url.ts');
-function reset(){product={id:'p1',name:'Rice',slug:'rice',category_id:'c1',price:12,stock_quantity:8,is_active:false,is_featured:true};images=[{id:'old',image_url:'https://example.com/rice.jpg',position:0}];writes=[];failImageInsert=false;}
-function form(overrides={}) {const data=new FormData(); for(const [key,value] of Object.entries({id:'p1',name:'Rice',category_id:'c1',price:'12',stock_quantity:'8',status:'hidden',is_featured:'on',images_json:JSON.stringify(['https://example.com/rice.jpg']),...overrides}))data.set(key,value);return data;}
+function reset(){product={id:'p1',name:'Rice',slug:'rice',category_id:'c1',price:12,stock_quantity:8,track_inventory:true,is_active:false,is_featured:true};images=[{id:'old',image_url:'https://example.com/rice.jpg',position:0}];writes=[];failImageInsert=false;}
+function form(overrides={}) {const data=new FormData(); for(const [key,value] of Object.entries({id:'p1',name:'Rice',category_id:'c1',price:'12',stock_quantity:'8',track_inventory:'on',status:'hidden',is_featured:'on',images_json:JSON.stringify(['https://example.com/rice.jpg']),...overrides})) { if(value===undefined) data.delete(key); else data.set(key,String(value));} return data;}
 let count=0;
 async function test(name,fn){reset();await fn();count++;console.log(`PASS ${name}`);}
 await test('price-only update preserves stock, category, featured and draft',async()=>{const r=await actions.adminUpdateProductPricing('p1','15','8');assert.equal(r.success,true);assert.equal(product.price,15);assert.equal(product.stock_quantity,8);assert.equal(product.is_active,false);assert.equal(product.is_featured,true);assert.equal(product.category_id,'c1');});
@@ -78,4 +80,15 @@ await test('every saved product requires category',async()=>{const r=await saveP
 await test('price-only save preserves quantity category and status',async()=>{const r=await saveProduct(form({price:'15.50'}));assert.equal(r.success,true);assert.equal(product.price,15.5);assert.equal(product.stock_quantity,8);assert.equal(product.category_id,'c1');assert.equal(product.is_active,false);});
 await test('quantity-only save preserves price category and status',async()=>{const r=await saveProduct(form({stock_quantity:'4'}));assert.equal(r.success,true);assert.equal(product.price,12);assert.equal(product.stock_quantity,4);assert.equal(product.category_id,'c1');});
 await test('failed save preserves form-bound product state',async()=>{failImageInsert=true;const before={...product};const r=await saveProduct(form({status:'active'}));assert.equal(r.success,false);assert.equal(product.price,before.price);assert.equal(product.stock_quantity,before.stock_quantity);});
+await test('untracked publish does not require quantity',async()=>{
+  const r=await saveProduct(form({status:'active',track_inventory:undefined,stock_quantity:''}));
+  assert.equal(r.success,true);
+  assert.equal(product.track_inventory,false);
+  assert.equal(product.stock_quantity,null);
+  assert.equal(product.is_active,true);
+});
+await test('untracked activation is allowed without stock',async()=>{
+  product.track_inventory=false;product.stock_quantity=null;product.price=12;
+  assert.equal((await actions.adminSetProductStatus('p1','active')).success,true);
+});
 console.log(`${count} deterministic action tests passed; database/RLS/browser behavior is not exercised.`);

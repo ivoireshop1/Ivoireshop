@@ -43,4 +43,10 @@ test("image policy may still inspect products without the reverse cycle", () => 
   assert.equal(/product_images\.product_id = products\.id/i.test(productsPolicy(fix)), false);
 });
 
+test("the optional inventory migration does not rewrite merchandising RLS", () => {
+  const sql = fs.readFileSync(new URL("../supabase/migrations/20260928054603_optional_inventory_bulk_categories.sql", import.meta.url), "utf8");
+  assert.equal(/create policy "Active products are public"/i.test(sql), false);
+  assert.equal(/drop policy "Active products are public"/i.test(sql), false);
+});
+
 console.log(`${n} catalog RLS regression tests passed`);

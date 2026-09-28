@@ -37,6 +37,23 @@ export function canonicalSortIndex(name: string) {
   return index === -1 ? CANONICAL_CATEGORIES.length : index;
 }
 
-export function categoriesForProductAssignment<T extends { id: string; is_active?: boolean }>(categories: T[], currentId?: string | null) {
-  return categories.filter((category) => category.is_active || category.id === currentId);
+export function isAssignableCategory(
+  category: { id: string; slug?: string; is_active?: boolean },
+  currentId?: string | null,
+) {
+  if (category.id === currentId) return true;
+  return Boolean(category.is_active && category.slug && isCanonicalSlug(category.slug));
+}
+
+export function categoriesForProductAssignment<T extends { id: string; name?: string; slug?: string; is_active?: boolean }>(
+  categories: T[],
+  currentId?: string | null,
+) {
+  return categories
+    .filter((category) => category.is_active || category.id === currentId)
+    .sort((left, right) => {
+      const byCanonical = canonicalSortIndex(left.name ?? "") - canonicalSortIndex(right.name ?? "");
+      if (byCanonical !== 0) return byCanonical;
+      return (left.name ?? "").localeCompare(right.name ?? "");
+    });
 }

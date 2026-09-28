@@ -28,6 +28,7 @@ export type AdminProductRowData = {
   hasImage: boolean;
   hasCategory: boolean;
   isFeatured: boolean;
+  trackInventory?: boolean;
 };
 
 function toNullableNumber(value: number | string | null | undefined) {
@@ -54,10 +55,14 @@ export function AdminProductRow({
   product,
   deleteAction,
   duplicateAction,
+  selected,
+  onSelectedChange,
 }: {
   product: AdminProductRowData;
   deleteAction: (formData: FormData) => void | Promise<void>;
   duplicateAction: (formData: FormData) => void | Promise<void>;
+  selected?: boolean;
+  onSelectedChange?: (id: string, next: boolean) => void;
 }) {
   const [isFeatured, setIsFeatured] = useState(product.isFeatured);
   const [persistedPrice, setPersistedPrice] = useState(toNullableNumber(product.price));
@@ -73,21 +78,22 @@ export function AdminProductRow({
   const [pricingError, setPricingError] = useState<string | null>(null);
   const saveLock = useRef(false);
 
+  const tracked = product.trackInventory !== false;
   const parsedPrice = parsePriceInput(priceInput);
   const parsedStock = parseStockInput(stockInput);
-  const draftsValid = parsedPrice.ok && parsedStock.ok;
+  const draftsValid = parsedPrice.ok && (tracked ? parsedStock.ok : true);
   const priceLabel = priceStatusFromDraft(priceInput);
-  const inventoryLabel = inventoryStatusFromDraft(stockInput);
+  const inventoryLabel = inventoryStatusFromDraft(stockInput, tracked);
   const savedPriceLabel = persistedPrice === null ? null : `Saved $${persistedPrice.toFixed(2)}`;
   const readinessNeeds: string[] = [];
   if (!parsedPrice.ok || parsedPrice.value === null || parsedPrice.value <= 0) readinessNeeds.push("Price");
-  if (!parsedStock.ok || parsedStock.value === null) readinessNeeds.push("Inventory");
+  if (tracked && (!parsedStock.ok || parsedStock.value === null)) readinessNeeds.push("Inventory");
   if (!product.hasImage) readinessNeeds.push("Image");
   if (!product.hasCategory) readinessNeeds.push("Category");
   const readyToPublish = readinessNeeds.length === 0;
   const isDirty =
     priceInput !== formatPriceDisplay(persistedPrice) ||
-    stockInput !== formatStockInput(persistedStock) ||
+    (tracked && stockInput !== formatStockInput(persistedStock)) ||
     draftStatus !== persistedStatus;
   const saveEnabled = draftsValid && isDirty && pricingState !== "saving";
 
@@ -98,7 +104,7 @@ export function AdminProductRow({
     setPricingState("idle");
     setPricingError(null);
     if (nextStatus === "active") {
-      const ready = draftsReadyForActivation(nextPrice, nextStock);
+      const ready = draftsReadyForActivation(nextPrice, nextStock, tracked);
       if (!ready.ok) {
         setStatusState("error");
         setStatusError(ready.error);
@@ -136,13 +142,13 @@ export function AdminProductRow({
       setPricingError(price.error);
       return;
     }
-    if (!stock.ok) {
+    if (tracked && !stock.ok) {
       setPricingState("error");
       setPricingError(stock.error);
       return;
     }
     if (draftStatus === "active") {
-      const ready = draftsReadyForActivation(priceInput, stockInput);
+      const ready = draftsReadyForActivation(priceInput, stockInput, tracked);
       if (!ready.ok) {
         setStatusState("error");
         setStatusError(ready.error);
@@ -174,10 +180,22 @@ export function AdminProductRow({
   }
 
   return (
-    <article className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4 lg:grid lg:grid-cols-[1.6fr_0.8fr_0.9fr_0.9fr_0.9fr_0.8fr_0.9fr] lg:items-start lg:gap-3 lg:p-3">
-      <p className={`mb-3 text-xs font-semibold uppercase tracking-[0.14em] lg:col-span-7 ${readyToPublish ? "text-[#173f35]" : "text-[#7c5d1a]"}`}>
+    <article className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4 lg:grid lg:grid-cols-[2.25rem_1.6fr_0.8fr_0.9fr_0.9fr_0.9fr_0.8fr_0.9fr] lg:items-start lg:gap-3 lg:p-3">
+      <p className={`mb-3 text-xs font-semibold uppercase tracking-[0.14em] lg:col-span-8 ${readyToPublish ? "text-[#173f35]" : "text-[#7c5d1a]"}`}>
         {readyToPublish ? "Ready to publish" : `Needs: ${readinessNeeds.join(", ")}`}
       </p>
+      <label className="mb-3 flex min-h-11 items-center lg:mb-0 lg:mt-1">
+        <input
+          aria-label={`Select product ${product.name}`}
+          checked={Boolean(selected)}
+          className="h-5 w-5 accent-[#173f35]"
+          onChange={(event) => {
+            event.stopPropagation();
+            onSelectedChange?.(product.id, event.target.checked);
+          }}
+          type="checkbox"
+        />
+      </label>
       <div className="flex items-center gap-3">
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-[#173f35]/10 bg-white lg:h-14 lg:w-14">
           {product.imageUrl ? (
@@ -218,15 +236,21 @@ export function AdminProductRow({
 
       <label className="mt-4 block lg:mt-0">
         <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#6b6b6b]">Inventory</span>
-        <input
-          aria-label={`Stock quantity for ${product.name}`}
-          className="mt-1 min-h-11 w-full rounded-lg border border-[#173f35]/15 bg-white px-3 py-2 text-sm text-[#173f35]"
-          inputMode="numeric"
-          onChange={(event) => applyDraftInputs(priceInput, event.target.value, draftStatus)}
-          placeholder="0"
-          value={stockInput}
-        />
-        <p className="mt-1 text-xs text-[#6b6b6b]">{inventoryLabel}</p>
+        {tracked ? (
+          <>
+            <input
+              aria-label={`Stock quantity for ${product.name}`}
+              className="mt-1 min-h-11 w-full rounded-lg border border-[#173f35]/15 bg-white px-3 py-2 text-sm text-[#173f35]"
+              inputMode="numeric"
+              onChange={(event) => applyDraftInputs(priceInput, event.target.value, draftStatus)}
+              placeholder="0"
+              value={stockInput}
+            />
+            <p className="mt-1 text-xs text-[#6b6b6b]">{inventoryLabel}</p>
+          </>
+        ) : (
+          <p className="mt-1 rounded-lg border border-[#173f35]/10 bg-white px-3 py-2 text-sm text-[#173f35]">Inventory not tracked</p>
+        )}
       </label>
 
       <div className="mt-4 lg:mt-0">

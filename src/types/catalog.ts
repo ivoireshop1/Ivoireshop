@@ -32,6 +32,7 @@ export interface Product {
   image: string;
   weight: string;
   stockQuantity?: number | null;
+  trackInventory?: boolean;
   isFeatured: boolean;
   isNew: boolean;
   isPopular: boolean;

@@ -18,7 +18,7 @@ const loadProduct = cache(async (slug: string) => {
   const supabase = await createClient();
   const { data: productRow, error } = await supabase
     .from("products")
-    .select("id, name, slug, description, short_description, price, compare_at_price, stock_quantity, is_active, is_featured, is_new_arrival, is_coming_soon, category_id, categories(name), product_images(image_url, position)")
+    .select("id, name, slug, description, short_description, price, compare_at_price, stock_quantity, track_inventory, is_active, is_featured, is_new_arrival, is_coming_soon, category_id, categories(name), product_images(image_url, position)")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -61,6 +61,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     image: primaryImage ?? "",
     weight: productRow.stock_quantity !== null ? `${productRow.stock_quantity} in stock` : "",
     stockQuantity: productRow.stock_quantity,
+    trackInventory: productRow.track_inventory !== false,
     isFeatured: Boolean(productRow.is_featured),
     isNew: Boolean(productRow.is_new_arrival) && Boolean(productRow.is_active),
     isPopular: false,
@@ -70,7 +71,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const [{ data: relatedRows }, { data: reviewSummary }, { data: reviews }, { data: { user } }] = await Promise.all([
     supabase
     .from("products")
-    .select("id, name, slug, price, compare_at_price, description, short_description, is_featured, stock_quantity, categories(name), product_images(image_url, position)")
+    .select("id, name, slug, price, compare_at_price, description, short_description, is_featured, stock_quantity, track_inventory, categories(name), product_images(image_url, position)")
     .eq("is_active", true)
     .neq("id", product.id)
     .eq("category_id", productRow.category_id)
@@ -99,6 +100,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     image,
     weight: item.stock_quantity !== null ? `${item.stock_quantity} in stock` : "",
     stockQuantity: item.stock_quantity,
+    trackInventory: item.track_inventory !== false,
     isFeatured: Boolean(item.is_featured),
     isNew: false,
     isPopular: false,

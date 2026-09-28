@@ -14,6 +14,7 @@ type ProductRow = {
   is_active: boolean;
   is_featured: boolean;
   stock_quantity: number | null;
+  track_inventory?: boolean | null;
   categories: { name: string } | { name: string }[] | null;
   product_images?: { image_url: string; position: number }[] | null;
 };
@@ -33,6 +34,7 @@ function mapProduct(productRow: ProductRow): Product {
     image: image ?? "",
     weight: "",
     stockQuantity: productRow.stock_quantity,
+    trackInventory: productRow.track_inventory !== false,
     isFeatured: productRow.is_featured,
     isNew: false,
     isPopular: false,
@@ -57,7 +59,7 @@ export async function getWishlist(): Promise<WishlistItem[]> {
   if (productIds.length) {
     const { data: products, error: productError } = await supabase
       .from("products")
-      .select("id, name, slug, description, short_description, price, compare_at_price, is_active, is_featured, stock_quantity, categories(name), product_images(image_url, position)")
+      .select("id, name, slug, description, short_description, price, compare_at_price, is_active, is_featured, stock_quantity, track_inventory, categories(name), product_images(image_url, position)")
       .in("id", productIds);
     if (productError) throw new Error(productError.message);
     for (const product of products ?? []) {

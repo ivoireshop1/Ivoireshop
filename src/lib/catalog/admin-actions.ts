@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
+import { isInventoryTracked } from "@/src/lib/catalog/inventory";
 import { parsePriceInput, parseStockInput } from "@/src/lib/catalog/pricing-input";
 
 function activationBlocker(product: {
   name: string | null;
   category_id: string | null;
+  track_inventory?: boolean | null;
   product_images?: Array<{ image_url: string | null }> | null;
 }, price: number | null, stock: number | null) {
   const hasImage = Array.isArray(product.product_images) && product.product_images.some((image) => {
@@ -19,7 +21,7 @@ function activationBlocker(product: {
   if (price === null || !Number.isFinite(Number(price)) || Number(price) <= 0) {
     return "Add a valid price before activating this product.";
   }
-  if (stock === null || !Number.isInteger(Number(stock)) || Number(stock) < 0) {
+  if (isInventoryTracked(product.track_inventory) && (stock === null || !Number.isInteger(Number(stock)) || Number(stock) < 0)) {
     return "Add a valid stock quantity before activating this product.";
   }
   if (!hasImage) return "Add at least one product image before activating this product.";
@@ -47,7 +49,7 @@ export async function adminSetProductStatus(
   const { supabase } = await requireAdmin();
   const { data: product, error: fetchError } = await supabase
     .from("products")
-    .select("id, name, slug, category_id, price, stock_quantity, needs_pricing, product_images(image_url)")
+    .select("id, name, slug, category_id, price, stock_quantity, track_inventory, needs_pricing, product_images(image_url)")
     .eq("id", id)
     .maybeSingle();
 
@@ -112,15 +114,16 @@ export async function adminUpdateProductPricing(
   const { supabase } = await requireAdmin();
   const { data: product, error: fetchError } = await supabase
     .from("products")
-    .select("id, name, slug, category_id, price, stock_quantity, is_active, product_images(image_url)")
+    .select("id, name, slug, category_id, price, stock_quantity, track_inventory, is_active, product_images(image_url)")
     .eq("id", id)
     .maybeSingle();
 
   if (fetchError || !product) return { success: false, error: "Product not found." };
 
   const nextPrice = parsedPrice.value;
-  const nextStock = parsedStock.value;
-  const needsPricing = nextPrice === null || nextStock === null;
+  const tracked = isInventoryTracked(product.track_inventory);
+  const nextStock = tracked ? parsedStock.value : product.stock_quantity === null ? null : Number(product.stock_quantity);
+  const needsPricing = nextPrice === null || nextPrice <= 0;
   let nextIsActive = needsPricing ? false : product.is_active;
 
   if (status === "hidden") nextIsActive = false;
@@ -132,7 +135,13 @@ export async function adminUpdateProductPricing(
 
   const { error } = await supabase
     .from("products")
-    .update({ price: nextPrice, stock_quantity: nextStock, needs_pricing: needsPricing, is_active: nextIsActive })
+    .update({
+      price: nextPrice,
+      stock_quantity: nextStock,
+      track_inventory: tracked,
+      needs_pricing: needsPricing,
+      is_active: nextIsActive,
+    })
     .eq("id", id);
 
   if (error) return { success: false, error: "Could not save price/stock." };

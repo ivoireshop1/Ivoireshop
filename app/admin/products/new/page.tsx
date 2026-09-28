@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { saveProduct } from "@/src/lib/catalog/actions";
+import { categoriesForProductAssignment } from "@/src/lib/catalog/canonical-categories";
 import { ProductForm } from "@/src/components/admin/catalog-form";
 
 export default async function NewProductPage({
@@ -9,9 +10,11 @@ export default async function NewProductPage({
 }) {
   const { supabase } = await requireAdmin();
   const params = await searchParams;
-  const { data: categories, error } = await supabase.from("categories").select("id, name").eq("is_active", true).order("name");
+  const { data: categories, error } = await supabase.from("categories").select("id, name, slug, is_active").eq("is_active", true).order("name");
 
   if (error) throw new Error("Unable to load product categories.");
+
+  const categoryOptions = categoriesForProductAssignment(categories ?? []);
 
   return (
     <>
@@ -31,7 +34,7 @@ export default async function NewProductPage({
                     : "Enter a valid name, category, description, price, and whole-number stock quantity."}
         </p>
       )}
-      <ProductForm action={saveProduct} categories={categories ?? []} />
+      <ProductForm action={saveProduct} categories={categoryOptions} />
     </>
   );
 }
