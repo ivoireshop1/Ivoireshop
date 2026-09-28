@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { demoImages } from "@/src/lib/demo-images";
 
 const trustPillars = ["Freshly sourced", "Fast local delivery", "Secure checkout"];
@@ -8,12 +7,10 @@ export function Hero() {
   return (
     <section className="relative isolate overflow-hidden bg-[#efe7dc]">
       <div className="relative min-h-[560px] md:min-h-[640px] lg:min-h-[720px]">
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           alt="A shopper with fresh produce from Ivoire Shop"
-          className="object-cover"
-          fill
-          priority
-          sizes="100vw"
+          className="absolute inset-0 h-full w-full object-cover"
           src={demoImages.heroCustomer}
         />
 
