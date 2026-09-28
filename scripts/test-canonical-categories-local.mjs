@@ -15,24 +15,24 @@ test('migration does not reactivate products',()=>assert.equal(/update public\.p
 test('migration preserves category rows',()=>assert.equal(/delete from public\.categories/i.test(sql),false));
 test('active-only product dropdown hides inactive legacy categories',()=>{
   const options=categoriesForProductAssignment([
-    {id:'1',is_active:true,name:'Foods'},
-    {id:'2',is_active:false,name:'African Foods'},
-    {id:'3',is_active:false,name:'Beauty & Personal Care'},
+    {id:'1',is_active:true,name:'Foods',slug:'foods'},
+    {id:'2',is_active:false,name:'African Foods',slug:'african-foods'},
+    {id:'3',is_active:false,name:'Beauty & Personal Care',slug:'beauty-personal-care'},
   ]);
   assert.deepEqual(options.map((c)=>c.name),['Foods']);
 });
 test('current inactive assignment remains visible for existing product',()=>{
   const options=categoriesForProductAssignment([
-    {id:'1',is_active:true,name:'Foods'},
-    {id:'2',is_active:false,name:'African Foods'},
+    {id:'1',is_active:true,name:'Foods',slug:'foods'},
+    {id:'2',is_active:false,name:'African Foods',slug:'african-foods'},
   ],'2');
   assert.equal(options.some((c)=>c.id==='2'),true);
 });
 test('assignment options sort canonical names',()=>{
   const options=categoriesForProductAssignment([
-    {id:'3',is_active:true,name:'Ivoire Market'},
-    {id:'1',is_active:true,name:'Foods'},
-    {id:'2',is_active:true,name:'Cosmetics'},
+    {id:'3',is_active:true,name:'Ivoire Market',slug:'ivoire-market'},
+    {id:'1',is_active:true,name:'Foods',slug:'foods'},
+    {id:'2',is_active:true,name:'Cosmetics',slug:'cosmetics'},
   ]);
   assert.deepEqual(options.map((c)=>c.name),['Cosmetics','Foods','Ivoire Market']);
 });

@@ -180,7 +180,7 @@ export function AdminProductRow({
   }
 
   return (
-    <article className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4 lg:grid lg:grid-cols-[2.25rem_1.6fr_0.8fr_0.9fr_0.9fr_0.9fr_0.8fr_0.9fr] lg:items-start lg:gap-3 lg:p-3">
+    <article className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4 lg:grid lg:grid-cols-[2.25rem_1.6fr_0.8fr_0.9fr_0.9fr_0.9fr_0.8fr_0.9fr] lg:items-start lg:gap-3 lg:p-3" data-category={product.categoryName} data-product-id={product.id}>
       <p className={`mb-3 text-xs font-semibold uppercase tracking-[0.14em] lg:col-span-8 ${readyToPublish ? "text-[#173f35]" : "text-[#7c5d1a]"}`}>
         {readyToPublish ? "Ready to publish" : `Needs: ${readinessNeeds.join(", ")}`}
       </p>
@@ -215,7 +215,7 @@ export function AdminProductRow({
 
       <div className="mt-4 text-sm text-[#173f35] lg:mt-0">
         <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#6b6b6b] lg:hidden">Category</p>
-        <p className="break-words">{product.categoryName}</p>
+        <p className="break-words" data-category={product.categoryName}>{product.categoryName}</p>
       </div>
 
       <label className="mt-4 block lg:mt-0">

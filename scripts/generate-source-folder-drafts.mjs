@@ -1,66 +1,41 @@
 import { readFile, writeFile } from "node:fs/promises";
+import fs from "node:fs";
 import path from "node:path";
+import vm from "node:vm";
+import ts from "typescript";
+
+function loadTs(file) {
+  const exports = {};
+  const require = (id) => {
+    if (id.startsWith("@/")) return loadTs(id.slice(2) + ".ts");
+    throw new Error(id);
+  };
+  vm.runInNewContext(
+    ts.transpileModule(fs.readFileSync(file, "utf8"), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    }).outputText,
+    { exports, require, decodeURIComponent },
+    { filename: file },
+  );
+  return exports;
+}
+
+const {
+  canonicalCategoryFromSourceFolder,
+  publicImageUrlFromSourcePath,
+  draftSlugFromSource,
+  draftNameFromSource,
+} = loadTs("src/lib/catalog/source-folder-category.ts");
 
 const inventoryPath = path.resolve("public/images/Foods 12-22-25/image-inventory.json");
 const outputPath = path.resolve("supabase/migrations/20260928071000_source_folder_category_drafts.sql");
-
-function normalizeFolder(value) {
-  return value.toLowerCase().replace(/[%20_+]+/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
-}
-
-function canonicalCategoryFromSourceFolder(folderOrPath) {
-  const source = String(folderOrPath ?? "").trim();
-  if (!source) return null;
-  const firstSegment = source.replace(/\\/g, "/").split("/").find((part) => part.trim()) ?? source;
-  let decoded = firstSegment;
-  try {
-    decoded = decodeURIComponent(firstSegment);
-  } catch {
-    decoded = firstSegment;
-  }
-  const key = normalizeFolder(decoded);
-  if (/\bcomestic|\bcosmetic/.test(key)) return "Cosmetics";
-  if (/\bivoire market\b/.test(key)) return "Ivoire Market";
-  if (/\bfoods?\b/.test(key)) return "Foods";
-  return null;
-}
-
-function publicImageUrlFromSourcePath(relativePath) {
-  const encoded = relativePath
-    .replace(/\\/g, "/")
-    .split("/")
-    .filter(Boolean)
-    .map((part) => encodeURIComponent(part))
-    .join("/");
-  return `/images/Foods%2012-22-25/${encoded}`;
-}
-
-function draftSlugFromSource(filename, sha256) {
-  const digest = String(sha256 || "").replace(/[^a-f0-9]/gi, "").slice(0, 12).toLowerCase();
-  const fromName = String(filename || "")
-    .toLowerCase()
-    .replace(/\.[a-z0-9]+$/i, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-  return `src-${digest || "image"}${fromName ? `-${fromName}` : ""}`;
-}
-
-function draftNameFromSource(filename) {
-  const base = String(filename || "")
-    .replace(/\.[a-z0-9]+$/i, "")
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  return base || "Untitled product";
-}
 
 function sqlString(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 
 const inventory = JSON.parse((await readFile(inventoryPath, "utf8")).replace(/^\uFEFF/, ""));
-const ivoireMarket = inventory.filter((item) => canonicalCategoryFromSourceFolder(item.classification || item.path) === "Ivoire Market");
+const ivoireMarket = inventory.filter((item) => canonicalCategoryFromSourceFolder(item.path) === "Ivoire Market");
 
 const values = ivoireMarket.map((item) => {
   const imageUrl = publicImageUrlFromSourcePath(item.path);

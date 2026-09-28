@@ -16,7 +16,7 @@ export default async function EditProductPage({
   const { supabase } = await requireAdmin();
   const [{ data: product, error: productError }, { data: categories, error: categoryError }] = await Promise.all([
     supabase.from("products").select("*, product_images(image_url, position)").eq("id", id).maybeSingle(),
-    supabase.from("categories").select("id, name, is_active").order("name"),
+    supabase.from("categories").select("id, name, slug, is_active").order("name"),
   ]);
 
   if (productError || categoryError) throw new Error("Unable to load product.");

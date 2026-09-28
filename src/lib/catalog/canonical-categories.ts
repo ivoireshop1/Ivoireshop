@@ -38,11 +38,13 @@ export function canonicalSortIndex(name: string) {
 }
 
 export function isAssignableCategory(
-  category: { id: string; slug?: string; is_active?: boolean },
+  category: { id: string; name?: string; slug?: string; is_active?: boolean },
   currentId?: string | null,
 ) {
   if (category.id === currentId) return true;
-  return Boolean(category.is_active && category.slug && isCanonicalSlug(category.slug));
+  if (!category.is_active) return false;
+  const slug = category.slug || canonicalSlugForName(category.name || "");
+  return Boolean(slug && isCanonicalSlug(slug));
 }
 
 export function categoriesForProductAssignment<T extends { id: string; name?: string; slug?: string; is_active?: boolean }>(
@@ -50,7 +52,7 @@ export function categoriesForProductAssignment<T extends { id: string; name?: st
   currentId?: string | null,
 ) {
   return categories
-    .filter((category) => category.is_active || category.id === currentId)
+    .filter((category) => isAssignableCategory(category, currentId))
     .sort((left, right) => {
       const byCanonical = canonicalSortIndex(left.name ?? "") - canonicalSortIndex(right.name ?? "");
       if (byCanonical !== 0) return byCanonical;

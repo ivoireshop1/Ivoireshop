@@ -3,6 +3,13 @@ import { AdminProductsManager } from "@/src/components/admin/admin-products-mana
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { deleteProduct, duplicateProduct } from "@/src/lib/catalog/actions";
 import { matchesAdminReviewFilter } from "@/src/lib/catalog/admin-product-filters";
+import {
+  ADMIN_CATEGORY_TABS,
+  adminProductsHref,
+  canonicalCategoryTabCounts,
+  categoryNameFromId,
+  matchesAdminCategoryFilter,
+} from "@/src/lib/catalog/admin-product-list";
 import { categoriesForProductAssignment } from "@/src/lib/catalog/canonical-categories";
 import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
 
@@ -24,7 +31,7 @@ export default async function AdminProductsPage({
     supabase.from("categories").select("id, name, slug, is_active").order("name"),
     supabase
       .from("products")
-      .select("id, name, slug, price, stock_quantity, track_inventory, is_active, is_featured, is_coming_soon, needs_pricing, needs_category_review, created_at, category_id, categories(name), product_images(image_url, position)")
+      .select("id, name, slug, price, stock_quantity, track_inventory, is_active, is_featured, is_coming_soon, needs_pricing, needs_category_review, created_at, category_id, product_images(image_url, position)")
       .order("created_at", { ascending: false }),
   ]);
 
@@ -32,11 +39,24 @@ export default async function AdminProductsPage({
     throw new Error("Unable to load product catalog.");
   }
 
-  const assignmentCategories = categoriesForProductAssignment(categories ?? []);
+  const categoryRecords = categories ?? [];
+  const assignmentCategories = categoriesForProductAssignment(categoryRecords);
+  const tabCounts = canonicalCategoryTabCounts(
+    (products ?? []).map((product) => ({ categoryId: product.category_id })),
+    categoryRecords,
+  );
+  const hrefState = {
+    status: statusFilter,
+    inventory: inventoryFilter,
+    search: searchQuery,
+    featured: featuredFilter,
+    review: reviewFilter,
+  };
 
   const filteredProducts = (products ?? []).filter((product) => {
     const nameMatches = !searchQuery || product.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const categoryMatches = categoryFilter === "all" || product.category_id === categoryFilter;
+    const categoryName = categoryNameFromId(product.category_id, categoryRecords);
+    const categoryMatches = matchesAdminCategoryFilter(categoryFilter, { categoryId: product.category_id }, categoryRecords);
     const productStatus = product.is_active ? "Active" : "Draft";
     const statusMatches =
       statusFilter === "all" ||
@@ -54,10 +74,6 @@ export default async function AdminProductsPage({
       (featuredFilter === "featured" && product.is_featured) ||
       (featuredFilter === "not_featured" && !product.is_featured);
     const nestedImages = (product as { product_images?: Array<{ image_url?: string | null }> | null }).product_images ?? null;
-    const nestedCategories = (product as { categories?: Array<{ name?: string }> | { name?: string } | null }).categories ?? null;
-    const categoryName = Array.isArray(nestedCategories)
-      ? nestedCategories[0]?.name ?? "Uncategorized"
-      : nestedCategories?.name ?? "Uncategorized";
     const imageUrl = Array.isArray(nestedImages) ? nestedImages[0]?.image_url ?? null : null;
     const reviewMatches = matchesAdminReviewFilter(reviewFilter, {
       name: product.name,
@@ -78,11 +94,8 @@ export default async function AdminProductsPage({
   });
 
   const rows = filteredProducts.map((product) => {
-    const nestedCategories = (product as { categories?: Array<{ name?: string }> | { name?: string } | null }).categories ?? null;
     const nestedImages = (product as { product_images?: Array<{ image_url?: string | null }> | null }).product_images ?? null;
-    const categoryName = Array.isArray(nestedCategories)
-      ? nestedCategories[0]?.name ?? "Uncategorized"
-      : nestedCategories?.name ?? "Uncategorized";
+    const categoryName = categoryNameFromId(product.category_id, categoryRecords);
     const imageUrl = Array.isArray(nestedImages) ? nestedImages[0]?.image_url ?? null : null;
     return {
       id: product.id,
@@ -125,15 +138,32 @@ export default async function AdminProductsPage({
       </div>
 
       <p className="text-sm text-[#6b6b6b]">
-        Manage your store catalog, inventory, pricing and availability.
+        Manage your store catalog, inventory, pricing and availability. Category is taken from each product&apos;s assigned category, not from a shared heading.
       </p>
+
+      <nav aria-label="Product categories" className="flex flex-wrap gap-2">
+        {ADMIN_CATEGORY_TABS.map((tab) => {
+          const count = tab.slug === "all" ? tabCounts.all : tabCounts[tab.slug as "cosmetics" | "foods" | "ivoire-market"];
+          const active = categoryFilter === tab.slug || (tab.slug === "all" && categoryFilter === "all");
+          return (
+            <Link
+              className={`min-h-11 rounded-full px-4 py-2 text-sm font-semibold ${active ? "bg-[#173f35] text-white" : "border border-[#173f35]/15 bg-white text-[#173f35]"}`}
+              href={adminProductsHref({ ...hrefState, category: tab.slug })}
+              key={tab.slug}
+            >
+              {tab.label} ({count})
+            </Link>
+          );
+        })}
+      </nav>
+
       <p className="flex flex-wrap gap-x-3 gap-y-2 text-sm">
+        <Link className="font-semibold text-[#173f35] underline underline-offset-4" href={adminProductsHref({ ...hrefState, category: categoryFilter, status: "draft", review: "all" })}>Draft</Link>
+        <Link className="font-semibold text-[#173f35] underline underline-offset-4" href={adminProductsHref({ ...hrefState, category: categoryFilter, status: "active", review: "all" })}>Active</Link>
+        <Link className="font-semibold text-[#173f35] underline underline-offset-4" href={adminProductsHref({ ...hrefState, category: categoryFilter, inventory: "needs_pricing", review: "all" })}>Needs Price</Link>
         <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products?review=needs-review">Needs review</Link>
-        <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products?review=category">Needs category review</Link>
-        <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products?review=missing_price">Missing price</Link>
         <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products?review=missing_image">Missing image</Link>
         <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products?review=inventory">Inventory issue</Link>
-        <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products?review=draft">Draft</Link>
         <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products?review=coming_soon">Coming Soon</Link>
         <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products">All products</Link>
       </p>
@@ -199,7 +229,7 @@ export default async function AdminProductsPage({
             <select className="w-full rounded-xl border border-[#173f35]/15 bg-[#f9f7f3] px-3 py-2.5 text-[#173f35] outline-none transition focus:border-[#173f35]/35" defaultValue={categoryFilter} name="category">
               <option value="all">All Categories</option>
               {assignmentCategories.map((category) => (
-                <option key={category.id} value={category.id}>{category.name}</option>
+                <option key={category.id} value={category.slug}>{category.name}</option>
               ))}
             </select>
           </label>

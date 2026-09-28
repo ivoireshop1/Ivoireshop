@@ -21,14 +21,14 @@ export function AdminProductsManager({
   duplicateAction: (formData: FormData) => void | Promise<void>;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
-  const [targetSlug, setTargetSlug] = useState<(typeof CANONICAL_CATEGORIES)[number]["slug"]>("ivoire-market");
+  const [targetSlug, setTargetSlug] = useState<"" | (typeof CANONICAL_CATEGORIES)[number]["slug"]>("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const visibleIds = useMemo(() => products.map((product) => product.id), [products]);
   const allVisibleSelected = isVisibleSelectionComplete(selected, visibleIds);
-  const targetName = CANONICAL_CATEGORIES.find((category) => category.slug === targetSlug)?.name ?? "Ivoire Market";
+  const targetName = CANONICAL_CATEGORIES.find((category) => category.slug === targetSlug)?.name ?? "";
 
   function handleSelectedChange(id: string, next: boolean) {
     setSelected((current) => {
@@ -40,7 +40,7 @@ export function AdminProductsManager({
   }
 
   async function moveSelected() {
-    if (!selected.length || busy) return;
+    if (!selected.length || busy || !targetSlug) return;
     if (!window.confirm(bulkMoveConfirmation(selected.length, targetName))) return;
     setBusy(true);
     setError(null);
@@ -72,6 +72,7 @@ export function AdminProductsManager({
                   onChange={(event) => setTargetSlug(event.target.value as typeof targetSlug)}
                   value={targetSlug}
                 >
+                  <option value="">Choose category</option>
                   {CANONICAL_CATEGORIES.map((category) => (
                     <option key={category.slug} value={category.slug}>{category.name}</option>
                   ))}
@@ -79,7 +80,7 @@ export function AdminProductsManager({
               </label>
               <button
                 className="min-h-11 rounded-xl bg-[#173f35] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                disabled={busy}
+                disabled={busy || !targetSlug}
                 onClick={() => void moveSelected()}
                 type="button"
               >
