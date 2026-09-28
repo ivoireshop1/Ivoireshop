@@ -89,4 +89,20 @@ test("category tabs keep status filters", () => {
   assert.equal(adminProductsHref({ category: "all" }), "/admin/products");
 });
 
+test("Refresh stays on the current products view instead of clearing filters", () => {
+  const list = fs.readFileSync("app/admin/products/page.tsx", "utf8");
+  const button = fs.readFileSync("src/components/admin/admin-products-refresh-button.tsx", "utf8");
+  const actions = fs.readFileSync("src/lib/catalog/admin-actions.ts", "utf8");
+  assert.match(list, /AdminProductsRefreshButton/);
+  assert.doesNotMatch(list, /href="\/admin\/products"[\s\S]{0,80}Refresh/);
+  assert.match(button, /router\.refresh\(\)/);
+  assert.doesNotMatch(button, /window\.location/);
+  assert.doesNotMatch(button, /router\.(push|replace)\(/);
+  assert.match(button, /Refreshing\.\.\./);
+  assert.match(button, /Couldn\\u2019t refresh products\. Try again\./);
+  assert.match(button, /disabled=\{refreshing\}/);
+  assert.match(actions, /revalidatePath\("\/admin\/products"\)/);
+  assert.match(actions, /export async function refreshAdminProductsList/);
+});
+
 console.log(`${n} admin product list tests passed.`);

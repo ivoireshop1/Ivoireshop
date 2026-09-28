@@ -38,6 +38,12 @@ function revalidateStorefront(slug: string | null | undefined) {
   if (slug) revalidatePath(`/product/${slug}`);
 }
 
+export async function refreshAdminProductsList(): Promise<{ success: true } | { success: false; error: string }> {
+  await requireAdmin();
+  revalidatePath("/admin/products");
+  return { success: true };
+}
+
 export async function adminSetProductStatus(
   id: string,
   status: "active" | "sold_out" | "hidden",

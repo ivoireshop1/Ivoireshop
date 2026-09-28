@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminProductsManager } from "@/src/components/admin/admin-products-manager";
+import { AdminProductsRefreshButton } from "@/src/components/admin/admin-products-refresh-button";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { deleteProduct, duplicateProduct } from "@/src/lib/catalog/actions";
 import { matchesAdminReviewFilter } from "@/src/lib/catalog/admin-product-filters";
@@ -123,12 +124,7 @@ export default async function AdminProductsPage({
           <h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Products</h1>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Link
-            className="min-h-11 rounded-full border border-[#173f35]/10 bg-white px-4 py-2 text-sm font-medium text-[#173f35] shadow-sm transition hover:border-[#173f35]/20"
-            href="/admin/products"
-          >
-            Refresh
-          </Link>
+          <AdminProductsRefreshButton />
           <Link
             className="min-h-11 rounded-full border border-[#173f35]/10 bg-white px-4 py-2 text-sm font-medium text-[#173f35] shadow-sm transition hover:border-[#173f35]/20"
             href="/admin/products/catalog-controls"
