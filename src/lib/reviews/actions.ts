@@ -4,10 +4,7 @@ import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/server";
 import { reviewActionMessage } from "@/src/lib/reviews/errors";
-
-export type ReviewActionState = { error: string | null; success: boolean };
-
-export const initialReviewActionState: ReviewActionState = { error: null, success: false };
+import type { ReviewActionState } from "@/src/lib/reviews/public";
 
 function textValue(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();

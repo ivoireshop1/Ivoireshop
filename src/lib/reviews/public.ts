@@ -1,5 +1,9 @@
 export const REVIEW_SUBMITTED_MESSAGE = "Thank you. Your review was submitted for approval.";
 
+export type ReviewActionState = { error: string | null; success: boolean };
+
+export const initialReviewActionState: ReviewActionState = { error: null, success: false };
+
 export function isPublicReviewStatus(status: string | null | undefined) {
   return status === "published";
 }

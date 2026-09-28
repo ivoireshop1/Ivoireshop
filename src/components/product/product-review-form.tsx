@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { deleteProductReview, initialReviewActionState, saveProductReview } from "@/src/lib/reviews/actions";
-import { REVIEW_SUBMITTED_MESSAGE } from "@/src/lib/reviews/public";
+import { deleteProductReview, saveProductReview } from "@/src/lib/reviews/actions";
+import { initialReviewActionState, REVIEW_SUBMITTED_MESSAGE } from "@/src/lib/reviews/public";
 
 type Review = { rating: number; review_text: string | null; review_title?: string | null; status?: string | null } | null;
 

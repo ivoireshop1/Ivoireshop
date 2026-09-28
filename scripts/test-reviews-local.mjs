@@ -122,4 +122,10 @@ await test("admin update grant does not add a customer insert path", () => {
   assert.doesNotMatch(grantSql, /grant insert/i);
 });
 
+await test("review action module does not export a plain object", () => {
+  const source = fs.readFileSync("src/lib/reviews/actions.ts", "utf8");
+  assert.equal(/^export const /m.test(source), false);
+  assert.match(fs.readFileSync("src/lib/reviews/public.ts", "utf8"), /initialReviewActionState/);
+});
+
 console.log(`${n} review tests passed.`);
