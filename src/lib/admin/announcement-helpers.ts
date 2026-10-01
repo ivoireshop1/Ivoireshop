@@ -1,5 +1,21 @@
 export type AnnouncementStatus = "draft" | "scheduled" | "published" | "expired" | "archived";
 
+export type CustomerAnnouncement = {
+  id: string;
+  title: string;
+  message: string;
+  action_label: string | null;
+  action_href: string | null;
+  audience: string;
+  status: AnnouncementStatus;
+  starts_at: string | null;
+  ends_at: string | null;
+  published_at: string | null;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AnnouncementStatusSource = {
   status: AnnouncementStatus | string;
   starts_at: string | null;
@@ -21,6 +37,14 @@ export function sanitizeAnnouncementPath(value: string) {
   } catch {
     return null;
   }
+}
+
+export function toDatetimeLocalValue(iso: string | null | undefined) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 export function displayAnnouncementStatus(row: AnnouncementStatusSource, now = new Date()) {

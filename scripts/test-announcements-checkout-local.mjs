@@ -101,6 +101,23 @@ await test('admin money parser rejects negatives and keeps empty optional', () =
   assert.equal(miles.amount, 12.5);
 });
 
+await test('admin announcements page can render an empty list without treating it as a load failure', () => {
+  const page = fs.readFileSync('app/admin/announcements/page.tsx', 'utf8');
+  const manager = fs.readFileSync('src/components/admin/customer-announcement-manager.tsx', 'utf8');
+  const actions = fs.readFileSync('src/lib/admin/customer-announcement-actions.ts', 'utf8');
+  assert.match(manager, /No announcements yet/);
+  assert.match(manager, /Create Announcement/);
+  assert.match(page, /ADM-ANNOUNCEMENTS-LOAD/);
+  assert.doesNotMatch(page, /AdminSaveButton/);
+  assert.match(actions, /"use server"/);
+  assert.match(actions, /export async function createCustomerAnnouncement/);
+  assert.match(actions, /export async function updateCustomerAnnouncement/);
+  assert.match(actions, /export async function setCustomerAnnouncementStatus/);
+  const helpers = load('src/lib/admin/announcement-helpers.ts');
+  assert.equal(helpers.toDatetimeLocalValue(null), '');
+  assert.equal(helpers.toDatetimeLocalValue('not-a-date'), '');
+});
+
 await test('UPS appears from persisted settings without hiding USPS when show_at_checkout is false', () => {
   const delivery = load('src/lib/delivery/manual.ts');
   const settings = {
@@ -121,3 +138,5 @@ await test('UPS appears from persisted settings without hiding USPS when show_at
   const hidden = delivery.manualCarrierOptions({ ...settings, ups_show_at_checkout: false }, 'US', 20);
   assert.equal(hidden.some((option) => option.provider === 'ups'), false);
 });
+
+console.log(`${count} tests passed`);
