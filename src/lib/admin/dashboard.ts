@@ -1,4 +1,6 @@
 import { createClient } from "@/src/lib/supabase/server";
+import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
+import { parseTaxMode, taxModeLabel } from "@/src/lib/tax/totals";
 import { productMissingRequirements, productNeedsReview, productReadyToPublish } from "@/src/lib/catalog/product-readiness";
 import { describeStoreStatus, getStoreStatus } from "@/src/lib/store/status";
 import { startOfStoreDayIso, storeGreetingAt } from "@/src/lib/store/timezone";
@@ -57,7 +59,7 @@ export async function getAdminDashboardData() {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
   sevenDaysAgo.setHours(0, 0, 0, 0);
 
-  const [todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult, pendingReviewsResult, storeStatusRow, shippingOrdersResult, announcementsResult] =
+  const [todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult, pendingReviewsResult, storeStatusRow, shippingOrdersResult, announcementsResult, taxSettingsResult] =
     await Promise.all([
       supabase
         .from("orders")
@@ -80,6 +82,7 @@ export async function getAdminDashboardData() {
       getStoreStatus(),
       supabase.from("orders").select("id, status, fulfillment_provider, tracking_number"),
       supabase.from("customer_announcements").select("id, status, starts_at, ends_at, published_at, archived_at"),
+      supabase.from("store_settings").select("tax_mode").eq("id", STORE_SETTINGS_ID).maybeSingle(),
     ]);
 
   if ([todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult, shippingOrdersResult].some((result) => result.error)) {
@@ -293,6 +296,11 @@ export async function getAdminDashboardData() {
     pendingReviewCount,
     shippingCounts,
     announcementCounts,
+    taxStatus: {
+      mode: parseTaxMode(taxSettingsResult.data?.tax_mode),
+      label: taxModeLabel(parseTaxMode(taxSettingsResult.data?.tax_mode)),
+      required: parseTaxMode(taxSettingsResult.data?.tax_mode) === "not_configured",
+    },
   };
 }
 

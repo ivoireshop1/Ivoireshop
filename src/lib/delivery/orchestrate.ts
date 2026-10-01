@@ -50,6 +50,8 @@ export async function collectCheckoutOptions(input: {
     });
   }
 
+  const tax = taxSettingsFromRow(settings);
+  const subtotalCents = input.products.reduce((sum, product) => sum + safeUsdToCents(product.price) * product.quantity, 0);
   const destReady = Boolean(input.destination.address_line_1 && input.destination.city && input.destination.country);
   if (destReady && originIsComplete(origin) && settings?.doordash_enabled) {
     const quoted = await quoteDoorDash({ origin, destination: input.destination });
@@ -57,11 +59,9 @@ export async function collectCheckoutOptions(input: {
     options.push(...quoted.options.map((option) => ({ ...option, mode: "api" as const })));
   }
   if (destReady) {
-    options.push(...manualCarrierOptions(settings, input.destination.country));
+    options.push(...manualCarrierOptions(settings, input.destination.country, moneyFromCents(subtotalCents)));
   }
 
-  const tax = taxSettingsFromRow(settings);
-  const subtotalCents = input.products.reduce((sum, product) => sum + safeUsdToCents(product.price) * product.quantity, 0);
   const breakdowns: Record<string, { shipping: number; tax: number; total: number }> = {};
   for (const option of options) {
     const shippingCents = safeUsdToCents(option.amount);

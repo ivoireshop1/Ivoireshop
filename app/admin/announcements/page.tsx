@@ -26,7 +26,7 @@ export default async function AdminAnnouncementsPage({
         <p className="mt-2 max-w-2xl text-sm text-[#6b6b6b]">In-app notices for signed-in customers. Publishing does not email customers.</p>
       </div>
       {notices.error === "required" ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Title and message are required.</p> : null}
-      {notices.error === "href" ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Action URL must be a site path starting with /.</p> : null}
+      {notices.error === "href" ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Action destination must be a site path starting with / or an https URL.</p> : null}
       {notices.error === "save" ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">The announcement could not be saved.</p> : null}
       {notices.success === "saved" ? <p className="rounded-xl bg-[#173f35]/5 p-3 text-sm text-[#173f35]">Announcement saved.</p> : null}
 
@@ -43,7 +43,7 @@ export default async function AdminAnnouncementsPage({
         <label className="block text-sm">Message<textarea className="mt-2 min-h-28 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3 py-2" maxLength={4000} name="message" required /></label>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm">Action label (optional)<input className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3" name="action_label" placeholder="Read more" /></label>
-          <label className="block text-sm">Action path (optional)<input className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3" name="action_href" placeholder="/shop" /></label>
+          <label className="block text-sm">Action destination (optional)<input className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3" name="action_href" placeholder="/shop or https://" /></label>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm">Start / publish<input className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3" name="starts_at" type="datetime-local" /></label>

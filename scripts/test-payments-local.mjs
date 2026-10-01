@@ -238,9 +238,16 @@ await test('manual carrier options require configured charges', () => {
   const ups = manual.manualCarrierOptions({ ups_enabled: true, ups_domestic_enabled: true, ups_domestic_charge: 12.5 }, 'US');
   const intlOff = manual.manualCarrierOptions({ ups_enabled: true, ups_international_enabled: false, ups_international_charge: 40 }, 'CA');
   assert.equal(none.length, 0);
-  assert.equal(ups[0].label, 'UPS — Manual Shipping');
+  assert.equal(ups[0].label, 'UPS Shipping');
   assert.equal(ups[0].mode, 'manual');
   assert.equal(intlOff.length, 0);
+  const hidden = manual.manualCarrierOptions({ ups_enabled: true, ups_show_at_checkout: false, ups_domestic_enabled: true, ups_domestic_charge: 12.5 }, 'US');
+  assert.equal(hidden.length, 0);
+  const live = manual.manualCarrierOptions({ ups_enabled: true, ups_rate_mode: 'live_api', ups_domestic_enabled: true, ups_domestic_charge: 12.5 }, 'US');
+  assert.equal(live.length, 0);
+  const free = manual.manualCarrierOptions({ ups_enabled: true, ups_domestic_enabled: true, ups_domestic_charge: 12.5, ups_free_shipping_threshold: 20, ups_handling_fee: 1 }, 'US', 25);
+  assert.equal(free[0].amount, 1);
+  assert.equal(manual.shippingMargin(12.5, 9.1), 3.4);
 });
 
 await test('paid confirmation email includes stored tax line', () => {

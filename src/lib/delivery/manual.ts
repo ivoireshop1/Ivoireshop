@@ -1,6 +1,8 @@
 import { centsToUsdString } from "@/src/lib/payments/money";
 import type { DeliveryOption } from "./types";
 
+export type ShippingRateMode = "store_rate" | "manual_quote" | "live_api";
+
 export function isDomesticCountry(country?: string | null) {
   const value = (country ?? "").trim().toUpperCase();
   return value === "US" || value === "USA" || value === "UNITED STATES" || value === "UNITED STATES OF AMERICA";
@@ -13,47 +15,75 @@ export function parseCharge(value: unknown): number | null {
   return Number(Number(number).toFixed(2));
 }
 
-export function manualCarrierOptions(settings: Record<string, unknown> | null | undefined, destinationCountry?: string | null): DeliveryOption[] {
+export function parseRateMode(value: unknown): ShippingRateMode {
+  if (value === "manual_quote" || value === "live_api" || value === "store_rate") return value;
+  return "store_rate";
+}
+
+export function rateModeLabel(mode: ShippingRateMode) {
+  if (mode === "manual_quote") return "Manual Quote";
+  if (mode === "live_api") return "Live Carrier API";
+  return "Estimated / Store Rate";
+}
+
+export function checkoutShippingAmount(input: {
+  baseCharge: number;
+  handlingFee: number | null;
+  freeShippingThreshold: number | null;
+  subtotal: number;
+}) {
+  const waived = input.freeShippingThreshold != null && input.subtotal >= input.freeShippingThreshold;
+  const shipping = waived ? 0 : input.baseCharge;
+  return Number((shipping + (input.handlingFee ?? 0)).toFixed(2));
+}
+
+export function shippingMargin(collected: unknown, postage: unknown) {
+  const charge = parseCharge(collected);
+  const cost = parseCharge(postage);
+  if (charge == null || cost == null) return null;
+  return Number((charge - cost).toFixed(2));
+}
+
+export function manualCarrierOptions(
+  settings: Record<string, unknown> | null | undefined,
+  destinationCountry?: string | null,
+  subtotal = 0,
+): DeliveryOption[] {
   if (!destinationCountry?.trim()) return [];
   const international = !isDomesticCountry(destinationCountry);
   const options: DeliveryOption[] = [];
-  const add = (
-    enabledMaster: boolean,
-    zoneEnabled: boolean,
-    charge: unknown,
-    provider: "ups" | "usps",
-    zone: "domestic" | "international",
-  ) => {
-    if (!enabledMaster || !zoneEnabled) return;
-    const amount = parseCharge(charge);
-    if (amount == null) return;
-    const label = provider === "ups" ? "UPS — Manual Shipping" : "USPS — Manual Shipping";
+  const add = (carrier: "ups" | "usps") => {
+    const enabled = Boolean(settings?.[`${carrier}_enabled`]);
+    const show = settings?.[`${carrier}_show_at_checkout`] !== false;
+    const mode = parseRateMode(settings?.[`${carrier}_rate_mode`]);
+    if (!enabled || !show || mode === "live_api") return;
+    const zoneEnabled = international
+      ? Boolean(settings?.[`${carrier}_international_enabled`])
+      : Boolean(settings?.[`${carrier}_domestic_enabled`]);
+    if (!zoneEnabled) return;
+    const base = parseCharge(international ? settings?.[`${carrier}_international_charge`] : settings?.[`${carrier}_domestic_charge`]);
+    if (base == null) return;
+    const amount = checkoutShippingAmount({
+      baseCharge: base,
+      handlingFee: parseCharge(settings?.[`${carrier}_handling_fee`]),
+      freeShippingThreshold: parseCharge(settings?.[`${carrier}_free_shipping_threshold`]),
+      subtotal,
+    });
     options.push({
-      id: `${provider}:manual:${zone}`,
-      provider,
+      id: `${carrier}:manual:${international ? "international" : "domestic"}`,
+      provider: carrier,
       fulfillmentMethod: "delivery",
-      label,
+      label: carrier === "ups" ? "UPS Shipping" : "USPS Shipping",
       amount,
-      serviceCode: zone === "international" ? "manual-international" : "manual-domestic",
-      estimate: "Ivoire Shop shipping charge",
+      serviceCode: international ? "manual-international" : "manual-domestic",
+      estimate: mode === "manual_quote" ? "Ivoire Shop shipping charge" : "Estimated shipping",
       mode: "manual",
-      zone,
+      zone: international ? "international" : "domestic",
+      rateMode: mode,
     });
   };
-  add(
-    Boolean(settings?.ups_enabled),
-    international ? Boolean(settings?.ups_international_enabled) : Boolean(settings?.ups_domestic_enabled),
-    international ? settings?.ups_international_charge : settings?.ups_domestic_charge,
-    "ups",
-    international ? "international" : "domestic",
-  );
-  add(
-    Boolean(settings?.usps_enabled),
-    international ? Boolean(settings?.usps_international_enabled) : Boolean(settings?.usps_domestic_enabled),
-    international ? settings?.usps_international_charge : settings?.usps_domestic_charge,
-    "usps",
-    international ? "international" : "domestic",
-  );
+  add("ups");
+  add("usps");
   return options;
 }
 

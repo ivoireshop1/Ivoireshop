@@ -17,6 +17,8 @@ export function shippingMethodCopy(option: {
   provider: string;
   amount: number;
   mode?: string | null;
+  estimate?: string | null;
+  rateMode?: string | null;
 }) {
   const price = option.amount <= 0 ? "FREE" : `$${Number(option.amount).toFixed(2)}`;
   if (option.provider === "pickup") {
@@ -29,10 +31,10 @@ export function shippingMethodCopy(option: {
     return { title: "Local Delivery", subtitle: "Delivered by DoorDash", price };
   }
   if (option.provider === "usps") {
-    return { title: "USPS Shipping", subtitle: "Estimated shipping", price };
+    return { title: "USPS Shipping", subtitle: option.estimate || (option.rateMode === "manual_quote" ? "Ivoire Shop shipping charge" : "Estimated shipping"), price };
   }
   if (option.provider === "ups") {
-    return { title: "UPS Shipping", subtitle: "Estimated shipping", price };
+    return { title: "UPS Shipping", subtitle: option.estimate || (option.rateMode === "manual_quote" ? "Ivoire Shop shipping charge" : "Estimated shipping"), price };
   }
   return { title: "Shipping", subtitle: option.mode === "manual" ? "Ivoire Shop shipping charge" : "Delivery", price };
 }

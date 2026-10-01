@@ -22,7 +22,7 @@ export function CheckoutShippingMethods({
           const selected = value === option.id;
           return (
             <label
-              className={`flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 ${
+              className={`grid min-h-16 cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-x-3 rounded-2xl border px-3 py-3 sm:px-4 ${
                 selected ? "border-forest-green bg-forest-green/[0.06]" : "border-black/10 bg-white"
               }`}
               key={option.id}
@@ -36,24 +36,20 @@ export function CheckoutShippingMethods({
               />
               <span
                 aria-hidden="true"
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                className={`flex h-5 w-5 items-center justify-center rounded-full border ${
                   selected ? "border-forest-green" : "border-black/25"
                 }`}
               >
                 {selected ? <span className="h-2.5 w-2.5 rounded-full bg-forest-green" /> : null}
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-start justify-between gap-3">
-                  <span className="min-w-0">
-                    <span className="flex items-center gap-2 font-semibold text-forest-green">
-                      <ShippingIcon provider={option.provider} />
-                      <span className="min-w-0 break-words">{copy.title}</span>
-                    </span>
-                    <span className="mt-0.5 block text-sm text-muted">{copy.subtitle}</span>
-                  </span>
-                  <span className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-forest-green">{copy.price}</span>
+              <span className="min-w-0">
+                <span className="flex items-center gap-2 font-semibold text-forest-green">
+                  <ShippingIcon provider={option.provider} />
+                  <span className="min-w-0 break-words">{copy.title}</span>
                 </span>
+                <span className="mt-0.5 block text-sm text-muted">{copy.subtitle}</span>
               </span>
+              <span className="shrink-0 self-start whitespace-nowrap pt-0.5 text-sm font-semibold tabular-nums text-forest-green">{copy.price}</span>
             </label>
           );
         })}

@@ -36,7 +36,7 @@ async function test(name, fn) {
 }
 
 await test('tax label never uses mock GA 7%', () => {
-  assert.equal(tax.taxDisplayLabel({ tax_mode: 'not_configured', tax_rate_percent: null, tax_applies_to_shipping: false, tax_name: 'Tax' }), 'Tax');
+  assert.equal(tax.taxDisplayLabel({ tax_mode: 'not_configured', tax_rate_percent: null, tax_applies_to_shipping: false, tax_name: 'Tax' }), 'Tax (not configured)');
   assert.equal(tax.taxDisplayLabel({ tax_mode: 'manual_rate', tax_rate_percent: 8.25, tax_applies_to_shipping: true, tax_name: 'Sales tax' }), 'Sales tax (8.25%)');
   assert.equal(tax.taxDisplayLabel({ tax_mode: 'no_tax', tax_rate_percent: 7, tax_applies_to_shipping: false, tax_name: 'Tax' }), 'Tax');
 });
@@ -66,7 +66,9 @@ await test('shipping method copy matches locked checkout labels', () => {
 
 await test('announcement paths reject off-site URLs', () => {
   assert.equal(announcements.sanitizeAnnouncementPath('/shop'), '/shop');
-  assert.equal(announcements.sanitizeAnnouncementPath('https://evil.example'), null);
+  assert.equal(announcements.sanitizeAnnouncementPath('https://example.com/hours'), 'https://example.com/hours');
+  assert.equal(announcements.sanitizeAnnouncementPath('https://evil.example'), 'https://evil.example/');
+  assert.equal(announcements.sanitizeAnnouncementPath('javascript:alert(1)'), null);
   assert.equal(announcements.sanitizeAnnouncementPath('//evil.example'), null);
   assert.equal(announcements.sanitizeAnnouncementPath(''), null);
 });

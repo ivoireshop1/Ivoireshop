@@ -5,8 +5,9 @@ import { doordashCredentials } from "@/src/lib/delivery/credentials";
 import { checkDeliveryProviders, carrierOrderCounts } from "@/src/lib/delivery/actions";
 import { DeliveryOriginForm } from "@/src/components/admin/delivery-origin-form";
 import { ManualShippingForm } from "@/src/components/admin/manual-shipping-form";
-import { formatCharge } from "@/src/lib/delivery/manual";
-import { taxModeLabel, parseTaxMode } from "@/src/lib/tax/totals";
+import { formatCharge, parseRateMode, rateModeLabel } from "@/src/lib/delivery/manual";
+import { TaxSettingsForm } from "@/src/components/admin/tax-settings-form";
+import { parseTaxMode, taxModeLabel } from "@/src/lib/tax/totals";
 import Link from "next/link";
 
 export default async function AdminDeliveryPage() {
@@ -58,14 +59,14 @@ export default async function AdminDeliveryPage() {
         <section className="rounded-2xl bg-white p-5">
           <h2 className="font-semibold text-[#173f35]">UPS</h2>
           <p className="mt-2 text-sm text-[#6b6b6b]">Manual Shipping</p>
-          <p className="mt-4 text-sm font-medium text-[#173f35]">Manual Mode{settings?.ups_enabled ? "" : " · Off for checkout"}</p>
+          <p className="mt-4 text-sm font-medium text-[#173f35]">{rateModeLabel(parseRateMode(settings?.ups_rate_mode))}{settings?.ups_enabled && settings?.ups_show_at_checkout !== false ? "" : " · Hidden at checkout"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">Domestic: {settings?.ups_domestic_enabled ? formatCharge(settings.ups_domestic_charge) : "Off"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">International: {settings?.ups_international_enabled ? formatCharge(settings.ups_international_charge) : "Off"}</p>
         </section>
         <section className="rounded-2xl bg-white p-5">
           <h2 className="font-semibold text-[#173f35]">USPS</h2>
           <p className="mt-2 text-sm text-[#6b6b6b]">Manual Shipping</p>
-          <p className="mt-4 text-sm font-medium text-[#173f35]">Manual Mode{settings?.usps_enabled ? "" : " · Off for checkout"}</p>
+          <p className="mt-4 text-sm font-medium text-[#173f35]">{rateModeLabel(parseRateMode(settings?.usps_rate_mode))}{settings?.usps_enabled && settings?.usps_show_at_checkout !== false ? "" : " · Hidden at checkout"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">Domestic: {settings?.usps_domestic_enabled ? formatCharge(settings.usps_domestic_charge) : "Off"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">International: {settings?.usps_international_enabled ? formatCharge(settings.usps_international_charge) : "Off"}</p>
         </section>
@@ -87,14 +88,19 @@ export default async function AdminDeliveryPage() {
         </button>
       </form>
 
-      <section className="rounded-2xl bg-white p-5">
-        <h2 className="font-semibold text-[#173f35]">Tax</h2>
-        <p className="mt-2 text-sm text-[#6b6b6b]">{taxModeLabel(taxMode)}</p>
-        {taxMode === "not_configured" ? <p className="mt-2 text-sm text-[#7c5d1a]">Tax configuration required</p> : null}
-        <Link className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-[#173f35] underline" href="/admin/payments">
-          Open tax settings
-        </Link>
-      </section>
+      <TaxSettingsForm
+        appliesToShipping={Boolean(settings?.tax_applies_to_shipping)}
+        taxMode={settings?.tax_mode}
+        taxName={settings?.tax_name}
+        taxRate={settings?.tax_rate_percent}
+      />
+      {taxMode === "not_configured" ? (
+        <p className="rounded-xl border border-[#b8964c]/40 bg-white p-4 text-sm text-[#7c5d1a]">
+          Tax configuration required. Checkout shows Tax (not configured) and stores $0.00 tax until you choose No Tax or Manual Rate.
+        </p>
+      ) : (
+        <p className="text-sm text-[#6b6b6b]">Tax calculation method: {taxModeLabel(taxMode)}</p>
+      )}
 
       <ManualShippingForm settings={settings} />
       <DeliveryOriginForm

@@ -31,6 +31,7 @@ export function taxModeLabel(mode: TaxMode) {
 }
 
 export function taxDisplayLabel(tax: TaxSettings) {
+  if (tax.tax_mode === "not_configured") return "Tax (not configured)";
   if (tax.tax_mode === "manual_rate" && tax.tax_rate_percent != null && Number.isFinite(tax.tax_rate_percent)) {
     const rate = Number(tax.tax_rate_percent);
     const label = Number.isInteger(rate) ? String(rate) : String(rate);

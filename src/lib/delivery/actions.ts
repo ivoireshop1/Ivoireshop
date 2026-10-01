@@ -10,7 +10,7 @@ import { originFromSettings, originIsComplete } from "./origin";
 import { doordashCredentials } from "./credentials";
 import { verifyDoorDash } from "./providers/doordash";
 import { sanitizeProviderError } from "./types";
-import { parseCharge } from "./manual";
+import { parseCharge, parseRateMode } from "./manual";
 import { isCarrierOrder, validateCarrierTracking } from "./tracking";
 import { parseTaxMode } from "@/src/lib/tax/totals";
 import { notifyFulfillmentEmail } from "@/src/lib/communications/fulfillment-email";
@@ -79,27 +79,37 @@ export async function saveManualShipping(_prev: { error?: string } | null, formD
   const { supabase } = await requireAdmin();
   const values = {
     ups_enabled: formData.get("ups_enabled") === "on",
+    ups_show_at_checkout: formData.get("ups_show_at_checkout") === "on",
     ups_domestic_enabled: formData.get("ups_domestic_enabled") === "on",
     ups_international_enabled: formData.get("ups_international_enabled") === "on",
     ups_domestic_charge: parseCharge(formData.get("ups_domestic_charge")),
     ups_international_charge: parseCharge(formData.get("ups_international_charge")),
+    ups_handling_fee: parseCharge(formData.get("ups_handling_fee")),
+    ups_free_shipping_threshold: parseCharge(formData.get("ups_free_shipping_threshold")),
+    ups_rate_mode: parseRateMode(formData.get("ups_rate_mode")),
     usps_enabled: formData.get("usps_enabled") === "on",
+    usps_show_at_checkout: formData.get("usps_show_at_checkout") === "on",
     usps_domestic_enabled: formData.get("usps_domestic_enabled") === "on",
     usps_international_enabled: formData.get("usps_international_enabled") === "on",
     usps_domestic_charge: parseCharge(formData.get("usps_domestic_charge")),
     usps_international_charge: parseCharge(formData.get("usps_international_charge")),
+    usps_handling_fee: parseCharge(formData.get("usps_handling_fee")),
+    usps_free_shipping_threshold: parseCharge(formData.get("usps_free_shipping_threshold")),
+    usps_rate_mode: parseRateMode(formData.get("usps_rate_mode")),
     updated_at: new Date().toISOString(),
   };
-  if (values.ups_enabled && values.ups_domestic_enabled && values.ups_domestic_charge == null) {
+  const needsCharge = (enabled: boolean, show: boolean, mode: string, zoneOn: boolean, charge: number | null) =>
+    enabled && show && mode !== "live_api" && zoneOn && charge == null;
+  if (needsCharge(values.ups_enabled, values.ups_show_at_checkout, values.ups_rate_mode, values.ups_domestic_enabled, values.ups_domestic_charge)) {
     return { error: "Enter a UPS domestic shipping charge, or turn domestic UPS off." };
   }
-  if (values.ups_enabled && values.ups_international_enabled && values.ups_international_charge == null) {
+  if (needsCharge(values.ups_enabled, values.ups_show_at_checkout, values.ups_rate_mode, values.ups_international_enabled, values.ups_international_charge)) {
     return { error: "Enter a UPS international shipping charge, or turn international UPS off." };
   }
-  if (values.usps_enabled && values.usps_domestic_enabled && values.usps_domestic_charge == null) {
+  if (needsCharge(values.usps_enabled, values.usps_show_at_checkout, values.usps_rate_mode, values.usps_domestic_enabled, values.usps_domestic_charge)) {
     return { error: "Enter a USPS domestic shipping charge, or turn domestic USPS off." };
   }
-  if (values.usps_enabled && values.usps_international_enabled && values.usps_international_charge == null) {
+  if (needsCharge(values.usps_enabled, values.usps_show_at_checkout, values.usps_rate_mode, values.usps_international_enabled, values.usps_international_charge)) {
     return { error: "Enter a USPS international shipping charge, or turn international USPS off." };
   }
   const { error } = await supabase.from("store_settings").update(values).eq("id", STORE_SETTINGS_ID);
@@ -135,7 +145,7 @@ export async function saveOrderShipment(formData: FormData) {
   if (!id) redirect("/admin/orders?error=invalid_status");
   const { data: order, error: readError } = await supabase
     .from("orders")
-    .select("id, status, fulfillment_method, fulfillment_provider, tracking_number")
+    .select("id, status, fulfillment_method, fulfillment_provider, tracking_number, shipping_cost")
     .eq("id", id)
     .maybeSingle();
   if (readError || !order || !isCarrierOrder(order.fulfillment_provider)) {
@@ -143,7 +153,11 @@ export async function saveOrderShipment(formData: FormData) {
   }
   const checked = validateCarrierTracking(order.fulfillment_provider || "", trackingRaw);
   if (!checked.ok) redirect(`/admin/orders/${id}?error=invalid_tracking`);
+  const postageRaw = String(formData.get("postage_cost") ?? "").trim();
+  const postage = postageRaw ? parseCharge(postageRaw) : null;
+  if (postageRaw && postage == null) redirect(`/admin/orders/${id}?error=invalid_postage`);
   const patch: Record<string, unknown> = { tracking_number: checked.tracking };
+  if (postage != null) patch.postage_cost = postage;
   if (markShipped) {
     const allowed = ["pending", "confirmed", "processing", "shipped"].includes(order.status);
     if (!allowed) {

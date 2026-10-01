@@ -100,6 +100,11 @@ export async function DashboardOverview() {
         </div>
       </AdminCard>
 
+      <AdminCard title="Tax" action={<Link href="/admin/delivery" className="text-sm text-[#173f35] underline-offset-2 hover:underline">Tax settings</Link>}>
+        <p className="text-sm text-[#6b6b6b]">{dashboard.taxStatus.label}</p>
+        {dashboard.taxStatus.required ? <p className="mt-2 text-sm text-[#7c5d1a]">Tax configuration required</p> : null}
+      </AdminCard>
+
       <div className="grid gap-6 xl:grid-cols-[1.4fr_0.95fr]">
         <AdminCard title="Needs attention" action={<Link href="/admin/inventory" className="text-sm text-[#173f35] underline-offset-2 hover:underline">Review all</Link>}>
           <div className="space-y-3">

@@ -8,6 +8,7 @@ export type DeliveryOption = {
   estimate?: string;
   mode?: "manual" | "api";
   zone?: "domestic" | "international";
+  rateMode?: "store_rate" | "manual_quote" | "live_api";
 };
 
 export function sanitizeProviderError(raw: string) {

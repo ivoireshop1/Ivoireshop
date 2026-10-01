@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import type { CartItem } from "@/src/types/cart";
 import { shippingSummaryLabel } from "@/src/lib/delivery/labels";
+import type { TaxMode } from "@/src/lib/tax/totals";
 
 type SummaryItem = Pick<CartItem, "productId" | "name" | "quantity"> & Partial<Pick<CartItem, "price" | "image">>;
 
@@ -14,6 +15,7 @@ export function CheckoutOrderSummary({
   tax,
   total,
   taxLabel,
+  taxMode,
   provider,
   continueLabel,
   continueDisabled,
@@ -26,6 +28,7 @@ export function CheckoutOrderSummary({
   tax: number | null;
   total: number | null;
   taxLabel: string;
+  taxMode?: TaxMode | null;
   provider?: string | null;
   continueLabel: string;
   continueDisabled?: boolean;
@@ -37,45 +40,34 @@ export function CheckoutOrderSummary({
   const thumb = items.find((item) => item.image)?.image || items[0]?.image || "";
   const money = (value: number | null) => (value == null ? "—" : `$${value.toFixed(2)}`);
   return (
-    <section className="min-w-0 overflow-hidden rounded-2xl border border-black/10 bg-white p-4 sm:p-5">
+    <section className="min-w-0 rounded-2xl border border-black/10 bg-white p-3 sm:p-5">
       <h2 className="text-xl font-semibold text-forest-green">Order Summary</h2>
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)]">
-        <div className="flex min-w-0 items-start gap-3">
-          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[#eadfce]">
-            {thumb ? <Image alt="" className="object-cover" fill sizes="64px" src={thumb} /> : null}
+      <div className="mt-4 flex min-w-0 items-start gap-3">
+        <div className="w-[4.75rem] shrink-0 sm:w-[5.5rem]">
+          <div className="relative h-12 w-12 overflow-hidden rounded-xl bg-[#eadfce] sm:h-14 sm:w-14">
+            {thumb ? <Image alt="" className="object-cover" fill sizes="56px" src={thumb} /> : null}
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-forest-green">{count} item{count === 1 ? "" : "s"}</p>
-            <button className="mt-1 text-sm font-semibold text-forest-green underline underline-offset-4" onClick={() => setOpen((value) => !value)} type="button">
-              {open ? "Hide items" : "View items"}
-            </button>
-          </div>
+          <p className="mt-2 text-xs font-semibold leading-tight text-forest-green">{count} item{count === 1 ? "" : "s"}</p>
+          <button className="mt-1 text-left text-xs font-semibold text-forest-green underline underline-offset-2" onClick={() => setOpen((value) => !value)} type="button">
+            {open ? "Hide items" : "View items"}
+          </button>
         </div>
-        <dl className="min-w-0 space-y-2 text-sm">
-          <div className="flex justify-between gap-3">
-            <dt className="min-w-0">Subtotal</dt>
-            <dd className="shrink-0 tabular-nums">{money(subtotal)}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="min-w-0">{shippingSummaryLabel(provider)}</dt>
-            <dd className="shrink-0 tabular-nums">{money(shipping)}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="min-w-0">{taxLabel}</dt>
-            <dd className="shrink-0 tabular-nums">{money(tax)}</dd>
-          </div>
-          <div className="flex justify-between gap-3 font-semibold text-forest-green">
-            <dt>Total</dt>
-            <dd className="shrink-0 tabular-nums">{money(total)}</dd>
-          </div>
+        <dl className="min-w-0 flex-1 space-y-2 text-sm">
+          <MoneyRow label="Subtotal" value={money(subtotal)} />
+          <MoneyRow label={shippingSummaryLabel(provider)} value={money(shipping)} />
+          <MoneyRow label={taxLabel} value={money(tax)} />
+          <MoneyRow emphasize label="Total" value={money(total)} />
         </dl>
       </div>
+      {taxMode === "not_configured" ? (
+        <p className="mt-3 text-xs text-muted">Tax is not configured yet. This checkout does not collect a tax amount.</p>
+      ) : null}
       {open ? (
         <ul className="mt-4 space-y-2 border-t border-black/10 pt-3 text-sm">
           {items.map((item) => (
             <li className="flex justify-between gap-3" key={item.productId}>
               <span className="min-w-0 break-words">{item.name} × {item.quantity}</span>
-              <span className="shrink-0 tabular-nums">{item.price != null ? `$${(item.price * item.quantity).toFixed(2)}` : ""}</span>
+              <span className="shrink-0 whitespace-nowrap tabular-nums">{item.price != null ? `$${(item.price * item.quantity).toFixed(2)}` : ""}</span>
             </li>
           ))}
         </ul>
@@ -89,5 +81,14 @@ export function CheckoutOrderSummary({
         {continueLabel}
       </button>
     </section>
+  );
+}
+
+function MoneyRow({ label, value, emphasize }: { label: string; value: string; emphasize?: boolean }) {
+  return (
+    <div className={`flex items-baseline justify-between gap-2 ${emphasize ? "font-semibold text-forest-green" : ""}`}>
+      <dt className="min-w-0 truncate">{label}</dt>
+      <dd className="shrink-0 whitespace-nowrap tabular-nums">{value}</dd>
+    </div>
   );
 }

@@ -394,6 +394,7 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
               subtotal={displaySubtotal}
               tax={displayTax}
               taxLabel={taxLabel}
+              taxMode={taxSettings?.tax_mode}
               total={displayTotal}
               onContinue={goPayment}
             />
@@ -457,6 +458,7 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
               subtotal={displaySubtotal}
               tax={displayTax}
               taxLabel={taxLabel}
+              taxMode={taxSettings?.tax_mode}
               total={displayTotal}
             />
             <button className="text-sm font-semibold text-forest-green underline" onClick={() => setCheckoutStep("payment")} type="button">Back to payment</button>

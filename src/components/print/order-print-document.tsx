@@ -26,6 +26,7 @@ type PrintOrder = {
   shipping_cost: number | string;
   discount_amount: number | string;
   tax_amount?: number | string;
+  postage_cost?: number | string | null;
   total: number | string;
   tracking_number?: string | null;
   shipped_at?: string | null;
@@ -101,7 +102,16 @@ export function OrderPrintDocument({
       {kind === "packing-slip" ? (
         <p className="mt-2 text-xs">
           Item count: {items.reduce((sum, item) => sum + Number(item.quantity), 0)} · Carrier: {order.fulfillment_provider || "Not assigned"} · Method: {fulfillment}
+          {order.tracking_number ? ` · Tracking: ${order.tracking_number}` : ""}
         </p>
+      ) : null}
+
+      {kind === "packing-slip" ? (
+        <dl className="mt-6 ml-auto max-w-xs space-y-1 text-sm">
+          <div className="flex justify-between gap-6"><dt>Shipping collected</dt><dd>{money(order.shipping_cost)}</dd></div>
+          <div className="flex justify-between gap-6"><dt>Tax</dt><dd>{money(order.tax_amount)}</dd></div>
+          <div className="flex justify-between gap-6 font-semibold"><dt>Total</dt><dd>{money(order.total)}</dd></div>
+        </dl>
       ) : null}
 
       {kind !== "packing-slip" ? (
@@ -120,6 +130,7 @@ export function OrderPrintDocument({
           <p>Fulfillment: {fulfillment}</p>
           {order.fulfillment_provider ? <p>Carrier: {String(order.fulfillment_provider).toUpperCase()}</p> : null}
           {order.tracking_number ? <p className="break-all">Tracking: {order.tracking_number}</p> : null}
+          {order.postage_cost != null ? <p>Actual postage: {money(order.postage_cost)}</p> : null}
         </div>
       ) : null}
 
@@ -132,6 +143,8 @@ export function OrderPrintDocument({
           {order.customer_phone ? <p>Contact: {order.customer_phone}</p> : null}
           {externalId ? <p className="break-all">External reference: {externalId}</p> : null}
           {order.tracking_number ? <p className="break-all">Tracking: {order.tracking_number}</p> : tracking ? <p className="break-all">Tracking: {tracking}</p> : <p className="mt-2 text-xs">Tracking appears here after admin enters the carrier tracking number.</p>}
+          {order.postage_cost != null ? <p>Actual postage: {money(order.postage_cost)}</p> : null}
+          <p>Shipping collected: {money(order.shipping_cost)}</p>
           {order.shipped_at ? <p>Ship date: {new Date(order.shipped_at).toLocaleString()}</p> : null}
         </section>
       ) : null}
