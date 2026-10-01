@@ -13,6 +13,8 @@ const navigation = [
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/inventory", label: "Inventory" },
   { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/printing", label: "Printing" },
+  { href: "/admin/delivery", label: "Delivery" },
   { href: "/admin/payments", label: "Payments" },
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/reviews", label: "Reviews" },
@@ -24,6 +26,10 @@ const navigation = [
 export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  if (pathname.startsWith("/admin/print")) {
+    return <div className="min-h-screen bg-white text-black">{children}</div>;
+  }
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f7f1e8] text-[#1a1a1a]">
@@ -57,8 +63,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
                   href={item.href}
                   onClick={() => setMenuOpen(false)}
                   aria-current={current ? "page" : undefined}
-                  className={`flex min-h-11 items-center rounded-xl px-3 py-2.5 text-sm font-medium ${current ? "bg-[#173f35]/10 text-[#173f35]" : "text-[#173f35]"}`}
+                  className={`flex min-h-11 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium ${current ? "bg-[#173f35]/10 text-[#173f35]" : "text-[#173f35]"}`}
                 >
+                  {item.href === "/admin/printing" ? <PrinterIcon /> : null}
+                  {item.href === "/admin/delivery" ? <TruckIcon /> : null}
                   {item.label}
                 </Link>
                 );
@@ -75,5 +83,21 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function PrinterIcon() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24">
+      <path d="M7 8V4h10v4M7 16H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 12h10v8H7v-8Z" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function TruckIcon() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24">
+      <path d="M3 7h11v10H3V7Zm11 3h5l2 3v4h-7V10ZM7 20a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm10 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
   );
 }

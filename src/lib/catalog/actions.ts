@@ -10,6 +10,7 @@ import { uniqueProductSlug } from "@/src/lib/catalog/product-slug";
 import { nextOrderStatuses } from "@/src/lib/orders/status";
 import { notifyFulfillmentEmail } from "@/src/lib/communications/fulfillment-email";
 import { recordFulfillmentNotification } from "@/src/lib/notifications/record";
+import { parsePositive } from "@/src/lib/delivery/package";
 
 function textValue(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -328,6 +329,10 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
     is_new_arrival: isNewArrival,
     is_coming_soon: isComingSoon,
     needs_pricing: !hasCompletePricing,
+    ship_weight_lb: parsePositive(textValue(formData, "ship_weight_lb")),
+    ship_length_in: parsePositive(textValue(formData, "ship_length_in")),
+    ship_width_in: parsePositive(textValue(formData, "ship_width_in")),
+    ship_height_in: parsePositive(textValue(formData, "ship_height_in")),
   };
 
   const query = id

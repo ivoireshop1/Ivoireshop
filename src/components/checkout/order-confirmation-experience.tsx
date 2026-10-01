@@ -5,6 +5,7 @@ import { CopyConfirmationButton } from "./copy-confirmation-button";
 import type { CheckoutReceipt } from "@/src/lib/checkout/checkout-validation";
 import { maskEmail } from "@/src/lib/customer/mask-email";
 import { paymentProviderLabel, paymentStatusLabel } from "@/src/lib/orders/status";
+import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
 
 function firstName(name?: string) {
   const token = name?.trim().split(/\s+/)[0];
@@ -65,7 +66,7 @@ export function OrderConfirmationExperience({
       ) : null}
       <dl className="mt-8 space-y-3 rounded-2xl border border-black/10 bg-white/70 p-5 text-sm">
         <div className="flex justify-between gap-4"><dt className="shrink-0">Order number</dt><dd className="min-w-0 break-all text-right font-semibold text-forest-green">{receipt.order_number}</dd></div>
-        <div className="flex justify-between gap-4"><dt className="shrink-0">{pickup ? "Pickup" : "Delivery"}</dt><dd className="text-right text-forest-green">{pickup ? "Local pickup" : "Delivery"}</dd></div>
+        <div className="flex justify-between gap-4"><dt className="shrink-0">Fulfillment</dt><dd className="min-w-0 text-right text-forest-green">{fulfillmentDisplay(receipt)}</dd></div>
         <div className="flex justify-between gap-4"><dt className="shrink-0">Payment status</dt><dd className="min-w-0 text-right text-forest-green">{paymentStatusLabel(receipt.payment_status ?? "pending", receipt.payment_provider)}</dd></div>
         <div className="flex justify-between gap-4"><dt className="shrink-0">Payment method</dt><dd className="min-w-0 text-right text-forest-green">{paymentProviderLabel(receipt.payment_provider, receipt.payment_method)}</dd></div>
         <div className="flex justify-between gap-4"><dt className="shrink-0">Total</dt><dd className="text-right font-semibold text-forest-green">${Number(receipt.total).toFixed(2)}</dd></div>

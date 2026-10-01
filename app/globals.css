@@ -166,6 +166,31 @@ a {
     #f5f0e6;
 }
 
+@media print {
+  nav,
+  aside,
+  .no-print,
+  button.no-print {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  .print-sheet {
+    box-shadow: none !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+
+  @page {
+    margin: 0.6in;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

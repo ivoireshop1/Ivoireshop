@@ -30,6 +30,7 @@ export type AdminProductRowData = {
   hasCategory: boolean;
   isFeatured: boolean;
   trackInventory?: boolean;
+  shippingReady?: boolean;
 };
 
 function toNullableNumber(value: number | string | null | undefined) {
@@ -252,6 +253,7 @@ export function AdminProductRow({
         ) : (
           <p className="mt-1 rounded-lg border border-[#173f35]/10 bg-white px-3 py-2 text-sm text-[#173f35]">Inventory not tracked</p>
         )}
+        <p className="mt-1 text-xs text-[#6b6b6b]">{product.shippingReady ? "Shipping ready" : "Missing package data"}</p>
       </label>
 
       <div className="mt-4 lg:mt-0">

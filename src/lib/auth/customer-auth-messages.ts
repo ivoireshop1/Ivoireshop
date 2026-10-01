@@ -28,6 +28,10 @@ export function mapAuthCallbackQueryError(error: string | null, errorCode: strin
   return "invalid";
 }
 
+export const RATE_LIMIT_TITLE = "That inbox has been busy 💌";
+export const RATE_LIMIT_BODY =
+  "We've sent several confirmation requests recently. Give it a little time before requesting another email. If you already received one, use the newest valid confirmation email in your inbox.";
+
 export function publicAuthActionMessage(raw: string | null | undefined) {
   const text = (raw ?? "").toLowerCase();
   if (!text) return "Something went wrong. Please try again.";
@@ -38,8 +42,8 @@ export function publicAuthActionMessage(raw: string | null | undefined) {
   if (text.includes("already registered") || text.includes("already been registered") || text.includes("user already exists")) {
     return "An account with this email already exists. Sign in, or reset your password if you forgot it.";
   }
-  if (text.includes("rate limit") || text.includes("too many")) {
-    return "Too many attempts. Please wait a moment and try again.";
+  if (text.includes("rate limit") || text.includes("too many") || text.includes("over_email_send_rate_limit")) {
+    return RATE_LIMIT_BODY;
   }
   return "We could not complete that request. Please try again.";
 }

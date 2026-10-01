@@ -4,7 +4,9 @@ import { notFound } from "next/navigation";
 import { updateOrderStatus } from "@/src/lib/catalog/actions";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { CopyConfirmationButton } from "@/src/components/checkout/copy-confirmation-button";
+import { AdminOrderPrintControl } from "@/src/components/admin/admin-order-print-control";
 import { getEmailProviderStatus } from "@/src/lib/email/send";
+import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
 
 export default async function OrderDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; success?: string }> }) {
   const [{ id }, notices] = await Promise.all([params, searchParams]);
@@ -25,6 +27,7 @@ export default async function OrderDetailPage({ params, searchParams }: { params
         <h1 className="mt-2 break-words text-3xl font-semibold text-[#173f35]">{order.order_number}</h1>
         <p className="mt-2 text-sm capitalize">{orderStatusLabel(order.status, order.fulfillment_method)} &middot; {new Date(order.created_at).toLocaleString()}</p>
       </div>
+      <AdminOrderPrintControl orderId={order.id} />
       <section className="rounded-2xl border border-[#b8964c]/40 bg-white p-5">
         <p className="text-[11px] uppercase tracking-[0.2em] text-[#b8964c]">Confirmation Code</p>
         <p className="mt-2 break-all font-mono text-3xl tracking-[0.18em] text-[#173f35]">{order.confirmation_code}</p>
@@ -53,7 +56,10 @@ export default async function OrderDetailPage({ params, searchParams }: { params
           <input name="id" type="hidden" value={order.id} />
           <input name="expected_status" type="hidden" value={order.status} />
           <h2 className="font-semibold text-[#173f35]">Fulfillment</h2>
-          <p className="mt-3 text-sm">{order.fulfillment_method === "local_pickup" ? "Local pickup" : "Delivery"}</p>
+          <p className="mt-3 text-sm">{fulfillmentDisplay(order)}</p>
+          {order.fulfillment_service && order.fulfillment_provider ? (
+            <p className="mt-2 break-words text-sm text-[#6b6b6b]">Service snapshot: {order.fulfillment_service}</p>
+          ) : null}
           {order.fulfillment_method === "delivery" && (
             <address className="mt-3 whitespace-pre-line text-sm not-italic text-[#6b6b6b]">
               {[order.shipping_address?.address_line_1, order.shipping_address?.address_line_2, order.shipping_address?.city, order.shipping_address?.state, order.shipping_address?.postal_code, order.shipping_address?.country].filter(Boolean).join("\n")}

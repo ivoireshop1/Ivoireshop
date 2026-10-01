@@ -33,7 +33,7 @@ export default async function AdminProductsPage({
     supabase.from("categories").select("id, name, slug, is_active").order("name"),
     supabase
       .from("products")
-      .select("id, name, slug, price, stock_quantity, track_inventory, is_active, is_featured, is_coming_soon, needs_pricing, needs_category_review, created_at, category_id, product_images(image_url, position)")
+      .select("id, name, slug, price, stock_quantity, track_inventory, is_active, is_featured, is_coming_soon, needs_pricing, needs_category_review, created_at, category_id, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in, product_images(image_url, position)")
       .order("created_at", { ascending: false }),
   ]);
 
@@ -113,6 +113,7 @@ export default async function AdminProductsPage({
       isFeatured: product.is_featured,
       hasImage: Boolean(imageUrl && isPersistentImageUrl(imageUrl)),
       hasCategory: Boolean(product.category_id) && categoryName !== "Uncategorized",
+      shippingReady: Boolean(product.ship_weight_lb && product.ship_length_in && product.ship_width_in && product.ship_height_in),
     };
   });
 

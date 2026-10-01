@@ -5,7 +5,7 @@ import { orderStatusLabel, paymentProviderLabel, paymentStatusLabel } from "@/sr
 import { SmartBackButton } from "@/src/components/navigation/smart-back-button";
 import { ReorderButton } from "@/src/components/customer/reorder-button";
 import { CopyConfirmationButton } from "@/src/components/checkout/copy-confirmation-button";
-import { fulfillmentLabel } from "@/src/lib/fulfillment/fulfillment";
+import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
 import { markOrderNotificationsSeen } from "@/src/lib/notifications/queries";
 
 export default async function CustomerOrderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -35,7 +35,7 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
         </section>
       ) : null}
       <p className="mt-3 text-muted">
-        {new Date(order.created_at).toLocaleDateString()} · {orderStatusLabel(order.status, order.fulfillment_method)} · {fulfillmentLabel(order.fulfillment_method)}
+        {new Date(order.created_at).toLocaleDateString()} · {orderStatusLabel(order.status, order.fulfillment_method)} · {fulfillmentDisplay(order)}
       </p>
 
       <p className="mt-3 text-muted">

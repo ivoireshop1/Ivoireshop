@@ -28,6 +28,10 @@ export type ProductValues = {
   is_featured?: boolean;
   is_new_arrival?: boolean;
   is_coming_soon?: boolean;
+  ship_weight_lb?: number | string | null;
+  ship_length_in?: number | string | null;
+  ship_width_in?: number | string | null;
+  ship_height_in?: number | string | null;
   product_images?: Array<{ id?: string; image_url?: string | null; position?: number }>;
 };
 
@@ -80,6 +84,10 @@ export function ProductForm({
       : "",
   );
   const [trackInventory, setTrackInventory] = useState(product?.track_inventory !== false);
+  const [shipWeight, setShipWeight] = useState(product?.ship_weight_lb != null ? String(product.ship_weight_lb) : "");
+  const [shipLength, setShipLength] = useState(product?.ship_length_in != null ? String(product.ship_length_in) : "");
+  const [shipWidth, setShipWidth] = useState(product?.ship_width_in != null ? String(product.ship_width_in) : "");
+  const [shipHeight, setShipHeight] = useState(product?.ship_height_in != null ? String(product.ship_height_in) : "");
 
   // 3. Status & Featured State (independent)
   const [isActive, setIsActive] = useState(product?.is_active ?? false);
@@ -317,6 +325,10 @@ export function ProductForm({
     } else {
       formData.set("stock_quantity", "");
     }
+    formData.set("ship_weight_lb", shipWeight);
+    formData.set("ship_length_in", shipLength);
+    formData.set("ship_width_in", shipWidth);
+    formData.set("ship_height_in", shipHeight);
     formData.set("status", willBeActive ? "active" : "hidden");
     formData.set("save_as_draft", saveAsDraft ? "true" : "false");
     if (isFeatured) {
@@ -599,6 +611,17 @@ export function ProductForm({
                 Inventory is not tracked for this product.
               </p>
             )}
+          </section>
+
+          <section className="space-y-4 rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-5">
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#b8964c]">Shipping information</p>
+            <p className="text-xs text-[#6b6b6b]">Required for UPS/USPS rate quotes. Leave blank for pickup-only products. Units: pounds and inches. Missing package data is never invented.</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-sm">Weight (lb)<input className="mt-2 min-h-11 w-full rounded-xl border border-[#173f35]/15 bg-white px-3" min="0" onChange={(e) => setShipWeight(e.target.value)} step="0.01" type="number" value={shipWeight} /></label>
+              <label className="text-sm">Length (in)<input className="mt-2 min-h-11 w-full rounded-xl border border-[#173f35]/15 bg-white px-3" min="0" onChange={(e) => setShipLength(e.target.value)} step="0.1" type="number" value={shipLength} /></label>
+              <label className="text-sm">Width (in)<input className="mt-2 min-h-11 w-full rounded-xl border border-[#173f35]/15 bg-white px-3" min="0" onChange={(e) => setShipWidth(e.target.value)} step="0.1" type="number" value={shipWidth} /></label>
+              <label className="text-sm">Height (in)<input className="mt-2 min-h-11 w-full rounded-xl border border-[#173f35]/15 bg-white px-3" min="0" onChange={(e) => setShipHeight(e.target.value)} step="0.1" type="number" value={shipHeight} /></label>
+            </div>
           </section>
 
           {/* Section 4: Product Images (File Upload + URL Fallback) */}

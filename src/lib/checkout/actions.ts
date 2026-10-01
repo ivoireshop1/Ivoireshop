@@ -6,6 +6,8 @@ import { checkoutFailure, validateCheckout, type CheckoutReceipt, type CheckoutR
 import { STORE_CLOSED_MESSAGE, STORE_SETTINGS_ID } from "@/src/lib/store/constants";
 import { trySendOrderConfirmation } from "@/src/lib/communications/send-confirmation";
 import { recordCheckoutNotifications } from "@/src/lib/notifications/record";
+import { collectCheckoutOptions, optionToSnapshot } from "@/src/lib/delivery/orchestrate";
+import { createAdminClient } from "@/src/lib/supabase/admin";
 
 export async function placeCheckoutOrder(input: unknown): Promise<CheckoutResponse> {
   const validated = validateCheckout(input);
@@ -16,6 +18,24 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
     const { data: store } = await supabase.from("store_settings").select("is_open").eq("id", STORE_SETTINGS_ID).maybeSingle();
     if (store && store.is_open === false) {
       return { success: false, error: STORE_CLOSED_MESSAGE, retrySame: false };
+    }
+    const { data: catalog } = await supabase
+      .from("products")
+      .select("id, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in")
+      .in("id", request.items.map((item) => item.product_id));
+    const byId = new Map((catalog ?? []).map((row) => [row.id, row]));
+    const quotes = await collectCheckoutOptions({
+      destination: request.address,
+      products: request.items.map((item) => ({ quantity: item.quantity, ...byId.get(item.product_id) })),
+    });
+    const selectedId = request.deliveryOptionId || (request.fulfillmentMethod === "local_pickup" ? "pickup" : "store");
+    const selected = quotes.options.find((option) => option.id === selectedId);
+    if (!selected || selected.fulfillmentMethod !== request.fulfillmentMethod) {
+      return { success: false, error: "Choose an available pickup or delivery option.", retrySame: false };
+    }
+    const admin = createAdminClient();
+    if (selected.amount > 0 && !admin) {
+      return { success: false, error: "Carrier shipping is not fully configured yet. Choose pickup or store-arranged delivery.", retrySame: false };
     }
     const { data, error } = await supabase.rpc("create_checkout_order", {
       p_items: request.items,
@@ -29,6 +49,19 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
     if (error) return checkoutFailure(error.code, error.message);
     const row = Array.isArray(data) ? data[0] : null;
     if (!row?.order_id || !row.order_number || !row.status || !Number.isFinite(Number(row.total)) || Number(row.total) < 0) return checkoutFailure();
+    if (admin) {
+      const subtotal = Number(row.total);
+      const shipping = selected.amount;
+      const total = Number((subtotal + shipping).toFixed(2));
+      await admin.from("orders").update({
+        shipping_cost: shipping,
+        total,
+        fulfillment_provider: selected.provider,
+        fulfillment_service: selected.serviceCode || selected.label,
+        delivery_snapshot: optionToSnapshot(selected),
+      }).eq("id", row.order_id);
+      row.total = total;
+    }
     let user = null;
     try {
       const auth = await supabase.auth.getUser();
@@ -49,6 +82,8 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
       payment_provider: row.payment_provider ? String(row.payment_provider) : null,
       email_sent: false,
       account_order: Boolean(user),
+      fulfillment_provider: selected.provider,
+      fulfillment_service: selected.serviceCode || selected.label,
     };
     let emailSent = false;
     try {

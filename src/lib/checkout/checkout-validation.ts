@@ -5,6 +5,7 @@
   customerPhone: string;
   address: { address_line_1?: string; address_line_2?: string; city?: string; state?: string; postal_code?: string; country?: string };
   fulfillmentMethod: "delivery" | "local_pickup";
+  deliveryOptionId?: string;
   idempotencyKey: string;
 };
 export type CheckoutReceipt = {
@@ -22,6 +23,8 @@ export type CheckoutReceipt = {
   payment_provider?: string | null;
   email_sent?: boolean;
   account_order?: boolean;
+  fulfillment_provider?: string;
+  fulfillment_service?: string;
 };
 export type CheckoutResponse = { success: true; receipt: CheckoutReceipt } | { success: false; error: string; retrySame: boolean };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -38,6 +41,7 @@ export function validateCheckout(input: unknown): { request: CheckoutRequest; er
   }
   const fulfillmentMethod = value.fulfillmentMethod;
   if (fulfillmentMethod !== "delivery" && fulfillmentMethod !== "local_pickup") return { error: "Choose delivery or pickup." };
+  const deliveryOptionId = typeof value.deliveryOptionId === "string" && value.deliveryOptionId.length <= 80 ? value.deliveryOptionId.trim() : "";
   const rawAddress = value.address && typeof value.address === "object" ? value.address as Record<string, unknown> : {};
   const address: CheckoutRequest["address"] = {};
   for (const key of ["address_line_1", "address_line_2", "city", "state", "postal_code", "country"] as const) {
@@ -55,7 +59,7 @@ export function validateCheckout(input: unknown): { request: CheckoutRequest; er
     if (quantity > 2147483647) return { error: "The requested quantity is too large." };
     quantities.set(item.product_id, quantity);
   }
-  return { request: { customerName, customerEmail, customerPhone, address, fulfillmentMethod, idempotencyKey: text("idempotencyKey", 36), items: [...quantities].sort(([a], [b]) => a.localeCompare(b)).map(([product_id, quantity]) => ({ product_id, quantity })) } };
+  return { request: { customerName, customerEmail, customerPhone, address, fulfillmentMethod, deliveryOptionId: deliveryOptionId || undefined, idempotencyKey: text("idempotencyKey", 36), items: [...quantities].sort(([a], [b]) => a.localeCompare(b)).map(([product_id, quantity]) => ({ product_id, quantity })) } };
 }
 
 export function checkoutFailure(code?: string, message?: string): CheckoutResponse {

@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { updateInventory } from "@/src/lib/catalog/actions";
 import { toOneRelation } from "@/src/lib/catalog/relation-utils";
+import { isLowStock } from "@/src/lib/catalog/low-stock";
 
 export default async function AdminInventoryPage({ searchParams }: { searchParams: Promise<{ search?: string; low?: string; error?: string; success?: string }> }) {
   const params = await searchParams;
@@ -13,7 +14,7 @@ export default async function AdminInventoryPage({ searchParams }: { searchParam
   if (error) throw new Error("Unable to load inventory.");
   const query = (params.search ?? "").toLowerCase();
   const items = (products ?? []).filter((product) =>
-    (!params.low || (Number(product.stock_quantity) > 0 && Number(product.stock_quantity) <= 5)) &&
+    (!params.low || isLowStock(product.track_inventory, product.stock_quantity)) &&
     (!query || product.name.toLowerCase().includes(query) || (product.sku ?? "").toLowerCase().includes(query)),
   );
 
@@ -34,7 +35,7 @@ export default async function AdminInventoryPage({ searchParams }: { searchParam
         const category = toOneRelation(product.categories as { name?: string } | { name?: string }[] | null)?.name ?? "Uncategorized";
         const tracked = product.track_inventory !== false;
         const stock = Number(product.stock_quantity);
-        const state = !tracked ? "Inventory not tracked" : stock === 0 ? "Out of stock" : stock <= 5 ? "Low stock" : "In stock";
+        const state = !tracked ? "Inventory not tracked" : stock === 0 ? "Out of stock" : isLowStock(true, stock) ? "Low stock" : "In stock";
         return <form action={updateInventory} className="grid items-center gap-3 rounded-2xl border border-[#173f35]/10 bg-white p-4 md:grid-cols-[1.4fr_0.8fr_0.7fr_0.8fr]" key={product.id}>
           <input name="id" type="hidden" value={product.id} />
           <div><p className="font-medium text-[#173f35]">{product.name}</p><p className="text-xs text-[#6b6b6b]">{category}{product.sku ? ` · ${product.sku}` : ""}</p></div>

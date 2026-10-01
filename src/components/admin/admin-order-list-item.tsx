@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { orderStatusLabel, paymentStatusLabel } from "@/src/lib/orders/status";
+import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
 
 export type AdminOrderListItemData = {
   id: string;
@@ -13,6 +14,8 @@ export type AdminOrderListItemData = {
   payment_status: string;
   payment_provider: string | null;
   fulfillment_method: string | null;
+  fulfillment_provider?: string | null;
+  fulfillment_service?: string | null;
   created_at: string;
 };
 
@@ -86,8 +89,8 @@ export function AdminOrderListItem({ order }: { order: AdminOrderListItemData })
       </Field>
       <Field label="Fulfillment">
         <p className="text-[#173f35]">{orderStatusLabel(order.status, fulfillment)}</p>
-        <p className="mt-1 text-sm capitalize leading-5 text-[#6b6b6b]">
-          {order.fulfillment_method?.replaceAll("_", " ")}
+        <p className="mt-1 text-sm leading-5 text-[#6b6b6b]">
+          {fulfillmentDisplay(order)}
         </p>
       </Field>
       <Field label="Date">

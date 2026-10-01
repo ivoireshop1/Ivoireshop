@@ -10,6 +10,7 @@ import { validateCheckout, type CheckoutReceipt } from "@/src/lib/checkout/check
 import { readCheckoutAttempt, storeCheckoutAttempt, forgetCheckoutAttempt, type CheckoutAttempt } from "@/src/lib/checkout/checkout-session";
 import { STORE_CLOSED_MESSAGE } from "@/src/lib/store/constants";
 import { FulfillmentMethodCards } from "@/src/components/checkout/fulfillment-method-cards";
+import { CheckoutDeliveryOptions } from "@/src/components/checkout/checkout-delivery-options";
 import { useFulfillmentMethod } from "@/src/lib/fulfillment/use-fulfillment-method";
 import { PaymentMethodCards, type CheckoutPaymentProvider } from "@/src/components/checkout/payment-method-cards";
 import { SquareCardFields } from "@/src/components/checkout/square-card-fields";
@@ -27,6 +28,7 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
   const [confirmation, setConfirmation] = useState<CheckoutAttempt | null>(null);
   const [emailSent, setEmailSent] = useState(false);
   const [fulfillmentMethod] = useFulfillmentMethod();
+  const [deliveryOptionId, setDeliveryOptionId] = useState("");
   const [attempt, setAttempt] = useState<CheckoutAttempt | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentProvider | null>(
@@ -110,7 +112,9 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
       items: items.map(({ productId, quantity }) => ({ product_id: productId, quantity })),
       customerName: value("customerName"), customerEmail: value("customerEmail"), customerPhone: value("customerPhone"),
       address: { address_line_1: value("addressLine1"), address_line_2: value("addressLine2"), city: value("city"), state: value("state"), postal_code: value("postalCode"), country: value("country") },
-      fulfillmentMethod, idempotencyKey: crypto.randomUUID(),
+      fulfillmentMethod,
+      deliveryOptionId: value("deliveryOptionId") || deliveryOptionId || (fulfillmentMethod === "local_pickup" ? "pickup" : "store"),
+      idempotencyKey: crypto.randomUUID(),
     };
     const validated = validateCheckout(candidate);
     if (validated.error) { setError(validated.error); return; }
@@ -175,7 +179,9 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
       items: items.map(({ productId, quantity }) => ({ product_id: productId, quantity })),
       customerName: value("customerName"), customerEmail: value("customerEmail"), customerPhone: value("customerPhone"),
       address: { address_line_1: value("addressLine1"), address_line_2: value("addressLine2"), city: value("city"), state: value("state"), postal_code: value("postalCode"), country: value("country") },
-      fulfillmentMethod, idempotencyKey: crypto.randomUUID(),
+      fulfillmentMethod,
+      deliveryOptionId: value("deliveryOptionId") || deliveryOptionId || (fulfillmentMethod === "local_pickup" ? "pickup" : "store"),
+      idempotencyKey: crypto.randomUUID(),
     };
     const validated = validateCheckout(candidate);
     if (validated.error) throw new Error(validated.error);
@@ -271,6 +277,12 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
           <fieldset className="space-y-4 border-t border-black/10 pt-6">
             <legend className="font-semibold text-forest-green">Fulfillment</legend>
             <FulfillmentMethodCards />
+            <CheckoutDeliveryOptions
+              fulfillmentMethod={fulfillmentMethod}
+              items={items.map(({ productId, quantity }) => ({ product_id: productId, quantity }))}
+              value={deliveryOptionId}
+              onChange={setDeliveryOptionId}
+            />
           </fieldset>
 
           {fulfillmentMethod === "delivery" ? (

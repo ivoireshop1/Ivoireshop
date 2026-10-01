@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import { createHmac } from 'node:crypto';
 import ts from 'typescript';
 let rpcResult, rpcCalls, cachePaths, throwNetwork=false, cacheFailure=false, storeOpen=true, signedIn=false, throwNotification=false;
 const local=new Map(),session=new Map();
@@ -14,17 +15,19 @@ function load(file){
  const require=id=>{
   if(id==='next/cache')return {revalidatePath(p){if(cacheFailure)throw Error('cache');cachePaths.push(p)}};
   if(id==='server-only')return {};
+  if(id==='node:crypto')return { createHmac, randomUUID: () => '00000000-0000-4000-8000-000000000099' };
+  if(id==='@/src/lib/supabase/admin')return {createAdminClient:()=>null};
   if(id==='@/src/lib/communications/send-confirmation')return {trySendOrderConfirmation:async()=>false};
   if(id==='@/src/lib/supabase/server')return {createClient:async()=>({
     auth:{getUser:async()=>({data:{user:signedIn?{id:'30000000-0000-4000-8000-000000000001'}:null}})},
-    from(){return {select(){return this},eq(){return this},maybeSingle:async()=>({data:{is_open:storeOpen}})}},
+    from(){return {select(){return this},eq(){return this},in(){return this},maybeSingle:async()=>({data:{is_open:storeOpen,pickup_enabled:true,store_delivery_enabled:true}}),then(resolve){resolve({data:[]});}}},
     rpc:async(name,args)=>{rpcCalls.push({name,args});if(throwNetwork)throw Error('network');if(name==='create_customer_order_notification'){if(throwNotification)throw Error('notify');return {data:true,error:null};}return rpcResult;},
   })};
   if(id.startsWith('@/'))return load(id.slice(2)+'.ts');
   if(id.startsWith('.'))return load(path.resolve(path.dirname(file),id)+'.ts');
   throw Error(id);
  };
- vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{exports,require,URL,URLSearchParams,window,sessionStorage:storage(session),console,process},{filename:file});
+ vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{exports,require,URL,URLSearchParams,window,sessionStorage:storage(session),console,process,Buffer,fetch:async()=>({ok:false,status:501,json:async()=>({})})},{filename:file});
  cache.set(file,exports);return exports;
 }
 const {placeCheckoutOrder}=load('src/lib/checkout/actions.ts');

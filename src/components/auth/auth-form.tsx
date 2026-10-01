@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "@/src/lib/supabase/browser";
 import { useRouter } from "next/navigation";
 import { resolveAuthRedirectTarget } from "@/src/lib/navigation/smart-navigation";
 import { resolvePostLoginPath } from "@/src/lib/auth/post-login";
 import { getAuthCallbackUrl } from "@/src/lib/site";
-import { customerAuthPageCopy, publicAuthActionMessage } from "@/src/lib/auth/customer-auth-messages";
+import { customerAuthPageCopy, publicAuthActionMessage, RATE_LIMIT_BODY, RATE_LIMIT_TITLE } from "@/src/lib/auth/customer-auth-messages";
+import { PENDING_SIGNUP_EMAIL_KEY, RESEND_CONFIRM_AT_KEY } from "@/src/lib/auth/mask-email";
+import { isAuthRateLimited, remainingResendMs, resendCooldownLabel } from "@/src/lib/auth/resend-cooldown";
 
 type AuthMode = "login" | "signup" | "reset" | "update-password";
 
@@ -33,8 +35,23 @@ export default function AuthForm({
   const [fullName, setFullName] = useState("");
   const [message, setMessage] = useState(loginCopy?.body ?? "");
   const [resendHint, setResendHint] = useState(Boolean(loginCopy?.resend));
+  const [rateLimited, setRateLimited] = useState(false);
+  const [resendWaitMs, setResendWaitMs] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (resendWaitMs <= 0) return;
+    const timer = window.setInterval(() => {
+      try {
+        const last = Number(sessionStorage.getItem(RESEND_CONFIRM_AT_KEY) ?? 0);
+        setResendWaitMs(remainingResendMs(last || null));
+      } catch {
+        setResendWaitMs(0);
+      }
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [resendWaitMs]);
 
   async function resendConfirmation() {
     if (!email) {
@@ -42,8 +59,10 @@ export default function AuthForm({
       setResendHint(true);
       return;
     }
+    if (resendWaitMs > 0) return;
     setIsSubmitting(true);
     setMessage("");
+    setRateLimited(false);
     const supabase = createClient();
     const nextTarget = resolveAuthRedirectTarget(
       new URLSearchParams(window.location.search),
@@ -56,10 +75,18 @@ export default function AuthForm({
     });
     setIsSubmitting(false);
     if (error) {
+      if (isAuthRateLimited(error.message)) {
+        setRateLimited(true);
+        return;
+      }
       setMessage(publicAuthActionMessage(error.message));
       return;
     }
-    setMessage("If that email still needs confirmation, we sent a new Ivoire Shop confirmation link.");
+    try {
+      sessionStorage.setItem(RESEND_CONFIRM_AT_KEY, String(Date.now()));
+    } catch { /* cooldown is best-effort */ }
+    setResendWaitMs(remainingResendMs(Date.now()));
+    setMessage("Fresh link sent! Check your inbox. ✉️");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -97,6 +124,11 @@ export default function AuthForm({
     setIsSubmitting(false);
     if (result.error) {
       const text = result.error.message.toLowerCase();
+      if (isAuthRateLimited(result.error.message)) {
+        setRateLimited(true);
+        setResendHint(mode === "login" || mode === "signup");
+        return;
+      }
       setMessage(publicAuthActionMessage(result.error.message));
       setResendHint(mode === "login" && text.includes("email not confirmed"));
       return;
@@ -127,7 +159,11 @@ export default function AuthForm({
         router.refresh();
         return;
       }
-      setMessage("Welcome to Ivoire Shop. Check your email to confirm your account. The link returns you to Ivoire Shop — not to Vercel.");
+      try {
+        sessionStorage.setItem(PENDING_SIGNUP_EMAIL_KEY, email);
+        sessionStorage.setItem(RESEND_CONFIRM_AT_KEY, String(Date.now()));
+      } catch { /* email is only used locally for the check-email screen */ }
+      router.push("/signup/check-email");
       return;
     }
 
@@ -190,15 +226,21 @@ export default function AuthForm({
           </button>
         </form>
         {resetSuccess ? <p className="mt-5 text-sm break-words text-forest-green">Your password has been updated. Sign in with your new password.</p> : null}
+        {rateLimited ? (
+          <div className="mt-5 rounded-xl border border-gold/40 bg-[#fbf7ef] p-4">
+            <p className="font-semibold text-forest-green">{RATE_LIMIT_TITLE}</p>
+            <p className="mt-2 text-sm leading-6 text-muted">{RATE_LIMIT_BODY}</p>
+          </div>
+        ) : null}
         {message && <p className="mt-5 text-sm break-words text-muted">{message}</p>}
         {mode === "login" && resendHint ? (
           <button
             className="mt-3 min-h-11 w-full rounded-lg border border-forest-green/20 px-4 py-3 text-sm font-medium text-forest-green disabled:opacity-60"
-            disabled={isSubmitting}
+            disabled={isSubmitting || resendWaitMs > 0}
             type="button"
             onClick={() => void resendConfirmation()}
           >
-            Send another confirmation email
+            {resendWaitMs > 0 ? resendCooldownLabel(resendWaitMs) : "Send another confirmation email"}
           </button>
         ) : null}
         <div className="mt-6 flex flex-wrap justify-between gap-3 text-sm text-forest-green">

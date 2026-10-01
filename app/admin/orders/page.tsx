@@ -14,7 +14,7 @@ export default async function AdminOrdersPage({
   const { supabase } = await requireAdmin();
   let query = supabase
     .from("orders")
-    .select("id, order_number, confirmation_code, customer_name, customer_email, total, status, payment_status, payment_provider, fulfillment_method, created_at")
+    .select("id, order_number, confirmation_code, customer_name, customer_email, total, status, payment_status, payment_provider, fulfillment_method, fulfillment_provider, fulfillment_service, created_at")
     .order("created_at", { ascending: false });
   if ((orderStatuses as readonly string[]).includes(status)) query = query.eq("status", status);
   if ((paymentFilters as readonly string[]).includes(payment)) query = query.eq("payment_status", payment);
