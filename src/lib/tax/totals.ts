@@ -30,6 +30,15 @@ export function taxModeLabel(mode: TaxMode) {
   return "Not configured";
 }
 
+export function taxDisplayLabel(tax: TaxSettings) {
+  if (tax.tax_mode === "manual_rate" && tax.tax_rate_percent != null && Number.isFinite(tax.tax_rate_percent)) {
+    const rate = Number(tax.tax_rate_percent);
+    const label = Number.isInteger(rate) ? String(rate) : String(rate);
+    return `${tax.tax_name} (${label}%)`;
+  }
+  return tax.tax_name || "Tax";
+}
+
 export function computeTaxCents(input: {
   subtotalCents: number;
   discountCents: number;

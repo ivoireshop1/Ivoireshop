@@ -3,6 +3,7 @@ export const notificationEvents = [
   "preparing",
   "ready_for_pickup",
   "out_for_delivery",
+  "tracking_added",
   "completed",
   "cancelled",
   "payment_pending",
@@ -33,6 +34,7 @@ export function notificationIcon(eventType: string) {
   if (eventType === "ready_for_pickup" || eventType === "completed" || eventType === "order_confirmed") return "✓";
   if (eventType === "payment_received") return "$";
   if (eventType === "payment_failed" || eventType === "cancelled") return "!";
-  if (eventType === "out_for_delivery") return "→";
+  if (eventType === "out_for_delivery" || eventType === "tracking_added") return "→";
+  if (eventType === "announcement") return "🌿";
   return "•";
 }

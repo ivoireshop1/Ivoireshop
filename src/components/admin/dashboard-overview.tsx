@@ -83,6 +83,23 @@ export async function DashboardOverview() {
         </div>
       </AdminCard>
 
+      <AdminCard title="Announcements" action={<Link href="/admin/announcements" className="text-sm text-[#173f35] underline-offset-2 hover:underline">Create Announcement</Link>}>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Link className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4" href="/admin/announcements">
+            <p className="text-sm text-[#6b6b6b]">Published</p>
+            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.announcementCounts.published}</p>
+          </Link>
+          <Link className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4" href="/admin/announcements">
+            <p className="text-sm text-[#6b6b6b]">Scheduled</p>
+            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.announcementCounts.scheduled}</p>
+          </Link>
+          <Link className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4" href="/admin/announcements">
+            <p className="text-sm text-[#6b6b6b]">Drafts</p>
+            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.announcementCounts.drafts}</p>
+          </Link>
+        </div>
+      </AdminCard>
+
       <div className="grid gap-6 xl:grid-cols-[1.4fr_0.95fr]">
         <AdminCard title="Needs attention" action={<Link href="/admin/inventory" className="text-sm text-[#173f35] underline-offset-2 hover:underline">Review all</Link>}>
           <div className="space-y-3">

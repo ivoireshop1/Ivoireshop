@@ -57,7 +57,7 @@ export async function getAdminDashboardData() {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
   sevenDaysAgo.setHours(0, 0, 0, 0);
 
-  const [todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult, pendingReviewsResult, storeStatusRow, shippingOrdersResult] =
+  const [todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult, pendingReviewsResult, storeStatusRow, shippingOrdersResult, announcementsResult] =
     await Promise.all([
       supabase
         .from("orders")
@@ -79,6 +79,7 @@ export async function getAdminDashboardData() {
       supabase.from("product_reviews").select("id", { count: "exact", head: true }).eq("status", "pending"),
       getStoreStatus(),
       supabase.from("orders").select("id, status, fulfillment_provider, tracking_number"),
+      supabase.from("customer_announcements").select("id, status, starts_at, ends_at, published_at, archived_at"),
     ]);
 
   if ([todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult, shippingOrdersResult].some((result) => result.error)) {
@@ -100,6 +101,12 @@ export async function getAdminDashboardData() {
     awaiting: shippingRows.filter((row) => !["shipped", "delivered", "cancelled"].includes(row.status)).length,
     shipped: shippingRows.filter((row) => row.status === "shipped").length,
     missingTracking: shippingRows.filter((row) => !row.tracking_number && row.status !== "cancelled").length,
+  };
+  const announcementRows = announcementsResult.error ? [] : (announcementsResult.data ?? []);
+  const announcementCounts = {
+    published: announcementRows.filter((row) => row.status === "published" && !row.archived_at && (!row.ends_at || new Date(row.ends_at) > new Date()) && (!row.starts_at || new Date(row.starts_at) <= new Date())).length,
+    scheduled: announcementRows.filter((row) => row.status === "scheduled" || (row.status === "published" && row.starts_at && new Date(row.starts_at) > new Date())).length,
+    drafts: announcementRows.filter((row) => row.status === "draft").length,
   };
 
   const catalogStats = {
@@ -285,6 +292,7 @@ export async function getAdminDashboardData() {
     catalogStats,
     pendingReviewCount,
     shippingCounts,
+    announcementCounts,
   };
 }
 

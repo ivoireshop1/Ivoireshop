@@ -12,7 +12,8 @@ import { StorefrontBillboard } from "@/src/components/storefront/storefront-bill
 import { NewArrivalsHome } from "@/src/components/storefront/home-merch-sections";
 import { CustomerAccountNav } from "@/src/components/customer/customer-account-nav";
 import { CustomerOrderCard } from "@/src/components/customer/customer-order-card";
-import { LatestOrderUpdate } from "@/src/components/customer/latest-order-update";
+import { CustomerAlertBanner } from "@/src/components/customer/customer-alert-banner";
+import { getProminentInboxItem } from "@/src/lib/notifications/inbox";
 import { AddAddressForm } from "@/src/components/customer/add-address-form";
 import { CanonicalCategoryCards } from "@/src/components/storefront/canonical-category-cards";
 import { getCategories, getProducts } from "@/src/lib/catalog/catalog";
@@ -29,7 +30,7 @@ export default async function AccountPage() {
     redirect("/login?next=/account");
   }
 
-  const [{ data: profile }, { data: orders, error: ordersError }, { data: addresses }, { data: notifications }, wishlistPreview, recommended, categories] = await Promise.all([
+  const [{ data: profile }, { data: orders, error: ordersError }, { data: addresses }, prominent, wishlistPreview, recommended, categories] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
     supabase
       .from("orders")
@@ -41,12 +42,7 @@ export default async function AccountPage() {
       .select("id, full_name, address_line_1, address_line_2, city, state, postal_code, country, is_default")
       .order("is_default", { ascending: false })
       .limit(8),
-    supabase
-      .from("customer_notifications")
-      .select("id, order_id, event_type, title, message, confirmation_code, email_sent, email_attempted, read_at, created_at")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1),
+    getProminentInboxItem(),
     getWishlistProductsForUser(supabase, user.id, 4),
     getProducts(),
     getCategories(),
@@ -55,10 +51,6 @@ export default async function AccountPage() {
   const heroName = profile?.full_name?.trim()?.split(/\s+/)[0] || null;
   const recent = orders?.slice(0, 3) ?? [];
   const history = orders?.slice(3) ?? [];
-  const latestNotification = notifications?.[0] ?? null;
-  const latestOrder = latestNotification
-    ? orders?.find((order) => order.id === latestNotification.order_id) ?? recent[0] ?? null
-    : recent[0] ?? null;
   const recommendedProducts = [...recommended.filter((product) => product.isFeatured), ...recommended.filter((product) => !product.isFeatured)].slice(0, 8);
   const liveNames = new Set(recommended.map((product) => product.category));
 
@@ -68,9 +60,11 @@ export default async function AccountPage() {
       <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-6 sm:py-10">
         <CustomerAccountNav />
         <CustomerHero firstName={heroName} />
-        <div className="mt-8">
-          <LatestOrderUpdate notification={latestNotification} order={latestOrder} />
-        </div>
+        {prominent ? (
+          <div className="mt-8">
+            <CustomerAlertBanner item={prominent} />
+          </div>
+        ) : null}
         <StorefrontBillboard />
         <NewArrivalsHome />
 

@@ -19,20 +19,21 @@ export function NotificationBell({ initialUnread }: { initialUnread: number }) {
     let cancelled = false;
     void client.auth.getUser().then(({ data }) => {
       if (cancelled || !data.user) return;
+      const refreshUnread = () => {
+        setLiveUnread(null);
+        router.refresh();
+      };
       channel = client
-        .channel(`customer-notifications-${data.user.id}`)
+        .channel(`customer-inbox-${data.user.id}`)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "customer_notifications", filter: `user_id=eq.${data.user.id}` },
-          () => {
-            void client
-              .from("customer_notifications")
-              .select("id", { count: "exact", head: true })
-              .eq("user_id", data.user!.id)
-              .is("read_at", null)
-              .then(({ count }) => setLiveUnread(count ?? 0));
-            router.refresh();
-          },
+          refreshUnread,
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "customer_announcement_reads", filter: `user_id=eq.${data.user.id}` },
+          refreshUnread,
         )
         .subscribe();
     });

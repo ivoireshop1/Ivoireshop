@@ -9,14 +9,17 @@ import { placeCheckoutOrder } from "@/src/lib/checkout/actions";
 import { validateCheckout, type CheckoutReceipt } from "@/src/lib/checkout/checkout-validation";
 import { readCheckoutAttempt, storeCheckoutAttempt, forgetCheckoutAttempt, type CheckoutAttempt } from "@/src/lib/checkout/checkout-session";
 import { STORE_CLOSED_MESSAGE } from "@/src/lib/store/constants";
-import { FulfillmentMethodCards } from "@/src/components/checkout/fulfillment-method-cards";
-import { CheckoutDeliveryOptions } from "@/src/components/checkout/checkout-delivery-options";
+import { CheckoutProgress } from "@/src/components/checkout/checkout-progress";
+import { CheckoutShippingMethods } from "@/src/components/checkout/checkout-shipping-methods";
+import { CheckoutOrderSummary } from "@/src/components/checkout/checkout-order-summary";
 import { useFulfillmentMethod } from "@/src/lib/fulfillment/use-fulfillment-method";
 import { PaymentMethodCards, type CheckoutPaymentProvider } from "@/src/components/checkout/payment-method-cards";
 import { SquareCardFields } from "@/src/components/checkout/square-card-fields";
 import { PaypalCheckoutButtons } from "@/src/components/checkout/paypal-checkout-buttons";
 import { OrderConfirmationExperience } from "@/src/components/checkout/order-confirmation-experience";
-import { OrderMoneyBreakdown } from "@/src/components/orders/order-money-breakdown";
+import { getCheckoutDeliveryOptions } from "@/src/lib/delivery/actions";
+import type { DeliveryOption } from "@/src/lib/delivery/types";
+import { taxDisplayLabel, type TaxSettings } from "@/src/lib/tax/totals";
 import { viewOrderHref } from "@/src/lib/checkout/view-order-href";
 import { capturePaypalPayment, markPaypalCancelled, payWithSquare, startPaypalPayment } from "@/src/lib/payments/actions";
 import type { PublicPaymentConfig } from "@/src/lib/payments/readiness";
@@ -28,8 +31,16 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
   const [error, setError] = useState("");
   const [confirmation, setConfirmation] = useState<CheckoutAttempt | null>(null);
   const [emailSent, setEmailSent] = useState(false);
-  const [fulfillmentMethod] = useFulfillmentMethod();
+  const [fulfillmentMethod, setFulfillmentMethod] = useFulfillmentMethod();
   const [deliveryOptionId, setDeliveryOptionId] = useState("");
+  const [checkoutStep, setCheckoutStep] = useState<"account" | "shipping" | "payment" | "review">("account");
+  const [contact, setContact] = useState({ customerName: "", customerEmail: "", customerPhone: "" });
+  const [address, setAddress] = useState({ addressLine1: "", addressLine2: "", city: "", state: "", postalCode: "", country: "" });
+  const [options, setOptions] = useState<DeliveryOption[]>([]);
+  const [breakdowns, setBreakdowns] = useState<Record<string, { shipping: number; tax: number; total: number }>>({});
+  const [quoteSubtotal, setQuoteSubtotal] = useState<number | null>(null);
+  const [taxSettings, setTaxSettings] = useState<TaxSettings | null>(null);
+  const [quoteBusy, setQuoteBusy] = useState(false);
   const [attempt, setAttempt] = useState<CheckoutAttempt | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentProvider | null>(
@@ -66,6 +77,36 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const cartItems = items.map(({ productId, quantity }) => ({ product_id: productId, quantity }));
+      setQuoteBusy(true);
+      void getCheckoutDeliveryOptions({
+        address: {
+          address_line_1: address.addressLine1,
+          city: address.city,
+          state: address.state,
+          postal_code: address.postalCode,
+          country: address.country,
+        },
+        items: cartItems,
+      }).then((result) => {
+        setOptions(result.options);
+        setBreakdowns(result.breakdowns ?? {});
+        setQuoteSubtotal(result.subtotal ?? null);
+        setTaxSettings(result.tax ?? null);
+        setDeliveryOptionId((current) => {
+          if (result.options.some((option) => option.id === current)) return current;
+          const next = result.options[0];
+          if (next) setFulfillmentMethod(next.fulfillmentMethod);
+          return next?.id ?? "";
+        });
+        setQuoteBusy(false);
+      }).catch(() => setQuoteBusy(false));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [address.addressLine1, address.city, address.state, address.postalCode, address.country, items, setFulfillmentMethod]);
 
   function withReceipt(current: CheckoutAttempt, receipt: CheckoutReceipt): CheckoutAttempt {
     return {
@@ -107,14 +148,12 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
     if (submitting.current || confirmation || !sessionReady) return;
     if (!payments.enabled) { /* Unpaid Place Order is allowed when Square/PayPal are not configured. */ }
     else if (!paymentMethod) { setError("Choose Square or PayPal."); return; }
-    const form = new FormData(event.currentTarget);
-    const value = (name: string) => String(form.get(name) ?? "").trim();
     const candidate = attempt?.request ?? {
       items: items.map(({ productId, quantity }) => ({ product_id: productId, quantity })),
-      customerName: value("customerName"), customerEmail: value("customerEmail"), customerPhone: value("customerPhone"),
-      address: { address_line_1: value("addressLine1"), address_line_2: value("addressLine2"), city: value("city"), state: value("state"), postal_code: value("postalCode"), country: value("country") },
+      customerName: contact.customerName, customerEmail: contact.customerEmail, customerPhone: contact.customerPhone,
+      address: { address_line_1: address.addressLine1, address_line_2: address.addressLine2, city: address.city, state: address.state, postal_code: address.postalCode, country: address.country },
       fulfillmentMethod,
-      deliveryOptionId: value("deliveryOptionId") || deliveryOptionId || (fulfillmentMethod === "local_pickup" ? "pickup" : "store"),
+      deliveryOptionId: deliveryOptionId || (fulfillmentMethod === "local_pickup" ? "pickup" : "store"),
       idempotencyKey: crypto.randomUUID(),
     };
     const validated = validateCheckout(candidate);
@@ -173,15 +212,12 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
   }
 
   async function paypalCreateOrder() {
-    const form = document.querySelector("form");
-    const nativeForm = form instanceof HTMLFormElement ? form : null;
-    const value = (name: string) => String(nativeForm?.elements.namedItem(name) instanceof HTMLInputElement ? (nativeForm.elements.namedItem(name) as HTMLInputElement).value : "").trim();
     const candidate = attempt?.request ?? {
       items: items.map(({ productId, quantity }) => ({ product_id: productId, quantity })),
-      customerName: value("customerName"), customerEmail: value("customerEmail"), customerPhone: value("customerPhone"),
-      address: { address_line_1: value("addressLine1"), address_line_2: value("addressLine2"), city: value("city"), state: value("state"), postal_code: value("postalCode"), country: value("country") },
+      customerName: contact.customerName, customerEmail: contact.customerEmail, customerPhone: contact.customerPhone,
+      address: { address_line_1: address.addressLine1, address_line_2: address.addressLine2, city: address.city, state: address.state, postal_code: address.postalCode, country: address.country },
       fulfillmentMethod,
-      deliveryOptionId: value("deliveryOptionId") || deliveryOptionId || (fulfillmentMethod === "local_pickup" ? "pickup" : "store"),
+      deliveryOptionId: deliveryOptionId || (fulfillmentMethod === "local_pickup" ? "pickup" : "store"),
       idempotencyKey: crypto.randomUUID(),
     };
     const validated = validateCheckout(candidate);
@@ -249,13 +285,55 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
 
   const squarePublic = payments.square.public;
   const paypalPublic = payments.paypal.public;
+  const selectedOption = options.find((option) => option.id === deliveryOptionId) ?? null;
+  const breakdown = selectedOption ? breakdowns[selectedOption.id] : undefined;
+  const summaryItems = attempt?.items ?? items;
+  const displaySubtotal = attempt?.receipt?.subtotal ?? quoteSubtotal ?? subtotal;
+  const displayShipping = attempt?.receipt?.shipping_cost ?? breakdown?.shipping ?? null;
+  const displayTax = attempt?.receipt?.tax_amount ?? breakdown?.tax ?? null;
+  const displayTotal = attempt?.receipt?.total ?? breakdown?.total ?? null;
+  const taxLabel = taxSettings ? taxDisplayLabel(taxSettings) : "Tax";
+
+  function goShipping() {
+    if (!contact.customerName || !contact.customerEmail || !contact.customerPhone) {
+      setError("Enter a valid name, email address, and phone number.");
+      return;
+    }
+    setError("");
+    setCheckoutStep("shipping");
+  }
+
+  function goPayment() {
+    if (!deliveryOptionId || !selectedOption) {
+      setError("Choose a shipping method.");
+      return;
+    }
+    if (selectedOption.fulfillmentMethod === "delivery" && (!address.addressLine1 || !address.city || !address.country)) {
+      setError("Complete your delivery address, city, and country.");
+      return;
+    }
+    setError("");
+    setCheckoutStep("payment");
+  }
+
+  function goReview() {
+    if (payments.enabled && !paymentMethod) {
+      setError("Choose Square or PayPal.");
+      return;
+    }
+    setError("");
+    setCheckoutStep("review");
+  }
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-5 py-10 lg:px-8">
+    <main className="mx-auto w-full max-w-4xl overflow-x-hidden px-5 py-10 lg:px-8">
       <SmartBackButton fallbackHref="/cart" fallbackLabel="Back to cart" />
-      <div className="mt-8 rounded-2xl bg-[#f5f0e6] p-6 sm:p-10">
+      <div className="mt-8 min-w-0 rounded-2xl bg-[#f5f0e6] p-4 sm:p-10">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Secure checkout</p>
         <h1 className="mt-2 text-4xl font-semibold text-forest-green">Checkout</h1>
+        <div className="mt-6">
+          <CheckoutProgress step={checkoutStep} />
+        </div>
         <p className="mt-4 max-w-lg leading-7 text-muted">
           {storeOpen
             ? payments.enabled
@@ -265,50 +343,64 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
         </p>
         {attempt && <div role="status" className="mt-6 space-y-2 rounded-xl border border-gold/40 bg-white p-4 text-sm break-words"><p>A previous order request is awaiting confirmation. Retry it below before starting another order. Your original items and details will be used.</p><p>{attempt.request.customerName} &middot; {attempt.request.customerEmail}</p><p>{attempt.request.fulfillmentMethod === "delivery" ? [attempt.request.address.address_line_1, attempt.request.address.city, attempt.request.address.country].filter(Boolean).join(", ") : "Local pickup"}</p></div>}
         <form aria-describedby={error ? "checkout-error" : undefined} className="mt-8 space-y-7" onSubmit={handleSubmit}>
-          <fieldset disabled={isSubmitting || Boolean(attempt)} className="space-y-7">
-          <fieldset className="space-y-4 border-t border-black/10 pt-6">
+          <fieldset className={checkoutStep === "account" ? "space-y-4" : "hidden"} disabled={isSubmitting || Boolean(attempt)}>
             <legend className="font-semibold text-forest-green">Your details</legend>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field hint="We'll send your receipt and pickup/delivery updates here." label="Email address" name="customerEmail" required type="email" />
-              <Field label="Full name" name="customerName" required />
+              <Field hint="We'll send your receipt and pickup/delivery updates here." label="Email address" name="customerEmail" onChange={(value) => setContact((current) => ({ ...current, customerEmail: value }))} type="email" value={contact.customerEmail} />
+              <Field label="Full name" name="customerName" onChange={(value) => setContact((current) => ({ ...current, customerName: value }))} value={contact.customerName} />
             </div>
-            <Field label="Phone number" name="customerPhone" required type="tel" />
+            <Field label="Phone number" name="customerPhone" onChange={(value) => setContact((current) => ({ ...current, customerPhone: value }))} type="tel" value={contact.customerPhone} />
+            <button className="min-h-12 w-full rounded-xl bg-forest-green px-4 text-sm font-semibold text-white" onClick={goShipping} type="button">Continue to Shipping →</button>
           </fieldset>
 
-          <fieldset className="space-y-4 border-t border-black/10 pt-6">
-            <legend className="font-semibold text-forest-green">Fulfillment</legend>
-            <FulfillmentMethodCards />
-            <CheckoutDeliveryOptions
-              fulfillmentMethod={fulfillmentMethod}
-              items={items.map(({ productId, quantity }) => ({ product_id: productId, quantity }))}
+          <fieldset className={checkoutStep === "shipping" ? "min-w-0 space-y-6" : "hidden"} disabled={isSubmitting || Boolean(attempt)}>
+            {selectedOption?.fulfillmentMethod === "delivery" || !selectedOption ? (
+              <div className="space-y-4">
+                <h2 className="font-semibold text-forest-green">Delivery address</h2>
+                <Field label="Address line 1" name="addressLine1" onChange={(value) => setAddress((current) => ({ ...current, addressLine1: value }))} value={address.addressLine1} />
+                <Field label="Address line 2 (optional)" name="addressLine2" onChange={(value) => setAddress((current) => ({ ...current, addressLine2: value }))} value={address.addressLine2} />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="City" name="city" onChange={(value) => setAddress((current) => ({ ...current, city: value }))} value={address.city} />
+                  <Field label="State / region (optional)" name="state" onChange={(value) => setAddress((current) => ({ ...current, state: value }))} value={address.state} />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Postal code (optional)" name="postalCode" onChange={(value) => setAddress((current) => ({ ...current, postalCode: value }))} value={address.postalCode} />
+                  <Field label="Country" name="country" onChange={(value) => setAddress((current) => ({ ...current, country: value }))} value={address.country} />
+                </div>
+              </div>
+            ) : (
+              <>
+                <input name="addressLine1" type="hidden" value={address.addressLine1} />
+                <input name="city" type="hidden" value={address.city} />
+                <input name="country" type="hidden" value={address.country} />
+                <p className="rounded-xl border border-forest-green/10 bg-white/60 px-4 py-3 text-sm text-muted">We’ll have your groceries ready for pickup. No delivery address is needed.</p>
+              </>
+            )}
+            <CheckoutShippingMethods
+              busy={quoteBusy}
+              options={options}
               value={deliveryOptionId}
-              onChange={setDeliveryOptionId}
+              onChange={(option) => {
+                setDeliveryOptionId(option.id);
+                setFulfillmentMethod(option.fulfillmentMethod);
+              }}
             />
+            <CheckoutOrderSummary
+              continueDisabled={!storeOpen || !deliveryOptionId}
+              continueLabel="Continue to Payment →"
+              items={summaryItems}
+              provider={selectedOption?.provider}
+              shipping={displayShipping}
+              subtotal={displaySubtotal}
+              tax={displayTax}
+              taxLabel={taxLabel}
+              total={displayTotal}
+              onContinue={goPayment}
+            />
+            <button className="text-sm font-semibold text-forest-green underline" onClick={() => setCheckoutStep("account")} type="button">Back to account</button>
           </fieldset>
 
-          {fulfillmentMethod === "delivery" ? (
-            <fieldset className="space-y-4 border-t border-black/10 pt-6">
-              <legend className="font-semibold text-forest-green">Delivery address</legend>
-              <Field label="Address line 1" name="addressLine1" required />
-              <Field label="Address line 2 (optional)" name="addressLine2" />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="City" name="city" required />
-                <Field label="State / region (optional)" name="state" />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Postal code (optional)" name="postalCode" />
-                <Field label="Country" name="country" required />
-              </div>
-            </fieldset>
-          ) : (
-            <p className="rounded-xl border border-forest-green/10 bg-white/60 px-4 py-3 text-sm text-muted">
-              We’ll have your groceries ready for pickup. No delivery address is needed.
-            </p>
-          )}
-
-          </fieldset>
-
-          <fieldset className="space-y-4 border-t border-black/10 pt-6">
+          <fieldset className={checkoutStep === "payment" ? "space-y-4" : "hidden"}>
             <legend className="font-semibold text-forest-green">Payment</legend>
             <PaymentMethodCards
               paypalReady={payments.paypal.ready}
@@ -342,6 +434,32 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
                 onError={() => setError("Payment couldn't be completed. Please try again.")}
               />
             ) : null}
+            {!(payments.enabled && paymentMethod === "paypal") ? (
+              <button className="min-h-12 w-full rounded-xl bg-forest-green px-4 text-sm font-semibold text-white" onClick={goReview} type="button">Continue to Review →</button>
+            ) : null}
+            <button className="text-sm font-semibold text-forest-green underline" onClick={() => setCheckoutStep("shipping")} type="button">Back to shipping</button>
+          </fieldset>
+
+          <fieldset className={checkoutStep === "review" ? "space-y-4" : "hidden"}>
+            <CheckoutOrderSummary
+              continueDisabled={!storeOpen || isSubmitting || (!attempt && items.length === 0) || (payments.enabled && paymentMethod !== "square")}
+              continueLabel={
+                isSubmitting
+                  ? payments.enabled ? "Paying securely..." : "Placing order..."
+                  : payments.enabled
+                    ? attempt ? "Retry payment" : "Pay securely with Square"
+                    : attempt ? "Retry order" : "Place Order"
+              }
+              continueType="submit"
+              items={summaryItems}
+              provider={selectedOption?.provider}
+              shipping={displayShipping}
+              subtotal={displaySubtotal}
+              tax={displayTax}
+              taxLabel={taxLabel}
+              total={displayTotal}
+            />
+            <button className="text-sm font-semibold text-forest-green underline" onClick={() => setCheckoutStep("payment")} type="button">Back to payment</button>
           </fieldset>
 
           {error ? (
@@ -349,56 +467,7 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
               {error}
             </p>
           ) : null}
-
-          <div className="rounded-xl bg-white/70 p-4 text-sm">
-            <h2 className="font-semibold text-forest-green">Order summary</h2>
-            {(attempt?.items ?? items).map((item) => <p className="mt-2" key={item.productId}>{item.name} &times; {item.quantity}</p>)}
-            <div className="mt-4">
-              {attempt?.receipt ? (
-                <OrderMoneyBreakdown
-                  shipping={attempt.receipt.shipping_cost}
-                  subtotal={attempt.receipt.subtotal ?? subtotal}
-                  tax={attempt.receipt.tax_amount}
-                  total={attempt.receipt.total}
-                />
-              ) : (
-                <dl className="space-y-2">
-                  <div className="flex justify-between gap-4"><dt>Subtotal</dt><dd>${subtotal.toFixed(2)}</dd></div>
-                  <div className="flex justify-between gap-4"><dt>Shipping / Delivery</dt><dd>Load delivery options</dd></div>
-                  <div className="flex justify-between gap-4"><dt>Tax</dt><dd>Load delivery options</dd></div>
-                  <div className="flex justify-between gap-4 font-semibold"><dt>Total</dt><dd>Confirmed at checkout</dd></div>
-                </dl>
-              )}
-            </div>
-            <p className="mt-3 text-muted">
-              {payments.enabled
-                ? "Final prices are confirmed by the store, then Square or PayPal is charged that verified total."
-                : "Online payment is not available yet. The store will contact you regarding payment."}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-black/10 pt-6">
-            <div className="text-sm text-muted">
-              <span className="font-semibold text-forest-green">
-                {(attempt?.items ?? items).length} product{(attempt?.items ?? items).length === 1 ? "" : "s"}
-              </span>
-              {attempt ? " — awaiting confirmed total" : ` · $${subtotal.toFixed(2)} estimated subtotal`}
-            </div>
-            {payments.enabled && paymentMethod === "paypal" ? (
-              <p className="text-sm font-semibold text-forest-green">Pay securely with PayPal</p>
-            ) : (
-              <button
-                className="min-h-11 rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={!storeOpen || isSubmitting || (!attempt && items.length === 0) || (payments.enabled && paymentMethod !== "square")}
-                type="submit"
-              >
-                {isSubmitting
-                  ? payments.enabled ? "Paying securely..." : "Placing order..."
-                  : payments.enabled
-                    ? attempt ? "Retry payment" : "Pay securely with Square"
-                    : attempt ? "Retry order" : "Place Order"}
-              </button>
-            )}
-          </div>
+          <input name="deliveryOptionId" type="hidden" value={deliveryOptionId} />
         </form>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link className="text-sm font-semibold text-forest-green underline underline-offset-4" href="/cart">
@@ -413,12 +482,12 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
   );
 }
 
-function Field({ label, name, required = false, type = "text", hint }: { label: string; name: string; required?: boolean; type?: string; hint?: string }) {
+function Field({ label, name, required = false, type = "text", hint, value, onChange }: { label: string; name: string; required?: boolean; type?: string; hint?: string; value?: string; onChange?: (value: string) => void }) {
   const hintId = hint ? `${name}-hint` : undefined;
   return (
     <label className="block text-sm font-medium" htmlFor={name}>
       {label}
-      <input aria-describedby={hintId} className="mt-2 w-full rounded-lg border border-black/15 bg-white px-4 py-3" id={name} name={name} required={required} type={type} />
+      <input aria-describedby={hintId} className="mt-2 w-full min-w-0 rounded-lg border border-black/15 bg-white px-4 py-3" id={name} name={name} onChange={onChange ? (event) => onChange(event.target.value) : undefined} required={required} type={type} value={value} />
       {hint ? <span className="mt-2 block text-xs font-normal text-muted" id={hintId}>{hint}</span> : null}
     </label>
   );

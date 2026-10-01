@@ -18,16 +18,8 @@ export async function getCustomerNotifications(limit = 50) {
 }
 
 export async function getUnreadNotificationCount() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return 0;
-  const { count, error } = await supabase
-    .from("customer_notifications")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .is("read_at", null);
-  if (error) return 0;
-  return count ?? 0;
+  const { getUnreadInboxCount } = await import("./inbox");
+  return getUnreadInboxCount();
 }
 
 export async function markOrderNotificationsSeen(orderId: string) {

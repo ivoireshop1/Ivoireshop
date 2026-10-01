@@ -14,7 +14,7 @@ import { parseCharge } from "./manual";
 import { isCarrierOrder, validateCarrierTracking } from "./tracking";
 import { parseTaxMode } from "@/src/lib/tax/totals";
 import { notifyFulfillmentEmail } from "@/src/lib/communications/fulfillment-email";
-import { recordFulfillmentNotification } from "@/src/lib/notifications/record";
+import { recordCustomerNotification, recordFulfillmentNotification } from "@/src/lib/notifications/record";
 
 export async function getCheckoutDeliveryOptions(input: {
   address: { address_line_1?: string; city?: string; state?: string; postal_code?: string; country?: string };
@@ -154,6 +154,10 @@ export async function saveOrderShipment(formData: FormData) {
   }
   const { data: changed, error } = await supabase.from("orders").update(patch).eq("id", id).select("id").maybeSingle();
   if (error || !changed) redirect(`/admin/orders/${id}?error=status_update_failed`);
+  const hadTracking = Boolean(order.tracking_number);
+  if (!hadTracking && checked.tracking) {
+    await recordCustomerNotification(supabase, id, "tracking_added");
+  }
   if (markShipped && order.status !== "shipped") {
     const emailSent = await notifyFulfillmentEmail(supabase, id, "shipped");
     await recordFulfillmentNotification(supabase, id, "shipped", Boolean(emailSent));

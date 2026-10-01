@@ -5,15 +5,15 @@ import { SiteHeader } from "@/src/components/layout/site-header";
 import { CustomerAccountNav } from "@/src/components/customer/customer-account-nav";
 import { NotificationCard } from "@/src/components/customer/notification-card";
 import { SmartBackButton } from "@/src/components/navigation/smart-back-button";
-import { getCustomerNotifications } from "@/src/lib/notifications/queries";
+import { getCustomerInbox } from "@/src/lib/notifications/inbox";
 import { markAllNotificationsRead } from "@/src/lib/notifications/actions";
 
 export const metadata = pageMetadata("Notifications", "Your Ivoire Shop order notifications.", "/account/notifications", false);
 
 export default async function CustomerNotificationsPage() {
-  const result = await getCustomerNotifications();
+  const result = await getCustomerInbox();
   if (result.kind === "unauthenticated") redirect("/login?next=/account/notifications");
-  const unread = result.notifications.filter((item) => !item.read_at).length;
+  const unread = result.items.filter((item) => !item.read_at && !item.dismissed_at).length;
 
   return (
     <>
@@ -26,7 +26,7 @@ export default async function CustomerNotificationsPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Account</p>
             <h1 className="mt-2 text-4xl font-semibold text-forest-green">Notifications</h1>
             <p className="mt-2 text-sm text-muted">
-              {unread > 0 ? `${unread} unread update${unread === 1 ? "" : "s"}.` : "You are caught up."}
+            {unread > 0 ? `${unread} unread update${unread === 1 ? "" : "s"}.` : "You are caught up."}
             </p>
           </div>
           {unread > 0 ? (
@@ -38,13 +38,13 @@ export default async function CustomerNotificationsPage() {
           ) : null}
         </div>
         <div className="mt-8 space-y-4">
-          {result.notifications.length ? (
-            result.notifications.map((notification) => (
-              <NotificationCard key={notification.id} notification={notification} />
+          {result.items.length ? (
+            result.items.map((item) => (
+              <NotificationCard key={`${item.kind}-${item.id}`} item={item} />
             ))
           ) : (
             <p className="rounded-2xl border border-dashed border-forest-green/20 bg-white p-8 text-sm text-muted">
-              Order updates will appear here after you place an order while signed in.
+              Updates from Ivoire Shop and your orders will appear here.
             </p>
           )}
         </div>
