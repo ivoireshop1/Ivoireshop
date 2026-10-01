@@ -1,6 +1,8 @@
 import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
 import { formatPrintAddress, money, orderPrintTitle, type OrderPrintKind, type PrintAddress } from "@/src/lib/print/kinds";
 import { PrintToolbar } from "@/src/components/print/print-toolbar";
+import { pickupLocationForOrder } from "@/src/components/store/pickup-location-block";
+import { formatOriginLines } from "@/src/lib/delivery/origin";
 
 type PrintItem = {
   product_name: string;
@@ -43,7 +45,9 @@ export function OrderPrintDocument({
   items: PrintItem[];
 }) {
   const title = orderPrintTitle(kind);
-  const destination = formatPrintAddress(order.shipping_address);
+  const pickupLocation = pickupLocationForOrder(order);
+  const pickupLines = formatOriginLines(pickupLocation ?? undefined);
+  const destination = pickupLines.length ? "" : formatPrintAddress(order.shipping_address);
   const fulfillment = fulfillmentDisplay(order);
   const snapshot = order.delivery_snapshot ?? {};
   const tracking = order.tracking_number || (typeof snapshot.tracking_url === "string" ? snapshot.tracking_url : "");
@@ -69,7 +73,19 @@ export function OrderPrintDocument({
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-[0.14em]">Fulfillment</h2>
           <p className="mt-2">{fulfillment}</p>
-          {destination ? <pre className="mt-2 whitespace-pre-wrap font-sans text-sm">{destination}</pre> : <p className="mt-2 text-sm">Store pickup</p>}
+          {pickupLines.length ? (
+            <>
+              <h3 className="mt-3 text-sm font-semibold uppercase tracking-[0.14em]">Pickup Location</h3>
+              <pre className="mt-2 whitespace-pre-wrap font-sans text-sm">{pickupLines.join("\n")}</pre>
+            </>
+          ) : destination ? (
+            <>
+              <h3 className="mt-3 text-sm font-semibold uppercase tracking-[0.14em]">Shipping Address</h3>
+              <pre className="mt-2 whitespace-pre-wrap font-sans text-sm">{destination}</pre>
+            </>
+          ) : (
+            <p className="mt-2 text-sm">Store pickup</p>
+          )}
         </div>
       </section>
 

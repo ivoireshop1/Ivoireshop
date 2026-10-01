@@ -7,6 +7,8 @@ import { ReorderButton } from "@/src/components/customer/reorder-button";
 import { CopyConfirmationButton } from "@/src/components/checkout/copy-confirmation-button";
 import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
 import { markOrderNotificationsSeen } from "@/src/lib/notifications/queries";
+import { PickupLocationBlock, pickupLocationForOrder } from "@/src/components/store/pickup-location-block";
+import { formatOrderDate } from "@/src/lib/orders/buckets";
 import { OrderMoneyBreakdown } from "@/src/components/orders/order-money-breakdown";
 import { ShipmentTrackingPanel } from "@/src/components/orders/shipment-tracking-panel";
 
@@ -37,7 +39,7 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
         </section>
       ) : null}
       <p className="mt-3 text-muted">
-        {new Date(order.created_at).toLocaleDateString()} · {orderStatusLabel(order.status, order.fulfillment_method)} · {fulfillmentDisplay(order)}
+        {formatOrderDate(order.created_at)} · {new Date(order.created_at).toLocaleTimeString()} · {orderStatusLabel(order.status, order.fulfillment_method)} · {fulfillmentDisplay(order)}
       </p>
 
       <p className="mt-3 text-muted">
@@ -65,6 +67,13 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
           />
         </dl>
         <ShipmentTrackingPanel order={order} />
+        {order.fulfillment_method === "local_pickup" ? (
+          <div className="mt-6">
+            <p className="font-semibold text-forest-green">Fulfillment</p>
+            <p className="mt-1 text-sm text-muted">Store Pickup</p>
+            <PickupLocationBlock className="mt-3" location={pickupLocationForOrder(order)} />
+          </div>
+        ) : null}
         {order.fulfillment_method === "delivery" && <div className="mt-6"><h2 className="font-semibold text-forest-green">Delivery address</h2><address className="mt-2 whitespace-pre-line not-italic text-muted">{[order.shipping_address?.address_line_1, order.shipping_address?.address_line_2, order.shipping_address?.city, order.shipping_address?.state, order.shipping_address?.postal_code, order.shipping_address?.country].filter(Boolean).join("\n")}</address></div>}
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <ReorderButton orderId={order.id} />

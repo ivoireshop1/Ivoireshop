@@ -7,6 +7,7 @@ import { STORE_CLOSED_MESSAGE, STORE_SETTINGS_ID } from "@/src/lib/store/constan
 import { trySendOrderConfirmation } from "@/src/lib/communications/send-confirmation";
 import { recordCheckoutNotifications } from "@/src/lib/notifications/record";
 import { collectCheckoutOptions, optionToSnapshot } from "@/src/lib/delivery/orchestrate";
+import { originFromSettings, originIsComplete, pickupLocationSnapshot } from "@/src/lib/delivery/origin";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { centsToUsdString, usdToCents } from "@/src/lib/payments/money";
 
@@ -16,7 +17,7 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
   const request = validated.request!;
   try {
     const supabase = await createClient();
-    const { data: store } = await supabase.from("store_settings").select("is_open").eq("id", STORE_SETTINGS_ID).maybeSingle();
+    const { data: store } = await supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle();
     if (store && store.is_open === false) {
       return { success: false, error: STORE_CLOSED_MESSAGE, retrySame: false };
     }
@@ -41,12 +42,14 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
     if ((shipping > 0 || tax > 0) && !admin) {
       return { success: false, error: "Shipping and tax totals are not fully configured yet. Choose pickup or contact the store.", retrySame: false };
     }
+    const origin = originFromSettings(store);
+    const pickupLocation = request.fulfillmentMethod === "local_pickup" && originIsComplete(origin) ? pickupLocationSnapshot(origin) : null;
     const { data, error } = await supabase.rpc("create_checkout_order", {
       p_items: request.items,
       p_customer_name: request.customerName,
       p_customer_email: request.customerEmail,
       p_customer_phone: request.customerPhone,
-      p_shipping_address: request.fulfillmentMethod === "delivery" ? request.address : { fulfillment_method: "local_pickup" },
+      p_shipping_address: request.fulfillmentMethod === "delivery" ? request.address : { fulfillment_method: "local_pickup", pickup_location: pickupLocation },
       p_fulfillment_method: request.fulfillmentMethod,
       p_idempotency_key: request.idempotencyKey,
     });
@@ -71,7 +74,7 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
           fulfillment_provider: selected.provider,
           fulfillment_service: selected.serviceCode || selected.label,
           shipping_mode: selected.mode || ((selected.provider === "ups" || selected.provider === "usps") ? "manual" : null),
-          delivery_snapshot: optionToSnapshot(selected),
+          delivery_snapshot: optionToSnapshot(selected, pickupLocation),
           tax_snapshot: {
             mode: quotes.tax.tax_mode,
             rate_percent: quotes.tax.tax_rate_percent,

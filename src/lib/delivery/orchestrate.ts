@@ -1,6 +1,6 @@
 import { createClient } from "@/src/lib/supabase/server";
 import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
-import { originFromSettings, originIsComplete } from "./origin";
+import { originFromSettings, originIsComplete, type PickupLocationSnapshot } from "./origin";
 import { quoteDoorDash } from "./providers/doordash";
 import { sanitizeProviderError, type DeliveryOption } from "./types";
 import { parseCharge, manualCarrierOptions } from "./manual";
@@ -97,7 +97,7 @@ export async function collectCheckoutOptions(input: {
   };
 }
 
-export function optionToSnapshot(option: DeliveryOption) {
+export function optionToSnapshot(option: DeliveryOption, pickupLocation?: PickupLocationSnapshot | null) {
   return {
     provider: option.provider,
     service: option.serviceCode || option.label,
@@ -106,5 +106,6 @@ export function optionToSnapshot(option: DeliveryOption) {
     mode: option.mode || (option.provider === "ups" || option.provider === "usps" ? "manual" : null),
     zone: option.zone || null,
     quoted_at: new Date().toISOString(),
+    ...(option.provider === "pickup" && pickupLocation ? { pickup_location: pickupLocation } : {}),
   };
 }

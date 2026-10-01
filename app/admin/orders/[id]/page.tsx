@@ -9,6 +9,7 @@ import { AdminOrderShipmentForm } from "@/src/components/admin/admin-order-shipm
 import { getEmailProviderStatus } from "@/src/lib/email/send";
 import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
 import { OrderMoneyBreakdown } from "@/src/components/orders/order-money-breakdown";
+import { PickupLocationBlock, pickupLocationForOrder } from "@/src/components/store/pickup-location-block";
 import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 
 export default async function OrderDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; success?: string }> }) {
@@ -64,6 +65,9 @@ export default async function OrderDetailPage({ params, searchParams }: { params
           <input name="expected_status" type="hidden" value={order.status} />
           <h2 className="font-semibold text-[#173f35]">Fulfillment</h2>
           <p className="mt-3 text-sm">{fulfillmentDisplay(order)}</p>
+          {order.fulfillment_method === "local_pickup" ? (
+            <PickupLocationBlock className="mt-3" location={pickupLocationForOrder(order)} />
+          ) : null}
           {order.fulfillment_service && order.fulfillment_provider ? (
             <p className="mt-2 break-words text-sm text-[#6b6b6b]">Service snapshot: {order.fulfillment_service}</p>
           ) : null}

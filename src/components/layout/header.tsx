@@ -9,12 +9,21 @@ import { useWishlist } from "@/src/lib/wishlist/wishlist-context";
 import { createClient } from "@/src/lib/supabase/browser";
 import { type NavRole, resolveStorefrontHomeHref } from "@/src/lib/auth/session-navigation";
 import { NotificationBell } from "@/src/components/customer/notification-bell";
+import type { InboxItem } from "@/src/lib/notifications/inbox-item";
 
 function SearchIcon() {
   return <span aria-hidden="true" className="text-lg">⌕</span>;
 }
 
-export function Header({ initialRole = "guest", initialUnread = 0 }: { initialRole?: NavRole; initialUnread?: number }) {
+export function Header({
+  initialRole = "guest",
+  initialUnread = 0,
+  initialInbox = [],
+}: {
+  initialRole?: NavRole;
+  initialUnread?: number;
+  initialInbox?: InboxItem[];
+}) {
   const { totalItems, isLoaded, addEventId } = useCart();
   const { items: wishlistItems } = useWishlist();
   const [role, setRole] = useState<NavRole>(initialRole);
@@ -46,7 +55,7 @@ export function Header({ initialRole = "guest", initialUnread = 0 }: { initialRo
   const wishlistCountLabel = wishlistItems.length > 0 ? `Wishlist, ${wishlistItems.length} items` : "Wishlist";
 
   return (
-    <header className="border-b border-black/10 bg-background">
+    <header className="relative z-40 border-b border-black/10 bg-background">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:gap-4 sm:px-5 lg:px-8">
         <Link className="min-w-0 shrink-0 text-base font-semibold tracking-[0.18em] text-forest-green sm:text-lg" href={homeHref}>
           IVOIRE <span className="font-normal">SHOP</span>
@@ -72,7 +81,7 @@ export function Header({ initialRole = "guest", initialUnread = 0 }: { initialRo
           <Link aria-label="Search products" className="hidden text-forest-green sm:inline-flex" href="/shop"><SearchIcon /></Link>
           {isAuthenticated ? (
             <>
-              {role === "customer" ? <NotificationBell initialUnread={initialUnread} /> : null}
+              {role === "customer" ? <NotificationBell initialInbox={initialInbox} initialUnread={initialUnread} /> : null}
               <Link aria-label={wishlistCountLabel} className="text-forest-green xl:hidden" href="/wishlist">
                 {wishlistItems.length > 0 ? `♡ ${wishlistItems.length}` : "♡"}
               </Link>
@@ -96,7 +105,7 @@ export function Header({ initialRole = "guest", initialUnread = 0 }: { initialRo
             <>
               <Link href="/wishlist" onClick={() => setMenuOpen(false)}>{wishlistLabel}</Link>
               <Link href="/account/notifications" onClick={() => setMenuOpen(false)}>Notifications</Link>
-              <Link href="/account#recent-orders" onClick={() => setMenuOpen(false)}>Orders</Link>
+              <Link href="/account#current-orders" onClick={() => setMenuOpen(false)}>Orders</Link>
               <Link href="/account" onClick={() => setMenuOpen(false)}>Account</Link>
               <Link href="/account#security" onClick={() => setMenuOpen(false)}>Security</Link>
               <MobileSignOutLink onSignOut={() => setMenuOpen(false)} />

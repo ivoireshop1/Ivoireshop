@@ -4,7 +4,7 @@ const links = [
   { href: "/shop", label: "Shop" },
   { href: "/wishlist", label: "Wishlist" },
   { href: "/account/notifications", label: "Notifications" },
-  { href: "/account#recent-orders", label: "Orders" },
+  { href: "/account#current-orders", label: "Orders" },
   { href: "/account#security", label: "Security" },
 ];
 

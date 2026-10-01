@@ -4,12 +4,21 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/browser";
+import { acknowledgeInboxItem } from "@/src/lib/notifications/actions";
+import type { InboxItem } from "@/src/lib/notifications/inbox-item";
 
-export function NotificationBell({ initialUnread }: { initialUnread: number }) {
+export function NotificationBell({
+  initialUnread,
+  initialInbox = [],
+}: {
+  initialUnread: number;
+  initialInbox?: InboxItem[];
+}) {
   const [liveUnread, setLiveUnread] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const menuId = useId();
+  const headingId = useId();
   const root = useRef<HTMLDivElement>(null);
   const unread = liveUnread ?? initialUnread;
 
@@ -58,7 +67,16 @@ export function NotificationBell({ initialUnread }: { initialUnread: number }) {
     };
   }, []);
 
-  const label = unread > 0 ? `Notifications, ${unread} unread` : "Notifications";
+  useEffect(() => {
+    if (!open) return;
+    const original = document.body.style.overflow;
+    const mq = window.matchMedia("(max-width: 767px)");
+    if (mq.matches) document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [open]);
+
   const badge = unread > 99 ? "99+" : String(unread);
 
   return (
@@ -66,7 +84,8 @@ export function NotificationBell({ initialUnread }: { initialUnread: number }) {
       <button
         aria-controls={menuId}
         aria-expanded={open}
-        aria-label={label}
+        aria-haspopup="dialog"
+        aria-label="Notifications"
         className="relative inline-flex min-h-11 min-w-11 items-center justify-center text-forest-green"
         onClick={() => setOpen((value) => !value)}
         type="button"
@@ -80,14 +99,98 @@ export function NotificationBell({ initialUnread }: { initialUnread: number }) {
         ) : null}
       </button>
       {open ? (
-        <div className="absolute right-0 z-30 mt-2 w-[min(calc(100vw-2rem),20rem)] rounded-2xl border border-forest-green/15 bg-white p-3 shadow-lg" id={menuId} role="menu">
-          <p className="px-2 text-xs font-semibold uppercase tracking-[0.18em] text-gold">Notifications</p>
-          <Link className="mt-2 flex min-h-11 items-center rounded-xl px-2 text-sm font-semibold text-forest-green" href="/account/notifications" onClick={() => setOpen(false)} role="menuitem">
-            View all notifications{unread > 0 ? ` (${badge} unread)` : ""}
-          </Link>
-        </div>
+        <>
+          <button
+            aria-hidden="true"
+            className="fixed inset-0 z-40 bg-black/25 md:hidden"
+            onClick={() => setOpen(false)}
+            tabIndex={-1}
+            type="button"
+          />
+          <div
+            aria-labelledby={headingId}
+            className="fixed inset-x-3 top-[4.75rem] z-50 max-h-[min(70dvh,32rem)] overflow-y-auto overflow-x-hidden rounded-2xl border border-forest-green/15 bg-white p-3 shadow-lg md:absolute md:inset-x-auto md:right-0 md:top-auto md:mt-2 md:w-80 md:max-w-[min(20rem,calc(100vw-2rem))]"
+            id={menuId}
+            role="dialog"
+          >
+            <div className="flex items-start justify-between gap-3 px-1">
+              <h2 className="text-base font-semibold text-forest-green" id={headingId}>
+                Notifications
+              </h2>
+              <button
+                aria-label="Close notifications"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-sm font-semibold text-forest-green"
+                onClick={() => setOpen(false)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+            <ul className="mt-2 space-y-2">
+              {initialInbox.length ? (
+                initialInbox.map((item) => (
+                  <li key={`${item.kind}-${item.id}`}>
+                    <InboxPreview item={item} onDone={() => { setOpen(false); router.refresh(); }} />
+                  </li>
+                ))
+              ) : (
+                <li className="px-2 py-3 text-sm text-muted">You are caught up. History stays in Account → Notifications.</li>
+              )}
+            </ul>
+            <Link
+              className="mt-2 flex min-h-11 items-center rounded-xl px-2 text-sm font-semibold text-forest-green"
+              href="/account/notifications"
+              onClick={() => setOpen(false)}
+            >
+              View all notifications{unread > 0 ? ` (${badge} unread)` : ""}
+            </Link>
+          </div>
+        </>
       ) : null}
     </div>
+  );
+}
+
+function InboxPreview({ item, onDone }: { item: InboxItem; onDone: () => void }) {
+  const unread = !item.read_at && !item.dismissed_at;
+  const href = item.kind === "order" && item.order_id ? `/account/orders/${item.order_id}` : item.action_href;
+  return (
+    <article className={`rounded-xl border px-3 py-3 ${unread ? "border-gold/40 bg-[#fffdf8]" : "border-forest-green/10 bg-[#f7f3ee]"}`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="min-w-0 flex-1 break-words font-semibold text-forest-green">{item.title}</p>
+        {unread ? <span className="rounded-full bg-gold px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-forest-green">Unread</span> : null}
+      </div>
+      <p className="mt-1 whitespace-pre-line break-words text-sm leading-5 text-muted">{item.message}</p>
+      <p className="mt-1 text-xs text-muted">
+        {new Date(item.created_at).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {href ? (
+          <Link className="inline-flex min-h-11 items-center rounded-lg border border-forest-green/20 px-3 text-sm font-semibold text-forest-green" href={href} onClick={onDone}>
+            {item.kind === "order" ? "View" : item.action_label || "View"}
+          </Link>
+        ) : null}
+        {unread ? (
+          <form action={acknowledgeInboxItem} onSubmit={onDone}>
+            <input name="id" type="hidden" value={item.id} />
+            <input name="kind" type="hidden" value={item.kind} />
+            <button className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-forest-green underline underline-offset-4" type="submit">
+              Mark as read
+            </button>
+          </form>
+        ) : null}
+        {item.kind === "announcement" ? (
+          <form action={acknowledgeInboxItem} onSubmit={onDone}>
+            <input name="id" type="hidden" value={item.id} />
+            <input name="kind" type="hidden" value={item.kind} />
+            <input name="dismiss" type="hidden" value="true" />
+            <button className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-muted underline underline-offset-4" type="submit">
+              Dismiss
+            </button>
+          </form>
+        ) : null}
+      </div>
+    </article>
   );
 }
 

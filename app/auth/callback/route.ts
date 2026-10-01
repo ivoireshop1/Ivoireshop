@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { resolvePublicSiteUrl } from "@/src/lib/site";
-import { mapAuthCallbackQueryError, mapAuthProviderFailure } from "@/src/lib/auth/customer-auth-messages";
+import { CANONICAL_PRODUCTION_ORIGIN, isTrustedPublicSiteOrigin, resolvePublicSiteUrl } from "@/src/lib/site";
 import { resolvePostLoginPath } from "@/src/lib/auth/post-login";
 import { isPasswordRecoveryPath, RECOVERY_INVALID_PATH, RECOVERY_SET_PASSWORD_PATH } from "@/src/lib/auth/recovery";
 import { sanitizeReturnPath } from "@/src/lib/navigation/smart-navigation";
@@ -9,10 +8,6 @@ import { createRouteHandlerClient } from "@/src/lib/supabase/route-handler";
 function sitePath(request: NextRequest, path: string) {
   const origin = resolvePublicSiteUrl(process.env as NodeJS.ProcessEnv, request.nextUrl.origin);
   return new URL(path, `${origin.replace(/\/$/, "")}/`);
-}
-
-function loginErrorPath(code: string) {
-  return `/login?error=${encodeURIComponent(code)}`;
 }
 
 export async function GET(request: NextRequest) {
@@ -28,9 +23,14 @@ export async function GET(request: NextRequest) {
     if (recoveredHint) {
       return NextResponse.redirect(sitePath(request, RECOVERY_INVALID_PATH));
     }
-    return NextResponse.redirect(
-      sitePath(request, loginErrorPath(mapAuthCallbackQueryError(authError, searchParams.get("error_code")))),
-    );
+    return NextResponse.redirect(sitePath(request, "/auth/verify-failed"));
+  }
+
+  const requestOrigin = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+  if ((code || tokenHash) && process.env.VERCEL_ENV === "production" && !isTrustedPublicSiteOrigin(requestOrigin)) {
+    const canonical = new URL("/auth/callback", CANONICAL_PRODUCTION_ORIGIN);
+    canonical.search = request.nextUrl.search;
+    return NextResponse.redirect(canonical);
   }
 
   const { supabase, redirect } = createRouteHandlerClient(request);
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       return redirect(
         sitePath(
           request,
-          type === "recovery" || recovered ? RECOVERY_INVALID_PATH : loginErrorPath(mapAuthProviderFailure(error)),
+          type === "recovery" || recovered ? RECOVERY_INVALID_PATH : "/auth/verify-failed",
         ),
       );
     }
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       return redirect(
         sitePath(
           request,
-          recovered ? RECOVERY_INVALID_PATH : loginErrorPath(mapAuthProviderFailure(error)),
+          recovered ? RECOVERY_INVALID_PATH : "/auth/verify-failed",
         ),
       );
     }
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     // fragment still attached.
     return NextResponse.redirect(sitePath(request, RECOVERY_SET_PASSWORD_PATH));
   } else {
-    return NextResponse.redirect(sitePath(request, loginErrorPath("missing_code")));
+    return NextResponse.redirect(sitePath(request, `/auth/complete?next=${encodeURIComponent(next)}`));
   }
 
   if (recovered || isPasswordRecoveryPath(next)) {

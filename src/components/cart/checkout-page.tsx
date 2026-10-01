@@ -24,8 +24,10 @@ import { viewOrderHref } from "@/src/lib/checkout/view-order-href";
 import { capturePaypalPayment, markPaypalCancelled, payWithSquare, startPaypalPayment } from "@/src/lib/payments/actions";
 import type { PublicPaymentConfig } from "@/src/lib/payments/readiness";
 import type { PaymentEnvironment } from "@/src/lib/payments/public";
+import type { StoreOrigin } from "@/src/lib/delivery/origin";
+import { PickupLocationBlock } from "@/src/components/store/pickup-location-block";
 
-export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; payments: PublicPaymentConfig }) {
+export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { storeOpen: boolean; payments: PublicPaymentConfig; pickupOrigin?: StoreOrigin | null }) {
   const { items, subtotal, isLoaded, completePurchase } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -267,6 +269,7 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
         <OrderConfirmationExperience
           emailSent={emailSent}
           fulfillmentMethod={confirmation.request.fulfillmentMethod}
+          pickupLocation={pickupOrigin}
           receipt={confirmation.receipt}
           viewHref={viewOrderHref({
             orderId: confirmation.receipt.order_id,
@@ -374,11 +377,13 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
                 <input name="city" type="hidden" value={address.city} />
                 <input name="country" type="hidden" value={address.country} />
                 <p className="rounded-xl border border-forest-green/10 bg-white/60 px-4 py-3 text-sm text-muted">We’ll have your groceries ready for pickup. No delivery address is needed.</p>
+                <PickupLocationBlock className="rounded-xl border border-forest-green/10 bg-white px-4 py-3" location={pickupOrigin} />
               </>
             )}
             <CheckoutShippingMethods
               busy={quoteBusy}
               options={options}
+              pickupOrigin={pickupOrigin}
               value={deliveryOptionId}
               onChange={(option) => {
                 setDeliveryOptionId(option.id);
@@ -442,6 +447,9 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
           </fieldset>
 
           <fieldset className={checkoutStep === "review" ? "space-y-4" : "hidden"}>
+            {selectedOption?.provider === "pickup" ? (
+              <PickupLocationBlock className="rounded-xl border border-forest-green/10 bg-white px-4 py-3" location={pickupOrigin} />
+            ) : null}
             <CheckoutOrderSummary
               continueDisabled={!storeOpen || isSubmitting || (!attempt && items.length === 0) || (payments.enabled && paymentMethod !== "square")}
               continueLabel={

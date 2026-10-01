@@ -2,22 +2,36 @@ import { AdminOrderListHeader, AdminOrderListItem } from "@/src/components/admin
 import { orderStatusLabel, orderStatuses, paymentStatusLabel } from "@/src/lib/orders/status";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
+import type { AdminOrderView } from "@/src/lib/orders/buckets";
+import Link from "next/link";
 
 const paymentFilters = ["pending", "paid", "failed", "cancelled", "refunded"] as const;
 const fulfillmentFilters = ["local_pickup", "delivery"] as const;
+const views: { id: AdminOrderView; label: string }[] = [
+  { id: "new", label: "New Orders" },
+  { id: "in_progress", label: "In Progress" },
+  { id: "completed", label: "Completed" },
+  { id: "cancelled", label: "Cancelled" },
+  { id: "all", label: "All Orders" },
+];
 
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; search?: string; payment?: string; fulfillment?: string; shipping?: string }>;
+  searchParams: Promise<{ status?: string; search?: string; payment?: string; fulfillment?: string; shipping?: string; view?: string }>;
 }) {
-  const { status = "all", search = "", payment = "all", fulfillment = "all", shipping = "all" } = await searchParams;
+  const { status = "all", search = "", payment = "all", fulfillment = "all", shipping = "all", view: viewRaw = "new" } = await searchParams;
+  const view = (views.some((item) => item.id === viewRaw) ? viewRaw : "all") as AdminOrderView;
   const { supabase } = await requireAdmin();
   let query = supabase
     .from("orders")
     .select("id, order_number, confirmation_code, customer_name, customer_email, total, status, payment_status, payment_provider, fulfillment_method, fulfillment_provider, fulfillment_service, tracking_number, created_at")
     .order("created_at", { ascending: false });
   if ((orderStatuses as readonly string[]).includes(status)) query = query.eq("status", status);
+  else if (view === "new") query = query.in("status", ["pending", "confirmed"]);
+  else if (view === "in_progress") query = query.in("status", ["processing", "ready_for_pickup", "shipped"]);
+  else if (view === "completed") query = query.eq("status", "delivered");
+  else if (view === "cancelled") query = query.eq("status", "cancelled");
   if ((paymentFilters as readonly string[]).includes(payment)) query = query.eq("payment_status", payment);
   if ((fulfillmentFilters as readonly string[]).includes(fulfillment)) query = query.eq("fulfillment_method", fulfillment);
   if (shipping === "awaiting" || shipping === "shipped" || shipping === "missing-tracking") {
@@ -32,15 +46,38 @@ export default async function AdminOrdersPage({
   }
   const { data: orders, error } = await query;
   if (error) return <AdminLoadFailure message="Unable to load orders." title="Orders" />;
+  const hrefFor = (nextView: AdminOrderView) => {
+    const params = new URLSearchParams();
+    params.set("view", nextView);
+    if (search) params.set("search", search);
+    if (status !== "all") params.set("status", status);
+    if (payment !== "all") params.set("payment", payment);
+    if (fulfillment !== "all") params.set("fulfillment", fulfillment);
+    if (shipping !== "all") params.set("shipping", shipping);
+    return `/admin/orders?${params.toString()}`;
+  };
   return (
     <div className="@container min-w-0 space-y-6">
       <div>
         <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#b8964c]">Sales</p>
         <h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Orders</h1>
       </div>
+      <nav aria-label="Order views" className="flex min-w-0 flex-wrap gap-2">
+        {views.map((item) => (
+          <Link
+            aria-current={view === item.id ? "page" : undefined}
+            className={`inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold ${view === item.id ? "bg-[#173f35] text-white" : "border border-[#173f35]/15 bg-white text-[#173f35]"}`}
+            href={hrefFor(item.id)}
+            key={item.id}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
       {shipping !== "all" ? <p className="text-sm text-[#6b6b6b]">Shipping filter: {shipping.replace("-", " ")}</p> : null}
       <form className="grid grid-cols-1 gap-3 rounded-2xl border border-[#173f35]/10 bg-white p-4 @md:grid-cols-2 @4xl:grid-cols-[minmax(16rem,1.6fr)_repeat(3,minmax(8rem,1fr))_auto]" method="get">
         {shipping !== "all" ? <input name="shipping" type="hidden" value={shipping} /> : null}
+        <input name="view" type="hidden" value={view} />
         <label className="min-w-0 text-sm text-[#173f35]" htmlFor="order-search">
           Search
           <input className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 bg-[#f9f7f3] px-3 py-2.5 text-[#173f35] outline-none" defaultValue={search} id="order-search" maxLength={100} name="search" placeholder="Order #, IVO code, name, email" />
@@ -78,7 +115,7 @@ export default async function AdminOrdersPage({
       {!orders?.length ? (
         <div className="rounded-2xl border border-dashed border-[#173f35]/20 bg-white p-10 text-center">
           <p className="font-medium text-[#173f35]">No matching orders</p>
-          <p className="mt-2 text-sm text-[#6b6b6b]">New customer orders will appear here.</p>
+          <p className="mt-2 text-sm text-[#6b6b6b]">Orders in this operational state will appear here.</p>
         </div>
       ) : (
         <div className="space-y-3">

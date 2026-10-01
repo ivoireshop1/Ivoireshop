@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notificationIcon } from "@/src/lib/notifications/events";
 import { acknowledgeInboxItem } from "@/src/lib/notifications/actions";
-import type { InboxItem } from "@/src/lib/notifications/inbox";
+import type { InboxItem } from "@/src/lib/notifications/inbox-item";
 
 export function NotificationCard({ item }: { item: InboxItem }) {
   const unread = !item.read_at && !item.dismissed_at;

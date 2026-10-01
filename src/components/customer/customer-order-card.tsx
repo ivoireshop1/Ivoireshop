@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ReorderButton } from "@/src/components/customer/reorder-button";
 import { fulfillmentLabel } from "@/src/lib/fulfillment/fulfillment";
 import { orderStatusLabel, paymentStatusLabel } from "@/src/lib/orders/status";
+import { formatOrderDate } from "@/src/lib/orders/buckets";
 
 export type CustomerOrderSummary = {
   id: string;
@@ -29,7 +30,7 @@ export function CustomerOrderCard({ order }: { order: CustomerOrderSummary }) {
             <p className="mt-1 font-mono text-sm tracking-[0.14em] text-forest-green">{order.confirmation_code}</p>
           ) : null}
           <p className="mt-1 text-sm text-muted">
-            {new Date(order.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · {itemCount} item{itemCount === 1 ? "" : "s"}
+            {formatOrderDate(order.created_at)} · {itemCount} item{itemCount === 1 ? "" : "s"}
           </p>
         </div>
         <div className="text-right">

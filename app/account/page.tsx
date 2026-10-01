@@ -19,6 +19,7 @@ import { CanonicalCategoryCards } from "@/src/components/storefront/canonical-ca
 import { getCategories, getProducts } from "@/src/lib/catalog/catalog";
 import { getWishlistProductsForUser } from "@/src/lib/wishlist/wishlist-server";
 import { WishlistButton } from "@/src/components/wishlist/wishlist-button";
+import { isCustomerCurrentOrder } from "@/src/lib/orders/buckets";
 
 export const metadata = pageMetadata("Your Account", "Manage your account and view your orders.", "/account", false);
 
@@ -49,8 +50,8 @@ export default async function AccountPage() {
   ]);
   if (ordersError) throw new Error("Unable to load your orders.");
   const heroName = profile?.full_name?.trim()?.split(/\s+/)[0] || null;
-  const recent = orders?.slice(0, 3) ?? [];
-  const history = orders?.slice(3) ?? [];
+  const currentOrders = (orders ?? []).filter((order) => isCustomerCurrentOrder(order.status, order.payment_status));
+  const pastOrders = (orders ?? []).filter((order) => !isCustomerCurrentOrder(order.status, order.payment_status));
   const recommendedProducts = [...recommended.filter((product) => product.isFeatured), ...recommended.filter((product) => !product.isFeatured)].slice(0, 8);
   const liveNames = new Set(recommended.map((product) => product.category));
 
@@ -138,32 +139,33 @@ export default async function AccountPage() {
 
         <p className="mt-12 text-sm text-muted">{user.email}</p>
 
-      <section className="mt-10" id="recent-orders">
+      <section className="mt-10" id="current-orders">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-semibold text-forest-green">Recent orders</h2>
-            <p className="mt-1 text-sm text-muted">Your newest groceries, ready to reorder.</p>
+            <h2 className="text-2xl font-semibold text-forest-green">Current orders</h2>
+            <p className="mt-1 text-sm text-muted">Placed, preparing, ready, or on the way.</p>
           </div>
-          {history.length > 0 && (
-            <Link className="text-sm font-semibold text-forest-green underline underline-offset-4" href="#order-history">
-              Order history
+          {pastOrders.length > 0 && (
+            <Link className="text-sm font-semibold text-forest-green underline underline-offset-4" href="#past-orders">
+              Past orders
             </Link>
           )}
         </div>
-        {recent.length ? (
+        {currentOrders.length ? (
           <div className="mt-5 grid gap-4">
-            {recent.map((order) => <CustomerOrderCard key={order.id} order={order} />)}
+            {currentOrders.map((order) => <CustomerOrderCard key={order.id} order={order} />)}
           </div>
         ) : (
-          <p className="mt-3 text-sm text-muted">No orders yet. When you place one, it will show up here.</p>
+          <p className="mt-3 text-sm text-muted">No current orders. When you place one, it will show up here.</p>
         )}
       </section>
 
-      {history.length > 0 && (
-        <section className="mt-12" id="order-history">
-          <h2 className="text-2xl font-semibold text-forest-green">Order history</h2>
+      {pastOrders.length > 0 && (
+        <section className="mt-12" id="past-orders">
+          <h2 className="text-2xl font-semibold text-forest-green">Past orders</h2>
+          <p className="mt-1 text-sm text-muted">Completed, picked up, delivered, cancelled, or refunded.</p>
           <div className="mt-5 grid gap-4">
-            {history.map((order) => <CustomerOrderCard key={`history-${order.id}`} order={order} />)}
+            {pastOrders.map((order) => <CustomerOrderCard key={`past-${order.id}`} order={order} />)}
           </div>
         </section>
       )}

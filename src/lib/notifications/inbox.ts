@@ -3,21 +3,9 @@ import "server-only";
 import { createClient } from "@/src/lib/supabase/server";
 import { displayAnnouncementStatus, type AnnouncementStatusSource } from "@/src/lib/admin/announcement-helpers";
 import type { CustomerNotification } from "./record";
+import type { InboxItem } from "./inbox-item";
 
-export type InboxItem = {
-  id: string;
-  kind: "order" | "announcement";
-  title: string;
-  message: string;
-  created_at: string;
-  read_at: string | null;
-  dismissed_at?: string | null;
-  order_id?: string | null;
-  confirmation_code?: string | null;
-  event_type: string;
-  action_label?: string | null;
-  action_href?: string | null;
-};
+export type { InboxItem } from "./inbox-item";
 
 function liveAnnouncement(row: AnnouncementStatusSource, now: Date) {
   return displayAnnouncementStatus(row, now) === "published";
@@ -27,7 +15,7 @@ export async function getCustomerInbox(limit = 50) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { kind: "unauthenticated" as const };
-  const [{ data: notes, error: notesError }, { data: announcements, error: announcementError }, { data: reads, error: readsError }] = await Promise.all([
+  const [{ data: notes, error: notesError }, { data: announcements, error: announcementError }, { data: reads }] = await Promise.all([
     supabase
       .from("customer_notifications")
       .select("id, order_id, event_type, title, message, confirmation_code, email_sent, email_attempted, read_at, created_at")
@@ -44,10 +32,12 @@ export async function getCustomerInbox(limit = 50) {
       .select("announcement_id, read_at, dismissed_at")
       .eq("user_id", user.id),
   ]);
-  if (notesError || announcementError || readsError) throw new Error("Unable to load your notifications.");
+  if (notesError && announcementError) {
+    return { kind: "found" as const, items: [] as InboxItem[] };
+  }
   const readMap = new Map((reads ?? []).map((row) => [row.announcement_id, row]));
   const now = new Date();
-  const announcementItems: InboxItem[] = ((announcements ?? []) as Array<AnnouncementStatusSource & { id: string; title: string; message: string; action_label: string | null; action_href: string | null; published_at: string | null; created_at: string }>)
+  const announcementItems: InboxItem[] = ((announcementError ? [] : announcements ?? []) as Array<AnnouncementStatusSource & { id: string; title: string; message: string; action_label: string | null; action_href: string | null; published_at: string | null; created_at: string }>)
     .filter((row) => liveAnnouncement(row, now) || readMap.has(row.id))
     .map((row) => {
       const receipt = readMap.get(row.id);
@@ -64,7 +54,7 @@ export async function getCustomerInbox(limit = 50) {
         action_href: row.action_href,
       };
     });
-  const orderItems: InboxItem[] = ((notes ?? []) as CustomerNotification[]).map((row) => ({
+  const orderItems: InboxItem[] = ((notesError ? [] : notes ?? []) as CustomerNotification[]).map((row) => ({
     id: row.id,
     kind: "order" as const,
     title: row.title,

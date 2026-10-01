@@ -6,6 +6,8 @@ import type { CheckoutReceipt } from "@/src/lib/checkout/checkout-validation";
 import { maskEmail } from "@/src/lib/customer/mask-email";
 import { paymentProviderLabel, paymentStatusLabel } from "@/src/lib/orders/status";
 import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
+import { PickupLocationBlock } from "@/src/components/store/pickup-location-block";
+import type { PickupLocationSnapshot, StoreOrigin } from "@/src/lib/delivery/origin";
 
 function firstName(name?: string) {
   const token = name?.trim().split(/\s+/)[0];
@@ -22,12 +24,14 @@ export function OrderConfirmationExperience({
   emailSent,
   viewHref,
   onContinue,
+  pickupLocation,
 }: {
   receipt: CheckoutReceipt;
   fulfillmentMethod: "delivery" | "local_pickup" | string;
   emailSent: boolean;
   viewHref?: string | null;
   onContinue?: () => void;
+  pickupLocation?: StoreOrigin | PickupLocationSnapshot | null;
 }) {
   const pickup = fulfillmentMethod === "local_pickup";
   const processing = isProcessing(receipt);
@@ -74,6 +78,7 @@ export function OrderConfirmationExperience({
         <div className="flex justify-between gap-4"><dt className="shrink-0">Payment method</dt><dd className="min-w-0 text-right text-forest-green">{paymentProviderLabel(receipt.payment_provider, receipt.payment_method)}</dd></div>
         <div className="flex justify-between gap-4"><dt className="shrink-0">Total</dt><dd className="text-right font-semibold text-forest-green">${Number(receipt.total).toFixed(2)}</dd></div>
       </dl>
+      {pickup ? <PickupLocationBlock className="mt-4 rounded-2xl border border-black/10 bg-white/70 p-5" location={pickupLocation} /> : null}
       <p className="mt-6 text-center text-sm leading-7 text-muted">
         {pickup
           ? "We'll let you know when your order is ready for pickup."

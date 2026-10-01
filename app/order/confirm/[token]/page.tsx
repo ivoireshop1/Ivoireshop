@@ -7,6 +7,7 @@ import { OrderConfirmationExperience } from "@/src/components/checkout/order-con
 import { ShipmentTrackingPanel } from "@/src/components/orders/shipment-tracking-panel";
 import { SiteHeader } from "@/src/components/layout/site-header";
 import { Footer } from "@/src/components/layout/footer";
+import { pickupLocationForOrder } from "@/src/components/store/pickup-location-block";
 
 export const metadata = pageMetadata("Order confirmation", "View your Ivoire Shop order confirmation.", "/order/confirm", false);
 
@@ -30,6 +31,10 @@ export default async function GuestOrderConfirmationPage({ params }: { params: P
         <OrderConfirmationExperience
           emailSent={false}
           fulfillmentMethod={order.fulfillment_method}
+          pickupLocation={pickupLocationForOrder({
+            fulfillment_method: String(order.fulfillment_method),
+            shipping_address: order.shipping_address,
+          })}
           receipt={{
             order_id: orderId,
             order_number: String(order.order_number),

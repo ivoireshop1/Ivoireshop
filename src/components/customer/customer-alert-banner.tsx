@@ -1,5 +1,5 @@
 import { acknowledgeInboxItem } from "@/src/lib/notifications/actions";
-import type { InboxItem } from "@/src/lib/notifications/inbox";
+import type { InboxItem } from "@/src/lib/notifications/inbox-item";
 
 export function CustomerAlertBanner({ item }: { item: InboxItem }) {
   return (

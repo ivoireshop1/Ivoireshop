@@ -1,3 +1,6 @@
+"use client";
+
+import { formatOriginLines, type StoreOrigin } from "@/src/lib/delivery/origin";
 import type { DeliveryOption } from "@/src/lib/delivery/types";
 import { shippingMethodCopy } from "@/src/lib/delivery/labels";
 
@@ -6,12 +9,15 @@ export function CheckoutShippingMethods({
   value,
   onChange,
   busy,
+  pickupOrigin,
 }: {
   options: DeliveryOption[];
   value: string;
   onChange: (option: DeliveryOption) => void;
   busy?: boolean;
+  pickupOrigin?: StoreOrigin | null;
 }) {
+  const pickupLines = formatOriginLines(pickupOrigin ?? undefined);
   return (
     <section className="min-w-0">
       <h2 className="text-xl font-semibold text-forest-green">Shipping Method</h2>
@@ -20,9 +26,10 @@ export function CheckoutShippingMethods({
         {options.map((option) => {
           const copy = shippingMethodCopy(option);
           const selected = value === option.id;
+          const pickup = option.provider === "pickup";
           return (
             <label
-              className={`grid min-h-16 cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-x-3 rounded-2xl border px-3 py-3 sm:px-4 ${
+              className={`grid min-h-16 cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-x-3 rounded-2xl border px-3 py-3 sm:px-4 ${
                 selected ? "border-forest-green bg-forest-green/[0.06]" : "border-black/10 bg-white"
               }`}
               key={option.id}
@@ -36,7 +43,7 @@ export function CheckoutShippingMethods({
               />
               <span
                 aria-hidden="true"
-                className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border ${
                   selected ? "border-forest-green" : "border-black/25"
                 }`}
               >
@@ -48,6 +55,12 @@ export function CheckoutShippingMethods({
                   <span className="min-w-0 break-words">{copy.title}</span>
                 </span>
                 <span className="mt-0.5 block text-sm text-muted">{copy.subtitle}</span>
+                {pickup && selected && pickupLines.length ? (
+                  <span className="mt-3 block rounded-xl bg-white/80 px-3 py-2 text-sm text-forest-green">
+                    <span className="block font-semibold">Pickup at Ivoire Shop</span>
+                    <span className="mt-1 block whitespace-pre-line text-muted">{pickupLines.join("\n")}</span>
+                  </span>
+                ) : null}
               </span>
               <span className="shrink-0 self-start whitespace-nowrap pt-0.5 text-sm font-semibold tabular-nums text-forest-green">{copy.price}</span>
             </label>

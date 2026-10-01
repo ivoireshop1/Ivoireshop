@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { orderStatusLabel, paymentStatusLabel } from "@/src/lib/orders/status";
 import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
+import { isAdminNewOrder, formatOrderDate } from "@/src/lib/orders/buckets";
 
 export type AdminOrderListItemData = {
   id: string;
@@ -62,7 +63,12 @@ export function AdminOrderListItem({ order }: { order: AdminOrderListItemData })
       href={`/admin/orders/${order.id}`}
     >
       <Field label="Order">
-        <p className="break-words font-medium text-[#173f35] [overflow-wrap:anywhere]">{order.order_number}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="break-words font-medium text-[#173f35] [overflow-wrap:anywhere]">{order.order_number}</p>
+          {isAdminNewOrder(order.status) ? (
+            <span className="rounded-full bg-[#b8964c] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">NEW</span>
+          ) : null}
+        </div>
         {order.confirmation_code ? (
           <>
             <p className="mt-3 text-[11px] font-medium uppercase tracking-[0.18em] text-[#6b6b6b] @4xl:sr-only">Confirmation</p>
@@ -94,7 +100,7 @@ export function AdminOrderListItem({ order }: { order: AdminOrderListItemData })
         </p>
       </Field>
       <Field label="Date">
-        <p className="whitespace-nowrap text-[#173f35]">{new Date(order.created_at).toLocaleDateString()}</p>
+        <p className="whitespace-nowrap text-[#173f35]">{formatOrderDate(order.created_at)}</p>
       </Field>
     </Link>
   );
