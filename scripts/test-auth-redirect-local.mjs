@@ -14,6 +14,7 @@ function load(file){
 const {CUSTOMER_HOME,resolvePostLoginPath}=load('src/lib/auth/post-login.ts');
 const {sanitizeReturnPath}=load('src/lib/navigation/smart-navigation.ts');
 const {isPasswordRecoveryPath}=load('src/lib/auth/recovery.ts');
+const {mapAuthCallbackQueryError,mapAuthProviderFailure,publicAuthActionMessage}=load('src/lib/auth/customer-auth-messages.ts');
 const {resolveHomeHref,resolveStorefrontHomeHref}=(()=>{
   const exports={};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/auth/session-navigation.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:(id)=>{
@@ -42,5 +43,13 @@ test('password recovery paths are not admin destinations',()=>{
   assert.equal(isPasswordRecoveryPath('/reset-password'),true);
   assert.equal(isPasswordRecoveryPath('/update-password'),true);
   assert.equal(resolvePostLoginPath('admin','/reset-password'),'/admin');
+});
+test('expired confirmation maps to branded login error',()=>{
+  assert.equal(mapAuthProviderFailure({code:'otp_expired',message:'Token has expired or is invalid'}),'expired');
+  assert.equal(mapAuthCallbackQueryError('access_denied','otp_expired'),'expired');
+});
+test('raw supabase login errors are not shown to customers',()=>{
+  assert.match(publicAuthActionMessage('Invalid login credentials'),/email or password/i);
+  assert.equal(publicAuthActionMessage('weird internal stack at GoTrueClient.ts:12').includes('GoTrue'), false);
 });
 console.log(`${n} auth redirect tests passed.`);

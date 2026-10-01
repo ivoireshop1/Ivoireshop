@@ -44,6 +44,38 @@ test("production recovery host is used when local SITE_URL is set", () => {
   );
 });
 
+test("Vercel deployment and team alias origins are never used for customer auth", () => {
+  assert.equal(
+    resolvePublicSiteUrl(
+      {
+        NEXT_PUBLIC_SITE_URL: "https://ivoire-shop-five.vercel.app",
+        VERCEL_ENV: "production",
+        VERCEL_URL: "ivoire-shop-kcedntz9m-ibrahim-s-projects-1a340afc.vercel.app",
+      },
+      "https://ivoire-shop-kcedntz9m-ibrahim-s-projects-1a340afc.vercel.app",
+    ),
+    "https://ivoire-shop-five.vercel.app",
+  );
+  assert.equal(
+    resolvePublicSiteUrl({
+      VERCEL_ENV: "production",
+      VERCEL_PROJECT_PRODUCTION_URL: "ivoire-shop-ibrahim-s-projects-1a340afc.vercel.app",
+    }),
+    "https://ivoire-shop-five.vercel.app",
+  );
+  assert.equal(
+    resolvePublicSiteUrl({ VERCEL_ENV: "preview", VERCEL_URL: "ivoire-shop-git-auth-xxx.vercel.app" }),
+    "https://ivoire-shop-five.vercel.app",
+  );
+});
+
+test("local development still uses localhost", () => {
+  assert.equal(
+    resolvePublicSiteUrl({ NEXT_PUBLIC_SITE_URL: "http://localhost:3000", NODE_ENV: "development" }),
+    "http://localhost:3000",
+  );
+});
+
 test("recovery destinations are recognized", () => {
   assert.equal(isPasswordRecoveryPath("/reset-password"), true);
   assert.equal(isPasswordRecoveryPath("/update-password"), true);

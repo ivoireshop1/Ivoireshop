@@ -6,7 +6,8 @@ import { createClient } from "@/src/lib/supabase/browser";
 import { useRouter } from "next/navigation";
 import { resolveAuthRedirectTarget } from "@/src/lib/navigation/smart-navigation";
 import { resolvePostLoginPath } from "@/src/lib/auth/post-login";
-import { getPublicSiteUrl } from "@/src/lib/site";
+import { getAuthCallbackUrl } from "@/src/lib/site";
+import { customerAuthPageCopy, publicAuthActionMessage } from "@/src/lib/auth/customer-auth-messages";
 
 type AuthMode = "login" | "signup" | "reset" | "update-password";
 
@@ -17,15 +18,49 @@ const content: Record<AuthMode, { title: string; submit: string }> = {
   "update-password": { title: "Choose a new password", submit: "Update password" },
 };
 
-export default function AuthForm({ mode }: { mode: AuthMode }) {
+export default function AuthForm({
+  mode,
+  initialError,
+  resetSuccess = false,
+}: {
+  mode: AuthMode;
+  initialError?: string;
+  resetSuccess?: boolean;
+}) {
+  const loginCopy = mode === "login" ? customerAuthPageCopy(initialError) : null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(loginCopy?.body ?? "");
+  const [resendHint, setResendHint] = useState(Boolean(loginCopy?.resend));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
-  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
-  const resetSuccess = searchParams.get("reset") === "success";
+
+  async function resendConfirmation() {
+    if (!email) {
+      setMessage("Enter the email you used to sign up, then request another confirmation.");
+      setResendHint(true);
+      return;
+    }
+    setIsSubmitting(true);
+    setMessage("");
+    const supabase = createClient();
+    const nextTarget = resolveAuthRedirectTarget(
+      new URLSearchParams(window.location.search),
+      "/account",
+    );
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: getAuthCallbackUrl(nextTarget) },
+    });
+    setIsSubmitting(false);
+    if (error) {
+      setMessage(publicAuthActionMessage(error.message));
+      return;
+    }
+    setMessage("If that email still needs confirmation, we sent a new Ivoire Shop confirmation link.");
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,10 +68,13 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
     setMessage("");
 
     const supabase = createClient();
-    const nextTarget = resolveAuthRedirectTarget(searchParams, "/account");
+    const nextTarget = resolveAuthRedirectTarget(
+      new URLSearchParams(window.location.search),
+      "/account",
+    );
     if (mode === "reset") {
       await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${getPublicSiteUrl()}/auth/callback?next=${encodeURIComponent("/reset-password")}`,
+        redirectTo: getAuthCallbackUrl("/reset-password"),
       });
       setIsSubmitting(false);
       setMessage("If an account exists for that email, we've sent password reset instructions.");
@@ -51,14 +89,16 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
               password,
               options: {
                 data: { full_name: fullName },
-                emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextTarget)}`,
+                emailRedirectTo: getAuthCallbackUrl(nextTarget),
               },
             })
           : await supabase.auth.updateUser({ password });
 
     setIsSubmitting(false);
     if (result.error) {
-      setMessage(result.error.message);
+      const text = result.error.message.toLowerCase();
+      setMessage(publicAuthActionMessage(result.error.message));
+      setResendHint(mode === "login" && text.includes("email not confirmed"));
       return;
     }
 
@@ -69,13 +109,25 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
       const { data: profile } = user
         ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
         : { data: null };
-      router.push(resolvePostLoginPath(profile?.role, searchParams.get("next") ?? searchParams.get("returnTo")));
+      router.push(resolvePostLoginPath(profile?.role, new URLSearchParams(window.location.search).get("next") ?? new URLSearchParams(window.location.search).get("returnTo")));
       router.refresh();
       return;
     }
 
     if (mode === "signup") {
-      setMessage("Welcome to Ivoire Shop. Check your email to confirm your account and continue.");
+      const identities = result.data.user?.identities ?? [];
+      if (result.data.user && identities.length === 0) {
+        setMessage("An account with this email already exists. Sign in, or reset your password if you forgot it.");
+        return;
+      }
+      const session = "session" in result.data ? result.data.session : null;
+      if (session && result.data.user) {
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", result.data.user.id).maybeSingle();
+        router.push(resolvePostLoginPath(profile?.role, nextTarget));
+        router.refresh();
+        return;
+      }
+      setMessage("Welcome to Ivoire Shop. Check your email to confirm your account. The link returns you to Ivoire Shop — not to Vercel.");
       return;
     }
 
@@ -86,18 +138,18 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
 
   const copy = content[mode];
   return (
-    <main className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-6 py-16">
-      <section className="w-full rounded-2xl bg-surface p-8 shadow-sm">
+    <main className="mx-auto flex min-h-[70vh] w-full min-w-0 max-w-md items-center overflow-x-hidden px-4 py-12 sm:px-6 sm:py-16">
+      <section className="w-full min-w-0 rounded-2xl bg-surface p-5 shadow-sm sm:p-8">
         <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-gold">
           Ivoire Shop
         </p>
-        <h1 className="text-3xl font-semibold text-forest-green">{copy.title}</h1>
+        <h1 className="text-2xl font-semibold break-words text-forest-green sm:text-3xl">{copy.title}</h1>
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
           {mode === "signup" && (
             <label className="block text-sm font-medium">
               Full name
               <input
-                className="mt-2 w-full rounded-lg border border-black/15 px-4 py-3"
+                className="mt-2 min-h-11 w-full min-w-0 rounded-lg border border-black/15 px-4 py-3"
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
                 required
@@ -107,8 +159,9 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
           <label className="block text-sm font-medium">
             Email
             <input
-              className="mt-2 w-full rounded-lg border border-black/15 px-4 py-3"
+              className="mt-2 min-h-11 w-full min-w-0 rounded-lg border border-black/15 px-4 py-3"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required
@@ -119,7 +172,7 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
               Password
               <input
                 autoComplete={mode === "login" ? "current-password" : "new-password"}
-                className="mt-2 min-h-11 w-full rounded-lg border border-black/15 px-4 py-3"
+                className="mt-2 min-h-11 w-full min-w-0 rounded-lg border border-black/15 px-4 py-3"
                 type="password"
                 minLength={8}
                 value={password}
@@ -129,16 +182,26 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
             </label>
           )}
           <button
-            className="w-full rounded-lg bg-forest-green px-4 py-3 font-medium text-white disabled:opacity-60"
+            className="min-h-11 w-full rounded-lg bg-forest-green px-4 py-3 font-medium text-white disabled:opacity-60"
             disabled={isSubmitting}
             type="submit"
           >
             {isSubmitting ? "Please wait..." : copy.submit}
           </button>
         </form>
-        {resetSuccess ? <p className="mt-5 text-sm text-forest-green">Your password has been updated. Sign in with your new password.</p> : null}
-        {message && <p className="mt-5 text-sm text-muted">{message}</p>}
-        <div className="mt-6 flex justify-between text-sm text-forest-green">
+        {resetSuccess ? <p className="mt-5 text-sm break-words text-forest-green">Your password has been updated. Sign in with your new password.</p> : null}
+        {message && <p className="mt-5 text-sm break-words text-muted">{message}</p>}
+        {mode === "login" && resendHint ? (
+          <button
+            className="mt-3 min-h-11 w-full rounded-lg border border-forest-green/20 px-4 py-3 text-sm font-medium text-forest-green disabled:opacity-60"
+            disabled={isSubmitting}
+            type="button"
+            onClick={() => void resendConfirmation()}
+          >
+            Send another confirmation email
+          </button>
+        ) : null}
+        <div className="mt-6 flex flex-wrap justify-between gap-3 text-sm text-forest-green">
           {mode === "login" ? (
             <>
               <Link href="/signup">Create account</Link>

@@ -52,7 +52,10 @@ function load(file) {
   const require = (id) => {
     if(id==='next/cache') return {revalidatePath(){}};
     if(id==='next/navigation') return {redirect(url){throw new Error(`REDIRECT:${url}`);}};
+    if(id==='server-only') return {};
     if(id==='@/src/lib/auth/guards') return {requireAdmin:async()=>({supabase})};
+    if(id==='@/src/lib/communications/fulfillment-email') return {notifyFulfillmentEmail:async()=>false};
+    if(id==='@/src/lib/notifications/record') return {recordFulfillmentNotification:async()=>{}};
     if(id.startsWith('@/')) return load(id.slice(2)+'.ts');
     throw Error(`Unexpected dependency: ${id}`);
   };
