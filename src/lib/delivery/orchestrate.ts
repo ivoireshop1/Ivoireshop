@@ -3,7 +3,7 @@ import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
 import { originFromSettings, originIsComplete } from "./origin";
 import { quoteDoorDash } from "./providers/doordash";
 import { sanitizeProviderError, type DeliveryOption } from "./types";
-import { manualCarrierOptions } from "./manual";
+import { parseCharge, manualCarrierOptions } from "./manual";
 import { taxSettingsFromRow, computeTaxCents, computeOrderTotalCents, moneyFromCents, safeUsdToCents } from "@/src/lib/tax/totals";
 
 function logDelivery(provider: string, operation: string, success: boolean, message?: string) {
@@ -31,7 +31,7 @@ export async function collectCheckoutOptions(input: {
   const { data: settings } = await supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle();
   const origin = originFromSettings(settings);
   const options: DeliveryOption[] = [];
-  if (settings?.pickup_enabled !== false) {
+  if (settings?.pickup_enabled !== false && settings?.pickup_show_at_checkout !== false) {
     options.push({
       id: "pickup",
       provider: "pickup",
@@ -40,13 +40,13 @@ export async function collectCheckoutOptions(input: {
       amount: 0,
     });
   }
-  if (settings?.store_delivery_enabled !== false) {
+  if (settings?.store_delivery_enabled !== false && settings?.store_delivery_show_at_checkout !== false) {
     options.push({
       id: "store",
       provider: "store",
       fulfillmentMethod: "delivery",
       label: "Delivery · Arranged by Ivoire Shop",
-      amount: 0,
+      amount: parseCharge(settings?.store_delivery_charge) ?? 0,
     });
   }
 

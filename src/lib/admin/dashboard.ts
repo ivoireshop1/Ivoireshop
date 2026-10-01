@@ -4,6 +4,7 @@ import { parseTaxMode, taxModeLabel } from "@/src/lib/tax/totals";
 import { productMissingRequirements, productNeedsReview, productReadyToPublish } from "@/src/lib/catalog/product-readiness";
 import { describeStoreStatus, getStoreStatus } from "@/src/lib/store/status";
 import { startOfStoreDayIso, storeGreetingAt } from "@/src/lib/store/timezone";
+import { recordAdminIncident } from "@/src/lib/ops/incident";
 
 export type AdminDashboardMetric = {
   label: string;
@@ -85,8 +86,19 @@ export async function getAdminDashboardData() {
       supabase.from("store_settings").select("tax_mode").eq("id", STORE_SETTINGS_ID).maybeSingle(),
     ]);
 
-  if ([todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult, shippingOrdersResult].some((result) => result.error)) {
-    throw new Error("Unable to load dashboard data.");
+  if ([todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult].some((result) => result.error)) {
+    for (const [feature, result] of [
+      ["today_orders", todayOrdersResult],
+      ["today_customers", todayCustomersResult],
+      ["products", productResult],
+      ["recent_orders", recentOrdersResult],
+      ["order_items", orderItemsResult],
+      ["all_orders", allOrdersResult],
+    ] as const) {
+      if ("error" in result && result.error) {
+        recordAdminIncident({ route: "/admin", feature, category: "database", safeCode: "DASHBOARD_SECTION" });
+      }
+    }
   }
   const todayOrders = todayOrdersResult.data ?? [];
   const todayCustomers = todayCustomersResult.data ?? [];
@@ -96,20 +108,34 @@ export async function getAdminDashboardData() {
   const allOrders = allOrdersResult.data ?? [];
   const pendingReviewCount = pendingReviewsResult.count ?? 0;
   const store = storeStatusRow;
-  const shippingRows = (shippingOrdersResult.data ?? []).filter((row) => {
-    const provider = (row.fulfillment_provider ?? "").toLowerCase();
-    return provider === "ups" || provider === "usps";
-  });
+  const shippingUnavailable = Boolean(shippingOrdersResult.error);
+  if (shippingUnavailable) {
+    recordAdminIncident({ route: "/admin", feature: "shipping_counts", category: "database", safeCode: "DASHBOARD_SHIPPING" });
+  }
+  const shippingRows = shippingUnavailable
+    ? []
+    : (shippingOrdersResult.data ?? []).filter((row) => {
+        const provider = (row.fulfillment_provider ?? "").toLowerCase();
+        return provider === "ups" || provider === "usps";
+      });
   const shippingCounts = {
-    awaiting: shippingRows.filter((row) => !["shipped", "delivered", "cancelled"].includes(row.status)).length,
-    shipped: shippingRows.filter((row) => row.status === "shipped").length,
-    missingTracking: shippingRows.filter((row) => !row.tracking_number && row.status !== "cancelled").length,
+    awaiting: shippingUnavailable ? null : shippingRows.filter((row) => !["shipped", "delivered", "cancelled"].includes(row.status)).length,
+    shipped: shippingUnavailable ? null : shippingRows.filter((row) => row.status === "shipped").length,
+    missingTracking: shippingUnavailable ? null : shippingRows.filter((row) => !row.tracking_number && row.status !== "cancelled").length,
+    unavailable: shippingUnavailable,
   };
-  const announcementRows = announcementsResult.error ? [] : (announcementsResult.data ?? []);
+  const announcementRows = (() => {
+    if (announcementsResult.error) {
+      recordAdminIncident({ route: "/admin", feature: "announcements", category: "database", safeCode: "DASHBOARD_ANNOUNCEMENTS" });
+      return null;
+    }
+    return announcementsResult.data ?? [];
+  })();
   const announcementCounts = {
-    published: announcementRows.filter((row) => row.status === "published" && !row.archived_at && (!row.ends_at || new Date(row.ends_at) > new Date()) && (!row.starts_at || new Date(row.starts_at) <= new Date())).length,
-    scheduled: announcementRows.filter((row) => row.status === "scheduled" || (row.status === "published" && row.starts_at && new Date(row.starts_at) > new Date())).length,
-    drafts: announcementRows.filter((row) => row.status === "draft").length,
+    published: announcementRows?.filter((row) => row.status === "published" && !row.archived_at && (!row.ends_at || new Date(row.ends_at) > new Date()) && (!row.starts_at || new Date(row.starts_at) <= new Date())).length ?? null,
+    scheduled: announcementRows?.filter((row) => row.status === "scheduled" || (row.status === "published" && row.starts_at && new Date(row.starts_at) > new Date())).length ?? null,
+    drafts: announcementRows?.filter((row) => row.status === "draft").length ?? null,
+    unavailable: !announcementRows,
   };
 
   const catalogStats = {

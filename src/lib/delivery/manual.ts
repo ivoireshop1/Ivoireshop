@@ -9,10 +9,28 @@ export function isDomesticCountry(country?: string | null) {
 }
 
 export function parseCharge(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") return null;
-  const number = Number(value);
-  if (!Number.isFinite(number) || number < 0) return null;
-  return Number(Number(number).toFixed(2));
+  const parsed = parseAdminMoney(value);
+  return parsed.ok ? parsed.amount : null;
+}
+
+export function parseAdminMoney(value: unknown): { ok: true; amount: number | null } | { ok: false } {
+  if (value === null || value === undefined) return { ok: true, amount: null };
+  const raw = String(value).trim();
+  if (!raw) return { ok: true, amount: null };
+  const number = Number(raw);
+  if (!Number.isFinite(number) || number < 0) return { ok: false };
+  const cents = Math.round(number * 100);
+  if (!Number.isSafeInteger(cents) || cents < 0) return { ok: false };
+  return { ok: true, amount: cents / 100 };
+}
+
+export function parseAdminMiles(value: unknown): { ok: true; amount: number | null } | { ok: false } {
+  if (value === null || value === undefined) return { ok: true, amount: null };
+  const raw = String(value).trim();
+  if (!raw) return { ok: true, amount: null };
+  const number = Number(raw);
+  if (!Number.isFinite(number) || number < 0 || number > 500) return { ok: false };
+  return { ok: true, amount: Number(number.toFixed(1)) };
 }
 
 export function parseRateMode(value: unknown): ShippingRateMode {

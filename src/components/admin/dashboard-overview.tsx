@@ -70,15 +70,15 @@ export async function DashboardOverview() {
         <div className="grid gap-3 sm:grid-cols-3">
           <Link className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4" href="/admin/orders?shipping=awaiting">
             <p className="text-sm text-[#6b6b6b]">Awaiting Shipment</p>
-            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.shippingCounts.awaiting}</p>
+            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.shippingCounts.unavailable ? "—" : dashboard.shippingCounts.awaiting}</p>
           </Link>
           <Link className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4" href="/admin/orders?shipping=shipped">
             <p className="text-sm text-[#6b6b6b]">Shipped</p>
-            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.shippingCounts.shipped}</p>
+            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.shippingCounts.unavailable ? "—" : dashboard.shippingCounts.shipped}</p>
           </Link>
           <Link className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4" href="/admin/orders?shipping=missing-tracking">
             <p className="text-sm text-[#6b6b6b]">Missing Tracking</p>
-            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.shippingCounts.missingTracking}</p>
+            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.shippingCounts.unavailable ? "—" : dashboard.shippingCounts.missingTracking}</p>
           </Link>
         </div>
       </AdminCard>
@@ -87,15 +87,15 @@ export async function DashboardOverview() {
         <div className="grid gap-3 sm:grid-cols-3">
           <Link className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4" href="/admin/announcements">
             <p className="text-sm text-[#6b6b6b]">Published</p>
-            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.announcementCounts.published}</p>
+            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.announcementCounts.unavailable ? "—" : dashboard.announcementCounts.published}</p>
           </Link>
           <Link className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4" href="/admin/announcements">
             <p className="text-sm text-[#6b6b6b]">Scheduled</p>
-            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.announcementCounts.scheduled}</p>
+            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.announcementCounts.unavailable ? "—" : dashboard.announcementCounts.scheduled}</p>
           </Link>
           <Link className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4" href="/admin/announcements">
             <p className="text-sm text-[#6b6b6b]">Drafts</p>
-            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.announcementCounts.drafts}</p>
+            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.announcementCounts.unavailable ? "—" : dashboard.announcementCounts.drafts}</p>
           </Link>
         </div>
       </AdminCard>

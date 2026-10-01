@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/src/lib/auth/guards";
+import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 
 type AccountStatus = {
   user_id: string;
@@ -33,7 +34,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     supabase.from("orders").select("id, order_number, total, status, created_at").eq("user_id", id).order("created_at", { ascending: false }),
     supabase.rpc("admin_customer_account_status", { p_user_id: id }),
   ]);
-  if (error) throw new Error("Unable to load customer.");
+  if (error) return <AdminLoadFailure message="Unable to load customer." title="Customer" />;
   if (!profile) notFound();
 
   const account = (Array.isArray(statusResult.data) ? statusResult.data[0] : statusResult.data) as AccountStatus | null;

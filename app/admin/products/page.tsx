@@ -14,6 +14,7 @@ import {
 import { categoriesForProductAssignment } from "@/src/lib/catalog/canonical-categories";
 import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
 import { FRESH_RESET_SUCCESS } from "@/src/lib/catalog/catalog-reset";
+import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 
 export default async function AdminProductsPage({
   searchParams,
@@ -38,7 +39,7 @@ export default async function AdminProductsPage({
   ]);
 
   if (categoriesError || productsError) {
-    throw new Error("Unable to load product catalog.");
+    return <AdminLoadFailure message="Unable to load product catalog." title="Products" />;
   }
 
   const categoryRecords = categories ?? [];

@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { saveManualShipping } from "@/src/lib/delivery/actions";
 import { parseRateMode, rateModeLabel } from "@/src/lib/delivery/manual";
+import { AdminSaveButton } from "@/src/components/admin/admin-save-button";
 
 function CarrierFields({
   carrier,
@@ -16,11 +18,12 @@ function CarrierFields({
   return (
     <fieldset className="min-w-0 space-y-3 rounded-xl border border-[#173f35]/10 p-4">
       <legend className="font-semibold text-[#173f35]">{carrier.toUpperCase()} — Manual Shipping</legend>
-      <p className="text-xs text-[#6b6b6b]">Customers see {carrier.toUpperCase()} Shipping. This is not a live carrier quote.</p>
+      <p className="text-xs text-[#6b6b6b]">Customers see {carrier.toUpperCase()} Shipping. This is an Ivoire Shop shipping charge, not a live carrier quote.</p>
       <label className="flex items-center gap-2 text-sm"><input defaultChecked={Boolean(settings?.[`${prefix}_enabled`])} name={`${prefix}_enabled`} type="checkbox" /> Enabled</label>
       <label className="flex items-center gap-2 text-sm"><input defaultChecked={settings?.[`${prefix}_show_at_checkout`] !== false} name={`${prefix}_show_at_checkout`} type="checkbox" /> Show at Checkout</label>
       <label className="flex items-center gap-2 text-sm"><input defaultChecked={Boolean(settings?.[`${prefix}_domestic_enabled`])} name={`${prefix}_domestic_enabled`} type="checkbox" /> Domestic</label>
       <label className="flex items-center gap-2 text-sm"><input defaultChecked={Boolean(settings?.[`${prefix}_international_enabled`])} name={`${prefix}_international_enabled`} type="checkbox" /> International</label>
+      <p className="text-xs text-[#6b6b6b]">International only offers this manual option when the destination is eligible. It is not worldwide shipping.</p>
       <label className="block text-sm">
         Rate Mode
         <select className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3" defaultValue={mode} name={`${prefix}_rate_mode`}>
@@ -43,7 +46,11 @@ export function ManualShippingForm({
 }: {
   settings: Record<string, unknown> | null;
 }) {
+  const router = useRouter();
   const [state, action] = useActionState(saveManualShipping, null);
+  useEffect(() => {
+    if (state?.saved) router.refresh();
+  }, [state?.saved, router]);
   return (
     <form action={action} className="min-w-0 space-y-4 overflow-x-hidden rounded-2xl bg-white p-5">
       <h2 className="font-semibold text-[#173f35]">Shipping Rate Manager</h2>
@@ -55,7 +62,7 @@ export function ManualShippingForm({
         <CarrierFields carrier="usps" settings={settings} />
       </div>
       {state?.error ? <p className="text-sm text-red-800">{state.error}</p> : null}
-      <button className="min-h-11 rounded-xl bg-[#173f35] px-4 py-2 text-sm text-white" type="submit">Save shipping rates</button>
+      <AdminSaveButton failed={Boolean(state?.error)} saved={Boolean(state?.saved)} />
     </form>
   );
 }

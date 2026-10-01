@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { requireAdmin } from "@/src/lib/auth/guards";
+import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 
 export default async function AdminCustomersPage({ searchParams }: { searchParams: Promise<{ search?: string }> }) {
   const { search = "" } = await searchParams;
   const { supabase } = await requireAdmin();
   const { data: profiles, error } = await supabase.from("profiles").select("id, full_name, email, role, created_at").order("created_at", { ascending: false });
-  if (error) throw new Error("Unable to load customers.");
+  if (error) return <AdminLoadFailure message="Unable to load customers." title="Customers" />;
   const needle = search.toLowerCase();
   const customers = (profiles ?? []).filter((profile) => !needle || profile.full_name.toLowerCase().includes(needle) || profile.email.toLowerCase().includes(needle));
   return (

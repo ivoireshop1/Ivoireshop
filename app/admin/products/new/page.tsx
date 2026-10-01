@@ -2,6 +2,7 @@ import { requireAdmin } from "@/src/lib/auth/guards";
 import { saveProduct } from "@/src/lib/catalog/actions";
 import { categoriesForProductAssignment } from "@/src/lib/catalog/canonical-categories";
 import { ProductForm } from "@/src/components/admin/catalog-form";
+import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 
 export default async function NewProductPage({
   searchParams,
@@ -12,7 +13,7 @@ export default async function NewProductPage({
   const params = await searchParams;
   const { data: categories, error } = await supabase.from("categories").select("id, name, slug, is_active").eq("is_active", true).order("name");
 
-  if (error) throw new Error("Unable to load product categories.");
+  if (error) return <AdminLoadFailure message="Unable to load product categories." title="Add product" />;
 
   const categoryOptions = categoriesForProductAssignment(categories ?? []);
 

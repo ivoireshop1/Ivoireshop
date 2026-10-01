@@ -36,22 +36,22 @@ export default async function AdminDeliveryPage() {
         <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#b8964c]">Fulfillment</p>
         <h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Delivery Center</h1>
         <p className="mt-2 max-w-2xl text-sm text-[#6b6b6b]">
-          UPS and USPS run in manual mode. Admin sets the Ivoire Shop shipping charge, then enters the real tracking number after posting the package. DoorDash remains API-based when credentials exist.
+          UPS and USPS run in Manual Mode. Admin sets the Ivoire Shop shipping charge, then enters the real tracking number after posting the package. DoorDash remains API-based when credentials exist.
         </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Link className="rounded-2xl bg-white p-4" href="/admin/orders?shipping=awaiting">
           <p className="text-sm text-[#6b6b6b]">Awaiting shipment</p>
-          <p className="mt-2 text-2xl font-semibold text-[#173f35]">{counts.awaiting}</p>
+          <p className="mt-2 text-2xl font-semibold text-[#173f35]">{counts.ok ? counts.awaiting : "—"}</p>
         </Link>
         <Link className="rounded-2xl bg-white p-4" href="/admin/orders?shipping=shipped">
           <p className="text-sm text-[#6b6b6b]">Shipped</p>
-          <p className="mt-2 text-2xl font-semibold text-[#173f35]">{counts.shipped}</p>
+          <p className="mt-2 text-2xl font-semibold text-[#173f35]">{counts.ok ? counts.shipped : "—"}</p>
         </Link>
         <Link className="rounded-2xl bg-white p-4" href="/admin/orders?shipping=missing-tracking">
           <p className="text-sm text-[#6b6b6b]">Missing tracking</p>
-          <p className="mt-2 text-2xl font-semibold text-[#173f35]">{counts.missingTracking}</p>
+          <p className="mt-2 text-2xl font-semibold text-[#173f35]">{counts.ok ? counts.missingTracking : "—"}</p>
         </Link>
       </div>
 
@@ -82,6 +82,7 @@ export default async function AdminDeliveryPage() {
         </section>
       </div>
 
+      {!counts.ok ? <p className="text-sm text-[#7c5d1a]">Unable to load shipping counts. Delivery settings below can still be saved.</p> : null}
       <form action={checkDeliveryProviders}>
         <button className="min-h-11 rounded-xl border border-[#173f35]/20 px-4 py-2 text-sm font-medium text-[#173f35]" type="submit">
           Check DoorDash connection
@@ -105,12 +106,13 @@ export default async function AdminDeliveryPage() {
       <ManualShippingForm settings={settings} />
       <DeliveryOriginForm
         doordashEnabled={Boolean(settings?.doordash_enabled)}
+        localCharge={settings?.store_delivery_charge}
         origin={origin}
         pickupEnabled={settings?.pickup_enabled !== false}
+        pickupShowAtCheckout={settings?.pickup_show_at_checkout !== false}
         radius={settings?.doordash_max_radius_miles}
         storeDeliveryEnabled={settings?.store_delivery_enabled !== false}
-        upsEnabled={Boolean(settings?.ups_enabled)}
-        uspsEnabled={Boolean(settings?.usps_enabled)}
+        storeDeliveryShowAtCheckout={settings?.store_delivery_show_at_checkout !== false}
       />
     </div>
   );

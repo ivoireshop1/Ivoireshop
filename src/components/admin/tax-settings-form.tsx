@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { saveTaxSettings } from "@/src/lib/delivery/actions";
 import { parseTaxMode, taxModeLabel } from "@/src/lib/tax/totals";
+import { AdminSaveButton } from "@/src/components/admin/admin-save-button";
 
 export function TaxSettingsForm({
   taxMode,
@@ -15,8 +17,12 @@ export function TaxSettingsForm({
   appliesToShipping: boolean;
   taxName: string | null | undefined;
 }) {
+  const router = useRouter();
   const [state, action] = useActionState(saveTaxSettings, null);
   const mode = parseTaxMode(taxMode);
+  useEffect(() => {
+    if (state?.saved) router.refresh();
+  }, [state?.saved, router]);
   return (
     <form action={action} className="min-w-0 space-y-4 overflow-x-hidden rounded-2xl bg-white p-5">
       <h2 className="font-semibold text-[#173f35]">Tax</h2>
@@ -46,7 +52,7 @@ export function TaxSettingsForm({
         Apply tax to shipping / delivery
       </label>
       {state?.error ? <p className="text-sm text-red-800">{state.error}</p> : null}
-      <button className="min-h-11 rounded-xl bg-[#173f35] px-4 py-2 text-sm text-white" type="submit">Save tax settings</button>
+      <AdminSaveButton failed={Boolean(state?.error)} idleLabel="Save tax settings" saved={Boolean(state?.saved)} />
     </form>
   );
 }

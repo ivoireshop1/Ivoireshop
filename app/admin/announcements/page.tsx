@@ -1,13 +1,18 @@
 import Link from "next/link";
 import { requireAdmin } from "@/src/lib/auth/guards";
+import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
+import { AdminSaveButton } from "@/src/components/admin/admin-save-button";
 import {
   announcementDashboardCounts,
-  createCustomerAnnouncement,
   displayAnnouncementStatus,
   listAdminAnnouncements,
+  toDatetimeLocalValue,
+} from "@/src/lib/admin/customer-announcements";
+import {
+  createCustomerAnnouncement,
   setCustomerAnnouncementStatus,
   updateCustomerAnnouncement,
-} from "@/src/lib/admin/customer-announcements";
+} from "@/src/lib/admin/customer-announcement-actions";
 
 export default async function AdminAnnouncementsPage({
   searchParams,
@@ -16,7 +21,11 @@ export default async function AdminAnnouncementsPage({
 }) {
   await requireAdmin();
   const notices = await searchParams;
-  const announcements = await listAdminAnnouncements();
+  const listed = await listAdminAnnouncements();
+  if (!listed.ok) {
+    return <AdminLoadFailure message="Unable to load announcements." title="Announcements" />;
+  }
+  const announcements = listed.items;
   const counts = await announcementDashboardCounts(announcements);
   return (
     <div className="min-w-0 space-y-6 overflow-x-hidden">
@@ -27,6 +36,7 @@ export default async function AdminAnnouncementsPage({
       </div>
       {notices.error === "required" ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Title and message are required.</p> : null}
       {notices.error === "href" ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Action destination must be a site path starting with / or an https URL.</p> : null}
+      {notices.error === "schedule" ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Schedule needs a future start date and time.</p> : null}
       {notices.error === "save" ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">The announcement could not be saved.</p> : null}
       {notices.success === "saved" ? <p className="rounded-xl bg-[#173f35]/5 p-3 text-sm text-[#173f35]">Announcement saved.</p> : null}
 
@@ -52,11 +62,15 @@ export default async function AdminAnnouncementsPage({
         <p className="text-sm text-[#6b6b6b]">Audience: All Customers</p>
         <div className="flex min-w-0 flex-wrap gap-3">
           <button className="min-h-11 rounded-xl border border-[#173f35]/20 px-4 text-sm font-medium text-[#173f35]" name="intent" type="submit" value="draft">Save draft</button>
+          <button className="min-h-11 rounded-xl border border-[#173f35]/20 px-4 text-sm font-medium text-[#173f35]" name="intent" type="submit" value="schedule">Schedule</button>
           <button className="min-h-11 rounded-xl bg-[#173f35] px-4 text-sm font-medium text-white" name="intent" type="submit" value="publish">Publish</button>
         </div>
       </form>
 
       <div className="space-y-4">
+        {!announcements.length ? (
+          <p className="rounded-2xl border border-dashed border-[#173f35]/20 bg-white p-8 text-sm text-[#6b6b6b]">No announcements yet.</p>
+        ) : null}
         {announcements.map((announcement) => {
           const status = displayAnnouncementStatus(announcement);
           return (
@@ -71,7 +85,11 @@ export default async function AdminAnnouncementsPage({
                 <input name="id" type="hidden" value={announcement.id} />
                 <label className="block text-sm sm:col-span-2">Title<input className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3" defaultValue={announcement.title} name="title" /></label>
                 <label className="block text-sm sm:col-span-2">Message<textarea className="mt-2 min-h-24 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3 py-2" defaultValue={announcement.message} name="message" /></label>
-                <button className="min-h-11 rounded-xl border border-[#173f35]/20 px-4 text-sm" type="submit">Save edits</button>
+                <label className="block text-sm">Action label<input className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3" defaultValue={announcement.action_label ?? ""} name="action_label" /></label>
+                <label className="block text-sm">Action destination<input className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3" defaultValue={announcement.action_href ?? ""} name="action_href" /></label>
+                <label className="block text-sm">Start / publish<input className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3" defaultValue={toDatetimeLocalValue(announcement.starts_at)} name="starts_at" type="datetime-local" /></label>
+                <label className="block text-sm">Expiration<input className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3" defaultValue={toDatetimeLocalValue(announcement.ends_at)} name="ends_at" type="datetime-local" /></label>
+                <AdminSaveButton idleLabel="Save edits" saved={notices.success === "saved"} />
               </form>
               <div className="mt-3 flex min-w-0 flex-wrap gap-2">
                 {status !== "published" ? (

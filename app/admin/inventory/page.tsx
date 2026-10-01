@@ -2,6 +2,7 @@ import { requireAdmin } from "@/src/lib/auth/guards";
 import { updateInventory } from "@/src/lib/catalog/actions";
 import { toOneRelation } from "@/src/lib/catalog/relation-utils";
 import { isLowStock } from "@/src/lib/catalog/low-stock";
+import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 
 export default async function AdminInventoryPage({ searchParams }: { searchParams: Promise<{ search?: string; low?: string; error?: string; success?: string }> }) {
   const params = await searchParams;
@@ -11,7 +12,7 @@ export default async function AdminInventoryPage({ searchParams }: { searchParam
     .select("id, name, sku, stock_quantity, track_inventory, is_active, categories(name)")
     .order("stock_quantity", { ascending: true });
 
-  if (error) throw new Error("Unable to load inventory.");
+  if (error) return <AdminLoadFailure message="Unable to load inventory." title="Inventory" />;
   const query = (params.search ?? "").toLowerCase();
   const items = (products ?? []).filter((product) =>
     (!params.low || isLowStock(product.track_inventory, product.stock_quantity)) &&

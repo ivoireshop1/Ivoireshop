@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { isOrderPrintKind } from "@/src/lib/print/kinds";
 import { OrderPrintDocument } from "@/src/components/print/order-print-document";
+import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 
 export default async function AdminOrderPrintPage({
   params,
@@ -22,7 +23,7 @@ export default async function AdminOrderPrintPage({
       .maybeSingle(),
     supabase.from("order_items").select("product_name, product_price, quantity").eq("order_id", id),
   ]);
-  if (error || itemsError) throw new Error("Unable to load print document.");
+  if (error || itemsError) return <AdminLoadFailure message="Unable to load print document." title="Print" />;
   if (!order) notFound();
   return <OrderPrintDocument kind={kind} order={order} items={items ?? []} />;
 }

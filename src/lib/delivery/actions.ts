@@ -10,7 +10,8 @@ import { originFromSettings, originIsComplete } from "./origin";
 import { doordashCredentials } from "./credentials";
 import { verifyDoorDash } from "./providers/doordash";
 import { sanitizeProviderError } from "./types";
-import { parseCharge, parseRateMode } from "./manual";
+import { parseAdminMiles, parseAdminMoney, parseRateMode } from "./manual";
+import { recordAdminIncident } from "@/src/lib/ops/incident";
 import { isCarrierOrder, validateCarrierTracking } from "./tracking";
 import { parseTaxMode } from "@/src/lib/tax/totals";
 import { notifyFulfillmentEmail } from "@/src/lib/communications/fulfillment-email";
@@ -47,8 +48,35 @@ function revalidateFulfillment(orderId?: string) {
   }
 }
 
-export async function saveStoreOrigin(_prev: { error?: string } | null, formData: FormData) {
+async function persistStoreSettings(
+  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+  values: Record<string, unknown>,
+  feature: string,
+) {
+  const { data, error } = await supabase
+    .from("store_settings")
+    .update(values)
+    .eq("id", STORE_SETTINGS_ID)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) {
+    recordAdminIncident({
+      route: "/admin/delivery",
+      feature,
+      category: "database",
+      safeCode: "DELIVERY_SAVE",
+    });
+    return false;
+  }
+  return true;
+}
+
+export async function saveStoreOrigin(_prev: { error?: string; saved?: boolean } | null, formData: FormData) {
   const { supabase } = await requireAdmin();
+  const radius = parseAdminMiles(formData.get("doordash_max_radius_miles"));
+  const charge = parseAdminMoney(formData.get("store_delivery_charge"));
+  if (!radius.ok) return { error: "Enter a local radius between 0 and 500 miles.", saved: false };
+  if (!charge.ok) return { error: "Enter a valid local delivery charge of $0.00 or more.", saved: false };
   const values = {
     origin_name: String(formData.get("origin_name") ?? "").trim(),
     origin_address_line_1: String(formData.get("origin_address_line_1") ?? "").trim(),
@@ -59,82 +87,108 @@ export async function saveStoreOrigin(_prev: { error?: string } | null, formData
     origin_country: String(formData.get("origin_country") ?? "").trim() || "US",
     origin_phone: String(formData.get("origin_phone") ?? "").trim(),
     pickup_enabled: formData.get("pickup_enabled") === "on",
+    pickup_show_at_checkout: formData.get("pickup_show_at_checkout") === "on",
     store_delivery_enabled: formData.get("store_delivery_enabled") === "on",
+    store_delivery_show_at_checkout: formData.get("store_delivery_show_at_checkout") === "on",
+    store_delivery_charge: charge.amount ?? 0,
     doordash_enabled: formData.get("doordash_enabled") === "on",
-    ups_enabled: formData.get("ups_enabled") === "on",
-    usps_enabled: formData.get("usps_enabled") === "on",
-    doordash_max_radius_miles: Number(formData.get("doordash_max_radius_miles") || 0) || null,
+    doordash_max_radius_miles: radius.amount,
     updated_at: new Date().toISOString(),
   };
   if (!originIsComplete(originFromSettings(values))) {
-    return { error: "Enter store name, street, city, ZIP, and country." };
+    return { error: "Enter store name, street, city, ZIP, and country.", saved: false };
   }
-  const { error } = await supabase.from("store_settings").update(values).eq("id", STORE_SETTINGS_ID);
-  if (error) return { error: "Unable to save store origin." };
+  const saved = await persistStoreSettings(supabase, values, "store_origin");
+  if (!saved) return { error: "Couldn’t save changes", saved: false };
   revalidateFulfillment();
-  return { error: undefined };
+  return { saved: true };
 }
 
-export async function saveManualShipping(_prev: { error?: string } | null, formData: FormData) {
+export async function saveManualShipping(_prev: { error?: string; saved?: boolean } | null, formData: FormData) {
   const { supabase } = await requireAdmin();
+  const moneyFields = [
+    "ups_domestic_charge",
+    "ups_international_charge",
+    "ups_handling_fee",
+    "ups_free_shipping_threshold",
+    "usps_domestic_charge",
+    "usps_international_charge",
+    "usps_handling_fee",
+    "usps_free_shipping_threshold",
+  ] as const;
+  const parsedMoney: Record<(typeof moneyFields)[number], number | null> = {
+    ups_domestic_charge: null,
+    ups_international_charge: null,
+    ups_handling_fee: null,
+    ups_free_shipping_threshold: null,
+    usps_domestic_charge: null,
+    usps_international_charge: null,
+    usps_handling_fee: null,
+    usps_free_shipping_threshold: null,
+  };
+  for (const field of moneyFields) {
+    const parsed = parseAdminMoney(formData.get(field));
+    if (!parsed.ok) return { error: "Enter valid amounts of $0.00 or more. Negative or malformed currency is not allowed.", saved: false };
+    parsedMoney[field] = parsed.amount;
+  }
   const values = {
     ups_enabled: formData.get("ups_enabled") === "on",
     ups_show_at_checkout: formData.get("ups_show_at_checkout") === "on",
     ups_domestic_enabled: formData.get("ups_domestic_enabled") === "on",
     ups_international_enabled: formData.get("ups_international_enabled") === "on",
-    ups_domestic_charge: parseCharge(formData.get("ups_domestic_charge")),
-    ups_international_charge: parseCharge(formData.get("ups_international_charge")),
-    ups_handling_fee: parseCharge(formData.get("ups_handling_fee")),
-    ups_free_shipping_threshold: parseCharge(formData.get("ups_free_shipping_threshold")),
+    ups_domestic_charge: parsedMoney.ups_domestic_charge,
+    ups_international_charge: parsedMoney.ups_international_charge,
+    ups_handling_fee: parsedMoney.ups_handling_fee,
+    ups_free_shipping_threshold: parsedMoney.ups_free_shipping_threshold,
     ups_rate_mode: parseRateMode(formData.get("ups_rate_mode")),
     usps_enabled: formData.get("usps_enabled") === "on",
     usps_show_at_checkout: formData.get("usps_show_at_checkout") === "on",
     usps_domestic_enabled: formData.get("usps_domestic_enabled") === "on",
     usps_international_enabled: formData.get("usps_international_enabled") === "on",
-    usps_domestic_charge: parseCharge(formData.get("usps_domestic_charge")),
-    usps_international_charge: parseCharge(formData.get("usps_international_charge")),
-    usps_handling_fee: parseCharge(formData.get("usps_handling_fee")),
-    usps_free_shipping_threshold: parseCharge(formData.get("usps_free_shipping_threshold")),
+    usps_domestic_charge: parsedMoney.usps_domestic_charge,
+    usps_international_charge: parsedMoney.usps_international_charge,
+    usps_handling_fee: parsedMoney.usps_handling_fee,
+    usps_free_shipping_threshold: parsedMoney.usps_free_shipping_threshold,
     usps_rate_mode: parseRateMode(formData.get("usps_rate_mode")),
     updated_at: new Date().toISOString(),
   };
   const needsCharge = (enabled: boolean, show: boolean, mode: string, zoneOn: boolean, charge: number | null) =>
     enabled && show && mode !== "live_api" && zoneOn && charge == null;
   if (needsCharge(values.ups_enabled, values.ups_show_at_checkout, values.ups_rate_mode, values.ups_domestic_enabled, values.ups_domestic_charge)) {
-    return { error: "Enter a UPS domestic shipping charge, or turn domestic UPS off." };
+    return { error: "Enter a UPS domestic shipping charge, or turn domestic UPS off.", saved: false };
   }
   if (needsCharge(values.ups_enabled, values.ups_show_at_checkout, values.ups_rate_mode, values.ups_international_enabled, values.ups_international_charge)) {
-    return { error: "Enter a UPS international shipping charge, or turn international UPS off." };
+    return { error: "Enter a UPS international shipping charge, or turn international UPS off.", saved: false };
   }
   if (needsCharge(values.usps_enabled, values.usps_show_at_checkout, values.usps_rate_mode, values.usps_domestic_enabled, values.usps_domestic_charge)) {
-    return { error: "Enter a USPS domestic shipping charge, or turn domestic USPS off." };
+    return { error: "Enter a USPS domestic shipping charge, or turn domestic USPS off.", saved: false };
   }
   if (needsCharge(values.usps_enabled, values.usps_show_at_checkout, values.usps_rate_mode, values.usps_international_enabled, values.usps_international_charge)) {
-    return { error: "Enter a USPS international shipping charge, or turn international USPS off." };
+    return { error: "Enter a USPS international shipping charge, or turn international USPS off.", saved: false };
   }
-  const { error } = await supabase.from("store_settings").update(values).eq("id", STORE_SETTINGS_ID);
-  if (error) return { error: "Unable to save manual shipping charges." };
+  const saved = await persistStoreSettings(supabase, values, "manual_shipping");
+  if (!saved) return { error: "Couldn’t save changes", saved: false };
   revalidateFulfillment();
-  return { error: undefined };
+  return { saved: true };
 }
 
-export async function saveTaxSettings(_prev: { error?: string } | null, formData: FormData) {
+export async function saveTaxSettings(_prev: { error?: string; saved?: boolean } | null, formData: FormData) {
   const { supabase } = await requireAdmin();
   const tax_mode = parseTaxMode(String(formData.get("tax_mode") ?? ""));
   const rate = Number(formData.get("tax_rate_percent"));
   if (tax_mode === "manual_rate" && (!Number.isFinite(rate) || rate < 0 || rate > 100)) {
     return { error: "Enter a tax rate between 0 and 100." };
   }
-  const { error } = await supabase.from("store_settings").update({
+  const saved = await persistStoreSettings(supabase, {
     tax_mode,
     tax_rate_percent: tax_mode === "manual_rate" ? rate : null,
     tax_applies_to_shipping: formData.get("tax_applies_to_shipping") === "on",
     tax_name: String(formData.get("tax_name") ?? "Tax").trim() || "Tax",
     updated_at: new Date().toISOString(),
-  }).eq("id", STORE_SETTINGS_ID);
-  if (error) return { error: "Unable to save tax settings." };
+  }, "tax_settings");
+  if (!saved) return { error: "Couldn’t save changes", saved: false };
   revalidateFulfillment();
-  return { error: undefined };
+  return { saved: true };
 }
 
 export async function saveOrderShipment(formData: FormData) {
@@ -154,8 +208,9 @@ export async function saveOrderShipment(formData: FormData) {
   const checked = validateCarrierTracking(order.fulfillment_provider || "", trackingRaw);
   if (!checked.ok) redirect(`/admin/orders/${id}?error=invalid_tracking`);
   const postageRaw = String(formData.get("postage_cost") ?? "").trim();
-  const postage = postageRaw ? parseCharge(postageRaw) : null;
-  if (postageRaw && postage == null) redirect(`/admin/orders/${id}?error=invalid_postage`);
+  const postageParsed = postageRaw ? parseAdminMoney(postageRaw) : { ok: true as const, amount: null };
+  if (postageRaw && !postageParsed.ok) redirect(`/admin/orders/${id}?error=invalid_postage`);
+  const postage = postageParsed.ok ? postageParsed.amount : null;
   const patch: Record<string, unknown> = { tracking_number: checked.tracking };
   if (postage != null) patch.postage_cost = postage;
   if (markShipped) {
@@ -216,9 +271,13 @@ export async function carrierOrderCounts() {
   const { data, error } = await supabase
     .from("orders")
     .select("id, status, fulfillment_provider, tracking_number, shipped_at");
-  if (error) throw new Error("Unable to load shipping counts.");
+  if (error) {
+    recordAdminIncident({ route: "/admin/delivery", feature: "shipping_counts", category: "database", safeCode: "DELIVERY_COUNTS" });
+    return { ok: false as const, awaiting: null as number | null, shipped: null as number | null, missingTracking: null as number | null };
+  }
   const rows = (data ?? []).filter((row) => isCarrierOrder(row.fulfillment_provider));
   return {
+    ok: true as const,
     awaiting: rows.filter((row) => !["shipped", "delivered", "cancelled"].includes(row.status)).length,
     shipped: rows.filter((row) => row.status === "shipped").length,
     missingTracking: rows.filter((row) => !row.tracking_number && row.status !== "cancelled").length,

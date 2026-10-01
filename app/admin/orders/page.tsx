@@ -1,6 +1,7 @@
 import { AdminOrderListHeader, AdminOrderListItem } from "@/src/components/admin/admin-order-list-item";
 import { orderStatusLabel, orderStatuses, paymentStatusLabel } from "@/src/lib/orders/status";
 import { requireAdmin } from "@/src/lib/auth/guards";
+import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 
 const paymentFilters = ["pending", "paid", "failed", "cancelled", "refunded"] as const;
 const fulfillmentFilters = ["local_pickup", "delivery"] as const;
@@ -30,7 +31,7 @@ export default async function AdminOrdersPage({
     query = query.or(`order_number.ilike.%${searchText}%,confirmation_code.ilike.%${searchText}%,customer_name.ilike.%${searchText}%,customer_email.ilike.%${searchText}%`);
   }
   const { data: orders, error } = await query;
-  if (error) throw new Error("Unable to load orders.");
+  if (error) return <AdminLoadFailure message="Unable to load orders." title="Orders" />;
   return (
     <div className="@container min-w-0 space-y-6">
       <div>

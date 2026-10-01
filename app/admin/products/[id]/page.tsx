@@ -5,6 +5,7 @@ import { categoriesForProductAssignment } from "@/src/lib/catalog/canonical-cate
 import { adminProductViewHref, adminProductViewLabel } from "@/src/lib/catalog/product-slug";
 import { ProductForm } from "@/src/components/admin/catalog-form";
 import Link from "next/link";
+import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 
 export const maxDuration = 60;
 
@@ -23,7 +24,7 @@ export default async function EditProductPage({
     supabase.from("categories").select("id, name, slug, is_active").order("name"),
   ]);
 
-  if (productError || categoryError) throw new Error("Unable to load product.");
+  if (productError || categoryError) return <AdminLoadFailure message="Unable to load product." title="Edit product" />;
   if (!product) redirect("/admin/products?error=product_missing");
 
   const categoryOptions = categoriesForProductAssignment(categories ?? [], product.category_id);

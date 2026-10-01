@@ -9,6 +9,7 @@ import { AdminOrderShipmentForm } from "@/src/components/admin/admin-order-shipm
 import { getEmailProviderStatus } from "@/src/lib/email/send";
 import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
 import { OrderMoneyBreakdown } from "@/src/components/orders/order-money-breakdown";
+import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 
 export default async function OrderDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; success?: string }> }) {
   const [{ id }, notices] = await Promise.all([params, searchParams]);
@@ -18,7 +19,7 @@ export default async function OrderDetailPage({ params, searchParams }: { params
     supabase.from("order_items").select("product_name, product_price, quantity").eq("order_id", id),
     supabase.from("customer_notifications").select("event_type, title, email_sent, created_at").eq("order_id", id).order("created_at", { ascending: true }),
   ]);
-  if (error || itemsError) throw new Error("Unable to load order.");
+  if (error || itemsError) return <AdminLoadFailure message="Unable to load order." title="Order" />;
   if (!order) notFound();
   const nextStatuses = nextOrderStatuses(order.status, order.fulfillment_method);
   return (

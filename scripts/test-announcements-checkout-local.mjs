@@ -86,4 +86,19 @@ await test('order notification events include tracking_added', () => {
   assert.equal(events.notificationEventFromOrderStatus('processing'), 'preparing');
 });
 
+await test('admin money parser rejects negatives and keeps empty optional', () => {
+  const money = load('src/lib/delivery/manual.ts');
+  const empty = money.parseAdminMoney('');
+  const valid = money.parseAdminMoney('9.99');
+  const miles = money.parseAdminMiles('12.5');
+  assert.equal(empty.ok, true);
+  assert.equal(empty.amount, null);
+  assert.equal(valid.ok, true);
+  assert.equal(valid.amount, 9.99);
+  assert.equal(money.parseAdminMoney('-1').ok, false);
+  assert.equal(money.parseAdminMiles('501').ok, false);
+  assert.equal(miles.ok, true);
+  assert.equal(miles.amount, 12.5);
+});
+
 console.log(`${count} tests passed`);

@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/src/lib/auth/guards";
+import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 
 export default async function AdminDiscountsPage() {
   const { supabase } = await requireAdmin();
@@ -10,7 +11,7 @@ export default async function AdminDiscountsPage() {
     .order("compare_at_price", { ascending: false });
 
   if (error) {
-    throw new Error("Unable to load discount pricing.");
+    return <AdminLoadFailure message="Unable to load discount pricing." title="Discounts" />;
   }
 
   const discountedProducts = (products ?? []).map((product) => {

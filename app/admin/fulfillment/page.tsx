@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/src/lib/auth/guards";
+import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 
 export default async function AdminFulfillmentPage() {
   const { supabase } = await requireAdmin();
@@ -11,7 +12,7 @@ export default async function AdminFulfillmentPage() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    throw new Error("Unable to load fulfillment queue.");
+    return <AdminLoadFailure message="Unable to load fulfillment queue." title="Fulfillment" />;
   }
 
   return (
