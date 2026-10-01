@@ -67,6 +67,9 @@ export function OrderConfirmationExperience({
       <dl className="mt-8 space-y-3 rounded-2xl border border-black/10 bg-white/70 p-5 text-sm">
         <div className="flex justify-between gap-4"><dt className="shrink-0">Order number</dt><dd className="min-w-0 break-all text-right font-semibold text-forest-green">{receipt.order_number}</dd></div>
         <div className="flex justify-between gap-4"><dt className="shrink-0">Fulfillment</dt><dd className="min-w-0 text-right text-forest-green">{fulfillmentDisplay(receipt)}</dd></div>
+        {receipt.subtotal != null ? <div className="flex justify-between gap-4"><dt className="shrink-0">Subtotal</dt><dd className="text-right">${Number(receipt.subtotal).toFixed(2)}</dd></div> : null}
+        <div className="flex justify-between gap-4"><dt className="shrink-0">Shipping / Delivery</dt><dd className="text-right">${Number(receipt.shipping_cost ?? 0).toFixed(2)}</dd></div>
+        <div className="flex justify-between gap-4"><dt className="shrink-0">Tax</dt><dd className="text-right">${Number(receipt.tax_amount ?? 0).toFixed(2)}</dd></div>
         <div className="flex justify-between gap-4"><dt className="shrink-0">Payment status</dt><dd className="min-w-0 text-right text-forest-green">{paymentStatusLabel(receipt.payment_status ?? "pending", receipt.payment_provider)}</dd></div>
         <div className="flex justify-between gap-4"><dt className="shrink-0">Payment method</dt><dd className="min-w-0 text-right text-forest-green">{paymentProviderLabel(receipt.payment_provider, receipt.payment_method)}</dd></div>
         <div className="flex justify-between gap-4"><dt className="shrink-0">Total</dt><dd className="text-right font-semibold text-forest-green">${Number(receipt.total).toFixed(2)}</dd></div>

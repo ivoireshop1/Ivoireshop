@@ -16,6 +16,7 @@ import { PaymentMethodCards, type CheckoutPaymentProvider } from "@/src/componen
 import { SquareCardFields } from "@/src/components/checkout/square-card-fields";
 import { PaypalCheckoutButtons } from "@/src/components/checkout/paypal-checkout-buttons";
 import { OrderConfirmationExperience } from "@/src/components/checkout/order-confirmation-experience";
+import { OrderMoneyBreakdown } from "@/src/components/orders/order-money-breakdown";
 import { viewOrderHref } from "@/src/lib/checkout/view-order-href";
 import { capturePaypalPayment, markPaypalCancelled, payWithSquare, startPaypalPayment } from "@/src/lib/payments/actions";
 import type { PublicPaymentConfig } from "@/src/lib/payments/readiness";
@@ -352,6 +353,23 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
           <div className="rounded-xl bg-white/70 p-4 text-sm">
             <h2 className="font-semibold text-forest-green">Order summary</h2>
             {(attempt?.items ?? items).map((item) => <p className="mt-2" key={item.productId}>{item.name} &times; {item.quantity}</p>)}
+            <div className="mt-4">
+              {attempt?.receipt ? (
+                <OrderMoneyBreakdown
+                  shipping={attempt.receipt.shipping_cost}
+                  subtotal={attempt.receipt.subtotal ?? subtotal}
+                  tax={attempt.receipt.tax_amount}
+                  total={attempt.receipt.total}
+                />
+              ) : (
+                <dl className="space-y-2">
+                  <div className="flex justify-between gap-4"><dt>Subtotal</dt><dd>${subtotal.toFixed(2)}</dd></div>
+                  <div className="flex justify-between gap-4"><dt>Shipping / Delivery</dt><dd>Load delivery options</dd></div>
+                  <div className="flex justify-between gap-4"><dt>Tax</dt><dd>Load delivery options</dd></div>
+                  <div className="flex justify-between gap-4 font-semibold"><dt>Total</dt><dd>Confirmed at checkout</dd></div>
+                </dl>
+              )}
+            </div>
             <p className="mt-3 text-muted">
               {payments.enabled
                 ? "Final prices are confirmed by the store, then Square or PayPal is charged that verified total."

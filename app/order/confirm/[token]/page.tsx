@@ -4,6 +4,7 @@ import { getGuestOrderConfirmation } from "@/src/lib/checkout/guest-order";
 import { getCustomerOrder } from "@/src/lib/customer/orders";
 import { viewOrderHref } from "@/src/lib/checkout/view-order-href";
 import { OrderConfirmationExperience } from "@/src/components/checkout/order-confirmation-experience";
+import { ShipmentTrackingPanel } from "@/src/components/orders/shipment-tracking-panel";
 import { SiteHeader } from "@/src/components/layout/site-header";
 import { Footer } from "@/src/components/layout/footer";
 
@@ -39,6 +40,11 @@ export default async function GuestOrderConfirmationPage({ params }: { params: P
             fulfillment_method: String(order.fulfillment_method),
             fulfillment_provider: order.fulfillment_provider ? String(order.fulfillment_provider) : undefined,
             fulfillment_service: order.fulfillment_service ? String(order.fulfillment_service) : undefined,
+            subtotal: Number(order.subtotal ?? order.total),
+            shipping_cost: Number(order.shipping_cost ?? 0),
+            tax_amount: Number(order.tax_amount ?? 0),
+            tracking_number: order.tracking_number ? String(order.tracking_number) : undefined,
+            shipped_at: order.shipped_at ? String(order.shipped_at) : undefined,
             customer_email: String(order.customer_email),
             customer_name: String(order.customer_name),
             payment_method: order.payment_method,
@@ -49,6 +55,15 @@ export default async function GuestOrderConfirmationPage({ params }: { params: P
             guestAccessToken: token,
             accountOrder,
           })}
+        />
+        <ShipmentTrackingPanel
+          order={{
+            fulfillment_method: String(order.fulfillment_method),
+            fulfillment_provider: order.fulfillment_provider ? String(order.fulfillment_provider) : null,
+            tracking_number: order.tracking_number ? String(order.tracking_number) : null,
+            shipped_at: order.shipped_at ? String(order.shipped_at) : null,
+            status: String(order.status),
+          }}
         />
       </main>
       <Footer />

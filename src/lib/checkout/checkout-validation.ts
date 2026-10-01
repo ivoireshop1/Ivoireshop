@@ -25,6 +25,11 @@ export type CheckoutReceipt = {
   account_order?: boolean;
   fulfillment_provider?: string;
   fulfillment_service?: string;
+  subtotal?: number;
+  shipping_cost?: number;
+  tax_amount?: number;
+  tracking_number?: string;
+  shipped_at?: string;
 };
 export type CheckoutResponse = { success: true; receipt: CheckoutReceipt } | { success: false; error: string; retrySame: boolean };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

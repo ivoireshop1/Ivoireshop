@@ -8,6 +8,7 @@ import { trySendOrderConfirmation } from "@/src/lib/communications/send-confirma
 import { recordCheckoutNotifications } from "@/src/lib/notifications/record";
 import { collectCheckoutOptions, optionToSnapshot } from "@/src/lib/delivery/orchestrate";
 import { createAdminClient } from "@/src/lib/supabase/admin";
+import { centsToUsdString, usdToCents } from "@/src/lib/payments/money";
 
 export async function placeCheckoutOrder(input: unknown): Promise<CheckoutResponse> {
   const validated = validateCheckout(input);
@@ -21,7 +22,7 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
     }
     const { data: catalog } = await supabase
       .from("products")
-      .select("id, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in")
+      .select("id, price, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in")
       .in("id", request.items.map((item) => item.product_id));
     const byId = new Map((catalog ?? []).map((row) => [row.id, row]));
     const quotes = await collectCheckoutOptions({
@@ -33,9 +34,12 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
     if (!selected || selected.fulfillmentMethod !== request.fulfillmentMethod) {
       return { success: false, error: "Choose an available pickup or delivery option.", retrySame: false };
     }
+    const breakdown = quotes.breakdowns[selected.id];
+    let shipping = breakdown?.shipping ?? selected.amount;
+    let tax = breakdown?.tax ?? 0;
     const admin = createAdminClient();
-    if (selected.amount > 0 && !admin) {
-      return { success: false, error: "Carrier shipping is not fully configured yet. Choose pickup or store-arranged delivery.", retrySame: false };
+    if ((shipping > 0 || tax > 0) && !admin) {
+      return { success: false, error: "Shipping and tax totals are not fully configured yet. Choose pickup or contact the store.", retrySame: false };
     }
     const { data, error } = await supabase.rpc("create_checkout_order", {
       p_items: request.items,
@@ -50,17 +54,39 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
     const row = Array.isArray(data) ? data[0] : null;
     if (!row?.order_id || !row.order_number || !row.status || !Number.isFinite(Number(row.total)) || Number(row.total) < 0) return checkoutFailure();
     if (admin) {
-      const subtotal = Number(row.total);
-      const shipping = selected.amount;
-      const total = Number((subtotal + shipping).toFixed(2));
-      await admin.from("orders").update({
-        shipping_cost: shipping,
-        total,
-        fulfillment_provider: selected.provider,
-        fulfillment_service: selected.serviceCode || selected.label,
-        delivery_snapshot: optionToSnapshot(selected),
-      }).eq("id", row.order_id);
-      row.total = total;
+      const { data: current } = await admin
+        .from("orders")
+        .select("shipping_cost, tax_amount, total, fulfillment_provider, tax_snapshot")
+        .eq("id", row.order_id)
+        .maybeSingle();
+      if (!current?.tax_snapshot && !current?.fulfillment_provider) {
+        const subtotalCents = usdToCents(row.total);
+        const shippingCents = usdToCents(shipping);
+        const taxCents = usdToCents(tax);
+        const total = Number(centsToUsdString(subtotalCents + shippingCents + taxCents));
+        await admin.from("orders").update({
+          shipping_cost: shipping,
+          tax_amount: tax,
+          total,
+          fulfillment_provider: selected.provider,
+          fulfillment_service: selected.serviceCode || selected.label,
+          shipping_mode: selected.mode || ((selected.provider === "ups" || selected.provider === "usps") ? "manual" : null),
+          delivery_snapshot: optionToSnapshot(selected),
+          tax_snapshot: {
+            mode: quotes.tax.tax_mode,
+            rate_percent: quotes.tax.tax_rate_percent,
+            applies_to_shipping: quotes.tax.tax_applies_to_shipping,
+            name: quotes.tax.tax_name,
+            amount: tax,
+            decided_at: new Date().toISOString(),
+          },
+        }).eq("id", row.order_id);
+        row.total = total;
+      } else if (current) {
+        row.total = current.total;
+        shipping = Number(current.shipping_cost ?? shipping);
+        tax = Number(current.tax_amount ?? tax);
+      }
     }
     let user = null;
     try {
@@ -84,6 +110,9 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
       account_order: Boolean(user),
       fulfillment_provider: selected.provider,
       fulfillment_service: selected.serviceCode || selected.label,
+      subtotal: quotes.subtotal,
+      shipping_cost: shipping,
+      tax_amount: tax,
     };
     let emailSent = false;
     try {

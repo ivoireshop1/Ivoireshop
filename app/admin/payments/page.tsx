@@ -3,6 +3,10 @@ import { requireAdmin } from "@/src/lib/auth/guards";
 import { getPaymentReadiness } from "@/src/lib/payments/readiness";
 import { getEmailProviderStatus } from "@/src/lib/email/send";
 import { sendAdminTestEmail } from "@/src/lib/admin/email-actions";
+import { TaxSettingsForm } from "@/src/components/admin/tax-settings-form";
+import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
+import { createClient } from "@/src/lib/supabase/server";
+import { parseTaxMode, taxModeLabel } from "@/src/lib/tax/totals";
 
 export default async function AdminPaymentsPage({
   searchParams,
@@ -13,6 +17,9 @@ export default async function AdminPaymentsPage({
   const notices = await searchParams;
   const payment = getPaymentReadiness();
   const email = getEmailProviderStatus();
+  const supabase = await createClient();
+  const { data: settings } = await supabase.from("store_settings").select("tax_mode, tax_rate_percent, tax_applies_to_shipping, tax_name").eq("id", STORE_SETTINGS_ID).maybeSingle();
+  const taxMode = parseTaxMode(settings?.tax_mode);
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-semibold text-forest-green">Payments</h1>
@@ -36,8 +43,19 @@ export default async function AdminPaymentsPage({
           <p className="mt-4 text-sm text-muted">Order payment updates require a server-only Supabase service role key. Never put that key in browser code.</p>
         ) : null}
         <p className="mt-4 text-sm text-muted">{payment.message}</p>
-        <p className="mt-3 text-sm text-muted">Sandbox first. Set SQUARE_ENVIRONMENT and PAYPAL_ENVIRONMENT to production only after sandbox QA. Charged amounts always come from the store-confirmed order total.</p>
+        <p className="mt-3 text-sm text-muted">Sandbox first. Set SQUARE_ENVIRONMENT and PAYPAL_ENVIRONMENT to production only after sandbox QA. Charged amounts always come from the store-confirmed order total, including stored tax.</p>
       </section>
+      <TaxSettingsForm
+        appliesToShipping={Boolean(settings?.tax_applies_to_shipping)}
+        taxMode={settings?.tax_mode}
+        taxName={settings?.tax_name}
+        taxRate={settings?.tax_rate_percent}
+      />
+      {taxMode === "not_configured" ? (
+        <p className="rounded-xl border border-[#b8964c]/40 bg-white p-4 text-sm text-[#7c5d1a]">Tax configuration required. Checkout will store $0.00 tax until you choose a rate or explicitly collect no tax.</p>
+      ) : (
+        <p className="text-sm text-[#6b6b6b]">Tax calculation method: {taxModeLabel(taxMode)}</p>
+      )}
       <section className="rounded-2xl bg-white p-6">
         <h2 className="text-xl font-semibold">Order emails</h2>
         <p className="mt-3 text-sm text-muted">

@@ -5,8 +5,10 @@ import { updateOrderStatus } from "@/src/lib/catalog/actions";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { CopyConfirmationButton } from "@/src/components/checkout/copy-confirmation-button";
 import { AdminOrderPrintControl } from "@/src/components/admin/admin-order-print-control";
+import { AdminOrderShipmentForm } from "@/src/components/admin/admin-order-shipment-form";
 import { getEmailProviderStatus } from "@/src/lib/email/send";
 import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
+import { OrderMoneyBreakdown } from "@/src/components/orders/order-money-breakdown";
 
 export default async function OrderDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; success?: string }> }) {
   const [{ id }, notices] = await Promise.all([params, searchParams]);
@@ -44,7 +46,11 @@ export default async function OrderDetailPage({ params, searchParams }: { params
         ) : null}
       </section>
       {notices.error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Status could not be updated. Refresh the order and choose an allowed next status.</p>}
-      {notices.success && <p className="rounded-xl bg-[#173f35]/5 p-3 text-sm text-[#173f35]">Order status updated.</p>}
+      {notices.error === "invalid_tracking" && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">That tracking number does not look valid for this carrier. Check the receipt or label.</p>}
+      {notices.error === "invalid_shipment" && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Shipping details could not be updated for this order.</p>}
+      {notices.success === "shipment_updated" && <p className="rounded-xl bg-[#173f35]/5 p-3 text-sm text-[#173f35]">Shipping details saved.</p>}
+      {notices.success === "status_updated" && <p className="rounded-xl bg-[#173f35]/5 p-3 text-sm text-[#173f35]">Order status updated.</p>}
+      <AdminOrderShipmentForm order={order} />
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="rounded-2xl bg-white p-5">
           <h2 className="font-semibold text-[#173f35]">Customer</h2>
@@ -98,12 +104,15 @@ export default async function OrderDetailPage({ params, searchParams }: { params
             ))}
           </div>
         )}
-        <dl className="mt-4 space-y-2 text-right text-sm">
-          <div>Subtotal: ${Number(order.subtotal).toFixed(2)}</div>
-          <div>Shipping: ${Number(order.shipping_cost).toFixed(2)}</div>
-          <div>Discount: ${Number(order.discount_amount).toFixed(2)}</div>
-        </dl>
-        <p className="mt-4 text-right text-lg font-semibold text-[#173f35]">Total ${Number(order.total).toFixed(2)}</p>
+        <div className="mt-4">
+          <OrderMoneyBreakdown
+            discount={order.discount_amount}
+            shipping={order.shipping_cost}
+            subtotal={order.subtotal}
+            tax={order.tax_amount}
+            total={order.total}
+          />
+        </div>
       </section>
       <section className="rounded-2xl bg-white p-5">
         <h2 className="font-semibold text-[#173f35]">Customer notifications</h2>

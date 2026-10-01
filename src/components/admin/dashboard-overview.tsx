@@ -66,6 +66,23 @@ export async function DashboardOverview() {
         ))}
       </section>
 
+      <AdminCard title="Shipping" action={<Link href="/admin/delivery" className="text-sm text-[#173f35] underline-offset-2 hover:underline">Delivery Center</Link>}>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Link className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4" href="/admin/orders?shipping=awaiting">
+            <p className="text-sm text-[#6b6b6b]">Awaiting Shipment</p>
+            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.shippingCounts.awaiting}</p>
+          </Link>
+          <Link className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4" href="/admin/orders?shipping=shipped">
+            <p className="text-sm text-[#6b6b6b]">Shipped</p>
+            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.shippingCounts.shipped}</p>
+          </Link>
+          <Link className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4" href="/admin/orders?shipping=missing-tracking">
+            <p className="text-sm text-[#6b6b6b]">Missing Tracking</p>
+            <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.shippingCounts.missingTracking}</p>
+          </Link>
+        </div>
+      </AdminCard>
+
       <div className="grid gap-6 xl:grid-cols-[1.4fr_0.95fr]">
         <AdminCard title="Needs attention" action={<Link href="/admin/inventory" className="text-sm text-[#173f35] underline-offset-2 hover:underline">Review all</Link>}>
           <div className="space-y-3">

@@ -62,7 +62,25 @@ test("missing package data is not shipping ready", () => {
 });
 test("fulfillment labels distinguish providers", () => {
   assert.equal(fulfillmentDisplay({ fulfillment_method: "local_pickup" }), "Pickup · Store Pickup");
-  assert.match(fulfillmentDisplay({ fulfillment_method: "delivery", fulfillment_provider: "ups", fulfillment_service: "Ground" }), /UPS/);
+  assert.match(fulfillmentDisplay({ fulfillment_method: "delivery", fulfillment_provider: "ups", fulfillment_service: "Ground" }), /UPS — Manual Shipping/);
+});
+test("manual shipping and tax sources use truthful labels", () => {
+  const delivery = fs.readFileSync("app/admin/delivery/page.tsx", "utf8");
+  const checkout = fs.readFileSync("src/components/checkout/checkout-delivery-options.tsx", "utf8");
+  const dash = fs.readFileSync("src/components/admin/dashboard-overview.tsx", "utf8");
+  const print = fs.readFileSync("src/components/print/order-print-document.tsx", "utf8");
+  const migration = fs.readFileSync("supabase/migrations/20261001200000_manual_shipping_tax_tracking.sql", "utf8");
+  assert.match(delivery, /Manual Shipping/);
+  assert.match(delivery, /Manual Mode/);
+  assert.doesNotMatch(delivery, /Live UPS Rate|UPS Connected|Live USPS Rate|USPS Connected/);
+  assert.match(checkout, /Ivoire Shop shipping charge/);
+  assert.match(dash, /Awaiting Shipment/);
+  assert.match(dash, /shipping=missing-tracking/);
+  assert.match(print, /Tax/);
+  assert.match(print, /tracking_number/);
+  assert.match(migration, /tax_amount/);
+  assert.match(migration, /tracking_number/);
+  assert.match(migration, /shipping_mode/);
 });
 test("client shipping amounts are not used as option ids", () => {
   assert.equal(isOrderPrintKind("0.95"), false);

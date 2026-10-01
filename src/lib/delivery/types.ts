@@ -6,6 +6,8 @@ export type DeliveryOption = {
   amount: number;
   serviceCode?: string;
   estimate?: string;
+  mode?: "manual" | "api";
+  zone?: "domestic" | "international";
 };
 
 export function sanitizeProviderError(raw: string) {

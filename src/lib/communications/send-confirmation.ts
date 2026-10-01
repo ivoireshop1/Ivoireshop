@@ -15,6 +15,7 @@ type ConfirmationRow = {
   subtotal?: number | string;
   shipping_cost?: number | string;
   discount_amount?: number | string;
+  tax_amount?: number | string;
   total?: number | string;
   created_at?: string;
   shipping_address?: ConfirmationOrder["shipping_address"];
@@ -51,6 +52,7 @@ export function confirmationOrderFromRow(row: ConfirmationRow): ConfirmationOrde
     subtotal: row.subtotal,
     shipping_cost: row.shipping_cost,
     discount_amount: row.discount_amount,
+    tax_amount: row.tax_amount,
     total: row.total,
     created_at: row.created_at,
     shipping_address: row.shipping_address ?? null,

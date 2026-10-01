@@ -8,17 +8,23 @@ const fulfillmentFilters = ["local_pickup", "delivery"] as const;
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; search?: string; payment?: string; fulfillment?: string }>;
+  searchParams: Promise<{ status?: string; search?: string; payment?: string; fulfillment?: string; shipping?: string }>;
 }) {
-  const { status = "all", search = "", payment = "all", fulfillment = "all" } = await searchParams;
+  const { status = "all", search = "", payment = "all", fulfillment = "all", shipping = "all" } = await searchParams;
   const { supabase } = await requireAdmin();
   let query = supabase
     .from("orders")
-    .select("id, order_number, confirmation_code, customer_name, customer_email, total, status, payment_status, payment_provider, fulfillment_method, fulfillment_provider, fulfillment_service, created_at")
+    .select("id, order_number, confirmation_code, customer_name, customer_email, total, status, payment_status, payment_provider, fulfillment_method, fulfillment_provider, fulfillment_service, tracking_number, created_at")
     .order("created_at", { ascending: false });
   if ((orderStatuses as readonly string[]).includes(status)) query = query.eq("status", status);
   if ((paymentFilters as readonly string[]).includes(payment)) query = query.eq("payment_status", payment);
   if ((fulfillmentFilters as readonly string[]).includes(fulfillment)) query = query.eq("fulfillment_method", fulfillment);
+  if (shipping === "awaiting" || shipping === "shipped" || shipping === "missing-tracking") {
+    query = query.in("fulfillment_provider", ["ups", "usps"]);
+    if (shipping === "awaiting") query = query.not("status", "in", "(shipped,delivered,cancelled)");
+    if (shipping === "shipped") query = query.eq("status", "shipped");
+    if (shipping === "missing-tracking") query = query.is("tracking_number", null).neq("status", "cancelled");
+  }
   const searchText = search.trim().slice(0, 100).replace(/[%_\\]/g, "");
   if (searchText) {
     query = query.or(`order_number.ilike.%${searchText}%,confirmation_code.ilike.%${searchText}%,customer_name.ilike.%${searchText}%,customer_email.ilike.%${searchText}%`);
@@ -31,7 +37,9 @@ export default async function AdminOrdersPage({
         <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#b8964c]">Sales</p>
         <h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Orders</h1>
       </div>
+      {shipping !== "all" ? <p className="text-sm text-[#6b6b6b]">Shipping filter: {shipping.replace("-", " ")}</p> : null}
       <form className="grid grid-cols-1 gap-3 rounded-2xl border border-[#173f35]/10 bg-white p-4 @md:grid-cols-2 @4xl:grid-cols-[minmax(16rem,1.6fr)_repeat(3,minmax(8rem,1fr))_auto]" method="get">
+        {shipping !== "all" ? <input name="shipping" type="hidden" value={shipping} /> : null}
         <label className="min-w-0 text-sm text-[#173f35]" htmlFor="order-search">
           Search
           <input className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 bg-[#f9f7f3] px-3 py-2.5 text-[#173f35] outline-none" defaultValue={search} id="order-search" maxLength={100} name="search" placeholder="Order #, IVO code, name, email" />

@@ -26,6 +26,7 @@ export type ConfirmationOrder = {
   subtotal?: number | string;
   shipping_cost?: number | string;
   discount_amount?: number | string;
+  tax_amount?: number | string;
   total: number | string;
   created_at?: string;
   shipping_address?: {
@@ -198,6 +199,7 @@ function renderIvoireOrderEmail(order: ConfirmationOrder, event: OrderEmailEvent
   });
   const shipping = Number(order.shipping_cost ?? 0);
   const discount = Number(order.discount_amount ?? 0);
+  const tax = Number(order.tax_amount ?? 0);
   const subject = `${test ? "TEST — " : ""}${copy.subject} — ${order.confirmation_code}`.replace(/[\r\n]/g, " ");
   const text = [
     test ? "TEST EMAIL — not a live customer notice." : "",
@@ -224,8 +226,9 @@ function renderIvoireOrderEmail(order: ConfirmationOrder, event: OrderEmailEvent
     "ITEMS",
     ...items.map((item) => `${item.name} × ${item.quantity} @ ${item.price} = ${item.line}`),
     `Subtotal: ${money(order.subtotal ?? order.total)}`,
-    shipping > 0 ? `Delivery fee: ${money(shipping)}` : "",
+    `Shipping / Delivery: ${money(shipping)}`,
     discount > 0 ? `Discount: -${money(discount)}` : "",
+    `Tax: ${money(tax)}`,
     `Total: ${money(order.total)}`,
   ].filter((line, index, lines) => line !== "" || lines[index - 1] !== "").join("\n");
 
@@ -279,8 +282,9 @@ function renderIvoireOrderEmail(order: ConfirmationOrder, event: OrderEmailEvent
         ${itemRows}
       </table>
       <p style="margin:16px 0 0;text-align:right">Subtotal ${money(order.subtotal ?? order.total)}</p>
-      ${shipping > 0 ? `<p style="margin:6px 0 0;text-align:right">Delivery fee ${money(shipping)}</p>` : ""}
+      <p style="margin:6px 0 0;text-align:right">Shipping / Delivery ${money(shipping)}</p>
       ${discount > 0 ? `<p style="margin:6px 0 0;text-align:right">Discount -${money(discount)}</p>` : ""}
+      <p style="margin:6px 0 0;text-align:right">Tax ${money(tax)}</p>
       <p style="margin:10px 0 0;text-align:right;font-size:18px;font-weight:700">Total ${money(order.total)}</p>
     </td></tr>
   </table>

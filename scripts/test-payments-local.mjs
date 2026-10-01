@@ -26,6 +26,9 @@ function load(file) {
 }
 
 const money = load('src/lib/payments/money.ts');
+const tax = load('src/lib/tax/totals.ts');
+const tracking = load('src/lib/delivery/tracking.ts');
+const manual = load('src/lib/delivery/manual.ts');
 const signature = load('src/lib/payments/square-signature.ts');
 const messages = load('src/lib/communications/order-messages.ts');
 const readiness = load('src/lib/payments/readiness.ts');
@@ -193,6 +196,71 @@ await test('email provider failure does not throw and does not claim sent', asyn
   assert.equal((await messages.deliverOrderMessage()).sent, false);
   assert.equal(email.getEmailProviderStatus().configured, false);
   assert.equal(email.getEmailProviderStatus().recommended, 'resend');
+});
+
+await test('manual tax is computed in cents and not configured stays zero', () => {
+  const none = tax.computeTaxCents({
+    subtotalCents: 1000,
+    discountCents: 0,
+    shippingCents: 500,
+    tax: { tax_mode: 'not_configured', tax_rate_percent: 10, tax_applies_to_shipping: true, tax_name: 'Tax' },
+  });
+  const noTax = tax.computeTaxCents({
+    subtotalCents: 1000,
+    discountCents: 0,
+    shippingCents: 500,
+    tax: { tax_mode: 'no_tax', tax_rate_percent: 10, tax_applies_to_shipping: true, tax_name: 'Tax' },
+  });
+  const ranked = tax.computeTaxCents({
+    subtotalCents: 1000,
+    discountCents: 100,
+    shippingCents: 500,
+    tax: { tax_mode: 'manual_rate', tax_rate_percent: 8.25, tax_applies_to_shipping: true, tax_name: 'Tax' },
+  });
+  assert.equal(none, 0);
+  assert.equal(noTax, 0);
+  assert.equal(ranked, Math.round((1000 - 100 + 500) * 8.25 / 100));
+  assert.equal(tax.computeOrderTotalCents({ subtotalCents: 1000, discountCents: 100, shippingCents: 500, taxCents: ranked }), 1400 + ranked);
+});
+
+await test('carrier tracking validation is helpful not only 1Z', () => {
+  assert.equal(tracking.validateCarrierTracking('ups', '1Z999AA10123456784').ok, true);
+  assert.equal(tracking.validateCarrierTracking('ups', '123456789012').ok, true);
+  assert.equal(tracking.validateCarrierTracking('usps', '9400111899223197428490').ok, true);
+  assert.equal(tracking.validateCarrierTracking('usps', 'EC123456789US').ok, true);
+  assert.equal(tracking.validateCarrierTracking('ups', 'abc').ok, false);
+  assert.match(tracking.trackingUrl('ups', '1Z999AA10123456784'), /ups\.com\/track/);
+  assert.match(tracking.trackingUrl('usps', '9400111899223197428490'), /usps\.com/);
+});
+
+await test('manual carrier options require configured charges', () => {
+  const none = manual.manualCarrierOptions({ ups_enabled: true, ups_domestic_enabled: true }, 'US');
+  const ups = manual.manualCarrierOptions({ ups_enabled: true, ups_domestic_enabled: true, ups_domestic_charge: 12.5 }, 'US');
+  const intlOff = manual.manualCarrierOptions({ ups_enabled: true, ups_international_enabled: false, ups_international_charge: 40 }, 'CA');
+  assert.equal(none.length, 0);
+  assert.equal(ups[0].label, 'UPS — Manual Shipping');
+  assert.equal(ups[0].mode, 'manual');
+  assert.equal(intlOff.length, 0);
+});
+
+await test('paid confirmation email includes stored tax line', () => {
+  const message = messages.preparePaidOrderConfirmation({
+    order_number: 'IV-TEST',
+    confirmation_code: 'IVO-8K4P2',
+    customer_email: 'customer@email.com',
+    customer_name: 'Ada Lovelace',
+    payment_status: 'paid',
+    payment_method: 'square',
+    payment_provider: 'square',
+    fulfillment_method: 'local_pickup',
+    subtotal: '24.00',
+    shipping_cost: '0.00',
+    tax_amount: '1.98',
+    total: '25.98',
+    order_items: [{ product_name: 'Rice', product_price: '12.00', quantity: 2 }],
+  });
+  assert.match(message.text, /Tax: \$1\.98/);
+  assert.match(message.text, /Total: \$25\.98/);
 });
 
 await test('duplicate webhook event id is treated as already processed', async () => {

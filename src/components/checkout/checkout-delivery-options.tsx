@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { getCheckoutDeliveryOptions } from "@/src/lib/delivery/actions";
 import type { DeliveryOption } from "@/src/lib/delivery/types";
+import { OrderMoneyBreakdown } from "@/src/components/orders/order-money-breakdown";
 
 export function CheckoutDeliveryOptions({
   fulfillmentMethod,
@@ -16,6 +17,8 @@ export function CheckoutDeliveryOptions({
   onChange: (id: string) => void;
 }) {
   const [options, setOptions] = useState<DeliveryOption[]>([]);
+  const [breakdowns, setBreakdowns] = useState<Record<string, { shipping: number; tax: number; total: number }>>({});
+  const [subtotal, setSubtotal] = useState<number | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -32,10 +35,14 @@ export function CheckoutDeliveryOptions({
     const result = await getCheckoutDeliveryOptions({ address, items });
     const visible = result.options.filter((option) => option.fulfillmentMethod === fulfillmentMethod);
     setOptions(visible);
+    setBreakdowns(result.breakdowns ?? {});
+    setSubtotal(result.subtotal ?? null);
     setMessage(result.message ?? "");
     if (visible.length && !visible.some((option) => option.id === value)) onChange(visible[0].id);
     setBusy(false);
   }
+
+  const selected = breakdowns[value];
 
   return (
     <div className="space-y-3">
@@ -52,10 +59,18 @@ export function CheckoutDeliveryOptions({
           <input checked={value === option.id} className="mt-1" name="deliveryOptionId" onChange={() => onChange(option.id)} type="radio" value={option.id} />
           <span className="min-w-0">
             <span className="block break-words font-medium text-forest-green">{option.label}</span>
-            <span className="block text-sm text-muted">${option.amount.toFixed(2)}{option.estimate ? ` · ${option.estimate}` : ""}</span>
+            <span className="block text-sm text-muted">
+              {option.mode === "manual" ? "Ivoire Shop shipping charge" : "Amount"} ${option.amount.toFixed(2)}
+              {option.estimate && option.mode !== "manual" ? ` · ${option.estimate}` : ""}
+            </span>
           </span>
         </label>
       ))}
+      {selected && subtotal != null ? (
+        <div className="rounded-xl border border-black/10 bg-white p-4">
+          <OrderMoneyBreakdown shipping={selected.shipping} subtotal={subtotal} tax={selected.tax} total={selected.total} />
+        </div>
+      ) : null}
       {message ? <p className="text-sm text-muted">{message}</p> : null}
     </div>
   );

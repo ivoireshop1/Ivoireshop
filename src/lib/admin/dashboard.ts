@@ -57,7 +57,7 @@ export async function getAdminDashboardData() {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
   sevenDaysAgo.setHours(0, 0, 0, 0);
 
-  const [todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult, pendingReviewsResult, storeStatusRow] =
+  const [todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult, pendingReviewsResult, storeStatusRow, shippingOrdersResult] =
     await Promise.all([
       supabase
         .from("orders")
@@ -78,9 +78,10 @@ export async function getAdminDashboardData() {
       supabase.from("orders").select("id, status, payment_status, total"),
       supabase.from("product_reviews").select("id", { count: "exact", head: true }).eq("status", "pending"),
       getStoreStatus(),
+      supabase.from("orders").select("id, status, fulfillment_provider, tracking_number"),
     ]);
 
-  if ([todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult].some((result) => result.error)) {
+  if ([todayOrdersResult, todayCustomersResult, productResult, recentOrdersResult, orderItemsResult, allOrdersResult, shippingOrdersResult].some((result) => result.error)) {
     throw new Error("Unable to load dashboard data.");
   }
   const todayOrders = todayOrdersResult.data ?? [];
@@ -91,6 +92,15 @@ export async function getAdminDashboardData() {
   const allOrders = allOrdersResult.data ?? [];
   const pendingReviewCount = pendingReviewsResult.count ?? 0;
   const store = storeStatusRow;
+  const shippingRows = (shippingOrdersResult.data ?? []).filter((row) => {
+    const provider = (row.fulfillment_provider ?? "").toLowerCase();
+    return provider === "ups" || provider === "usps";
+  });
+  const shippingCounts = {
+    awaiting: shippingRows.filter((row) => !["shipped", "delivered", "cancelled"].includes(row.status)).length,
+    shipped: shippingRows.filter((row) => row.status === "shipped").length,
+    missingTracking: shippingRows.filter((row) => !row.tracking_number && row.status !== "cancelled").length,
+  };
 
   const catalogStats = {
     total: products.length,
@@ -274,6 +284,7 @@ export async function getAdminDashboardData() {
     greeting: storeGreetingAt(new Date()),
     catalogStats,
     pendingReviewCount,
+    shippingCounts,
   };
 }
 

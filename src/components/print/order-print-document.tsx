@@ -25,7 +25,11 @@ type PrintOrder = {
   subtotal: number | string;
   shipping_cost: number | string;
   discount_amount: number | string;
+  tax_amount?: number | string;
   total: number | string;
+  tracking_number?: string | null;
+  shipped_at?: string | null;
+  shipping_mode?: string | null;
 };
 
 export function OrderPrintDocument({
@@ -41,7 +45,7 @@ export function OrderPrintDocument({
   const destination = formatPrintAddress(order.shipping_address);
   const fulfillment = fulfillmentDisplay(order);
   const snapshot = order.delivery_snapshot ?? {};
-  const tracking = typeof snapshot.tracking_url === "string" ? snapshot.tracking_url : "";
+  const tracking = order.tracking_number || (typeof snapshot.tracking_url === "string" ? snapshot.tracking_url : "");
   const externalId = typeof snapshot.external_id === "string" ? snapshot.external_id : "";
 
   return (
@@ -94,28 +98,41 @@ export function OrderPrintDocument({
           ))}
         </tbody>
       </table>
-      {kind === "packing-slip" ? <p className="mt-2 text-xs">Item count: {items.reduce((sum, item) => sum + Number(item.quantity), 0)}</p> : null}
+      {kind === "packing-slip" ? (
+        <p className="mt-2 text-xs">
+          Item count: {items.reduce((sum, item) => sum + Number(item.quantity), 0)} · Carrier: {order.fulfillment_provider || "Not assigned"} · Method: {fulfillment}
+        </p>
+      ) : null}
 
       {kind !== "packing-slip" ? (
         <dl className="mt-6 ml-auto max-w-xs space-y-1 text-sm">
           <div className="flex justify-between gap-6"><dt>Subtotal</dt><dd>{money(order.subtotal)}</dd></div>
           {Number(order.discount_amount) > 0 ? <div className="flex justify-between gap-6"><dt>Discount</dt><dd>{money(order.discount_amount)}</dd></div> : null}
           <div className="flex justify-between gap-6"><dt>Delivery / shipping</dt><dd>{money(order.shipping_cost)}</dd></div>
+          <div className="flex justify-between gap-6"><dt>Tax</dt><dd>{money(order.tax_amount)}</dd></div>
           <div className="flex justify-between gap-6 font-semibold"><dt>Total</dt><dd>{money(order.total)}</dd></div>
         </dl>
       ) : null}
 
       {kind === "receipt" || kind === "summary" ? (
-        <p className="mt-4 text-sm">Payment status: {order.payment_status}</p>
+        <div className="mt-4 space-y-1 text-sm">
+          <p>Payment status: {order.payment_status}</p>
+          <p>Fulfillment: {fulfillment}</p>
+          {order.fulfillment_provider ? <p>Carrier: {String(order.fulfillment_provider).toUpperCase()}</p> : null}
+          {order.tracking_number ? <p className="break-all">Tracking: {order.tracking_number}</p> : null}
+        </div>
       ) : null}
 
       {kind === "delivery" ? (
         <section className="mt-6 border-t border-black/20 pt-4 text-sm">
           <h2 className="font-semibold">Carrier / courier operations</h2>
           <p className="mt-2">Provider: {order.fulfillment_provider || "Not assigned"}</p>
+          <p>Mode: {order.shipping_mode === "api" ? "API" : order.fulfillment_provider ? "Manual" : "—"}</p>
           {order.fulfillment_service ? <p>Service: {order.fulfillment_service}</p> : null}
+          {order.customer_phone ? <p>Contact: {order.customer_phone}</p> : null}
           {externalId ? <p className="break-all">External reference: {externalId}</p> : null}
-          {tracking ? <p className="break-all">Tracking: {tracking}</p> : <p className="mt-2 text-xs">Tracking and courier details will appear here when UPS, USPS, or DoorDash return them.</p>}
+          {order.tracking_number ? <p className="break-all">Tracking: {order.tracking_number}</p> : tracking ? <p className="break-all">Tracking: {tracking}</p> : <p className="mt-2 text-xs">Tracking appears here after admin enters the carrier tracking number.</p>}
+          {order.shipped_at ? <p>Ship date: {new Date(order.shipped_at).toLocaleString()}</p> : null}
         </section>
       ) : null}
 

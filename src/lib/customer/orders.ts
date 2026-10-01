@@ -8,7 +8,7 @@ export async function getCustomerOrder(id: string) {
   // Explicit ownership also protects the customer-facing view for admin accounts.
   // RLS remains the database boundary; never use a service-role client here.
   const { data: order, error } = await supabase.from("orders")
-    .select("id, order_number, confirmation_code, status, payment_status, payment_method, payment_provider, fulfillment_method, fulfillment_provider, fulfillment_service, subtotal, shipping_cost, discount_amount, total, created_at, shipping_address, order_items(product_name, product_price, quantity)")
+    .select("id, order_number, confirmation_code, status, payment_status, payment_method, payment_provider, fulfillment_method, fulfillment_provider, fulfillment_service, tracking_number, shipped_at, subtotal, shipping_cost, discount_amount, tax_amount, total, created_at, shipping_address, order_items(product_name, product_price, quantity)")
     .eq("id", id).eq("user_id", user.id).maybeSingle();
   if (error) throw new Error("Unable to load your order. Please try again.");
   return order ? { kind: "found" as const, order } : { kind: "missing" as const };

@@ -17,7 +17,7 @@ export default async function AdminOrderPrintPage({
   const [{ data: order, error }, { data: items, error: itemsError }] = await Promise.all([
     supabase
       .from("orders")
-      .select("id, order_number, created_at, customer_name, customer_email, customer_phone, status, payment_status, fulfillment_method, fulfillment_provider, fulfillment_service, delivery_snapshot, shipping_address, subtotal, shipping_cost, discount_amount, total")
+      .select("id, order_number, created_at, customer_name, customer_email, customer_phone, status, payment_status, fulfillment_method, fulfillment_provider, fulfillment_service, shipping_mode, tracking_number, shipped_at, delivery_snapshot, shipping_address, subtotal, shipping_cost, discount_amount, tax_amount, total")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("order_items").select("product_name, product_price, quantity").eq("order_id", id),
