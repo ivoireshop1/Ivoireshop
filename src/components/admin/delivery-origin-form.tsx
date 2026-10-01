@@ -34,9 +34,11 @@ export function DeliveryOriginForm({
   doordashEnabled: boolean;
 }) {
   const router = useRouter();
-  const [state, action] = useActionState(saveStoreOrigin, null);
+  const [state, action, pending] = useActionState(saveStoreOrigin, null);
   useEffect(() => {
-    if (state?.saved) router.refresh();
+    if (!state?.saved) return;
+    const timer = window.setTimeout(() => router.refresh(), 1800);
+    return () => window.clearTimeout(timer);
   }, [state?.saved, router]);
   return (
     <form action={action} className="min-w-0 space-y-4 overflow-x-hidden rounded-2xl bg-white p-5">
@@ -63,7 +65,8 @@ export function DeliveryOriginForm({
         <label className="flex items-center gap-2"><input defaultChecked={doordashEnabled} name="doordash_enabled" type="checkbox" /> DoorDash local delivery (requires credentials)</label>
       </div>
       {state?.error ? <p className="text-sm text-red-800">{state.error}</p> : null}
-      <AdminSaveButton failed={Boolean(state?.error)} idleLabel="Save origin and local options" saved={Boolean(state?.saved)} />
+      {state?.saved && !pending ? <p className="text-sm text-[#173f35]">Settings saved.</p> : null}
+      <AdminSaveButton failed={Boolean(state?.error) && !pending} idleLabel="Save origin and local options" pending={pending} saved={Boolean(state?.saved) && !pending} />
     </form>
   );
 }

@@ -101,4 +101,23 @@ await test('admin money parser rejects negatives and keeps empty optional', () =
   assert.equal(miles.amount, 12.5);
 });
 
-console.log(`${count} tests passed`);
+await test('UPS appears from persisted settings without hiding USPS when show_at_checkout is false', () => {
+  const delivery = load('src/lib/delivery/manual.ts');
+  const settings = {
+    ups_enabled: true,
+    ups_show_at_checkout: true,
+    ups_domestic_enabled: true,
+    ups_domestic_charge: 14.66,
+    ups_rate_mode: 'store_rate',
+    usps_enabled: true,
+    usps_show_at_checkout: false,
+    usps_domestic_enabled: true,
+    usps_domestic_charge: 19.33,
+    usps_rate_mode: 'store_rate',
+  };
+  const options = delivery.manualCarrierOptions(settings, 'US', 20);
+  assert.equal(options.some((option) => option.provider === 'ups' && option.amount === 14.66), true);
+  assert.equal(options.some((option) => option.provider === 'usps'), false);
+  const hidden = delivery.manualCarrierOptions({ ...settings, ups_show_at_checkout: false }, 'US', 20);
+  assert.equal(hidden.some((option) => option.provider === 'ups'), false);
+});

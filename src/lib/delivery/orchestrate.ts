@@ -58,9 +58,8 @@ export async function collectCheckoutOptions(input: {
     logDelivery("doordash", "quote", !quoted.error, quoted.error);
     options.push(...quoted.options.map((option) => ({ ...option, mode: "api" as const })));
   }
-  if (destReady) {
-    options.push(...manualCarrierOptions(settings, input.destination.country, moneyFromCents(subtotalCents)));
-  }
+  const quoteCountry = input.destination.country?.trim() || origin.country?.trim() || "US";
+  options.push(...manualCarrierOptions(settings, quoteCountry, moneyFromCents(subtotalCents)));
 
   const breakdowns: Record<string, { shipping: number; tax: number; total: number }> = {};
   for (const option of options) {

@@ -18,10 +18,12 @@ export function TaxSettingsForm({
   taxName: string | null | undefined;
 }) {
   const router = useRouter();
-  const [state, action] = useActionState(saveTaxSettings, null);
+  const [state, action, pending] = useActionState(saveTaxSettings, null);
   const mode = parseTaxMode(taxMode);
   useEffect(() => {
-    if (state?.saved) router.refresh();
+    if (!state?.saved) return;
+    const timer = window.setTimeout(() => router.refresh(), 1800);
+    return () => window.clearTimeout(timer);
   }, [state?.saved, router]);
   return (
     <form action={action} className="min-w-0 space-y-4 overflow-x-hidden rounded-2xl bg-white p-5">
@@ -52,7 +54,8 @@ export function TaxSettingsForm({
         Apply tax to shipping / delivery
       </label>
       {state?.error ? <p className="text-sm text-red-800">{state.error}</p> : null}
-      <AdminSaveButton failed={Boolean(state?.error)} idleLabel="Save tax settings" saved={Boolean(state?.saved)} />
+      {state?.saved && !pending ? <p className="text-sm text-[#173f35]">Settings saved.</p> : null}
+      <AdminSaveButton failed={Boolean(state?.error) && !pending} idleLabel="Save tax settings" pending={pending} saved={Boolean(state?.saved) && !pending} />
     </form>
   );
 }

@@ -167,7 +167,7 @@ export async function saveManualShipping(_prev: { error?: string; saved?: boolea
     return { error: "Enter a USPS international shipping charge, or turn international USPS off.", saved: false };
   }
   const saved = await persistStoreSettings(supabase, values, "manual_shipping");
-  if (!saved) return { error: "Couldn’t save changes", saved: false };
+  if (!saved) return { error: "Couldn’t save shipping settings. Stay on this page and try again, or sign in as an admin.", saved: false };
   revalidateFulfillment();
   return { saved: true };
 }

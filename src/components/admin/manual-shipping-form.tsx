@@ -4,7 +4,6 @@ import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { saveManualShipping } from "@/src/lib/delivery/actions";
 import { parseRateMode, rateModeLabel } from "@/src/lib/delivery/manual";
-import { AdminSaveButton } from "@/src/components/admin/admin-save-button";
 
 function CarrierFields({
   carrier,
@@ -47,10 +46,14 @@ export function ManualShippingForm({
   settings: Record<string, unknown> | null;
 }) {
   const router = useRouter();
-  const [state, action] = useActionState(saveManualShipping, null);
+  const [state, action, pending] = useActionState(saveManualShipping, null);
   useEffect(() => {
-    if (state?.saved) router.refresh();
+    if (!state?.saved) return;
+    const timer = window.setTimeout(() => router.refresh(), 1800);
+    return () => window.clearTimeout(timer);
   }, [state?.saved, router]);
+  const failed = Boolean(state?.error) && !pending;
+  const saved = Boolean(state?.saved) && !pending && !state?.error;
   return (
     <form action={action} className="min-w-0 space-y-4 overflow-x-hidden rounded-2xl bg-white p-5">
       <h2 className="font-semibold text-[#173f35]">Shipping Rate Manager</h2>
@@ -62,7 +65,14 @@ export function ManualShippingForm({
         <CarrierFields carrier="usps" settings={settings} />
       </div>
       {state?.error ? <p className="text-sm text-red-800">{state.error}</p> : null}
-      <AdminSaveButton failed={Boolean(state?.error)} saved={Boolean(state?.saved)} />
+      {saved ? <p className="text-sm text-[#173f35]">Shipping settings saved.</p> : null}
+      <button
+        className="min-h-11 min-w-[11rem] rounded-xl bg-[#173f35] px-4 py-2 text-sm text-white disabled:opacity-70"
+        disabled={pending}
+        type="submit"
+      >
+        {pending ? "Saving…" : failed ? "Couldn’t save" : saved ? "Saved ✓" : "Save shipping rates"}
+      </button>
     </form>
   );
 }

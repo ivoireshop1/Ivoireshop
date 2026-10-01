@@ -35,7 +35,7 @@ export function CheckoutPage({ storeOpen, payments }: { storeOpen: boolean; paym
   const [deliveryOptionId, setDeliveryOptionId] = useState("");
   const [checkoutStep, setCheckoutStep] = useState<"account" | "shipping" | "payment" | "review">("account");
   const [contact, setContact] = useState({ customerName: "", customerEmail: "", customerPhone: "" });
-  const [address, setAddress] = useState({ addressLine1: "", addressLine2: "", city: "", state: "", postalCode: "", country: "" });
+  const [address, setAddress] = useState({ addressLine1: "", addressLine2: "", city: "", state: "", postalCode: "", country: "US" });
   const [options, setOptions] = useState<DeliveryOption[]>([]);
   const [breakdowns, setBreakdowns] = useState<Record<string, { shipping: number; tax: number; total: number }>>({});
   const [quoteSubtotal, setQuoteSubtotal] = useState<number | null>(null);

@@ -1,0 +1,15 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "ivoireshop-ivoireshop1.vercel.app"
+        }
+      ],
+      "destination": "https://ivoire-shop-five.vercel.app/:path*",
+      "permanent": false
+    }
+  ]
+}
