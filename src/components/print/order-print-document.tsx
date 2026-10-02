@@ -9,6 +9,8 @@ type PrintItem = {
   product_name: string;
   product_price: number | string;
   quantity: number;
+  image_url?: string | null;
+  picked?: boolean;
 };
 
 type PrintOrder = {
@@ -40,10 +42,12 @@ export function OrderPrintDocument({
   kind,
   order,
   items,
+  internalNotes,
 }: {
   kind: OrderPrintKind;
   order: PrintOrder;
   items: PrintItem[];
+  internalNotes?: string[];
 }) {
   const title = orderPrintTitle(kind);
   const pickupLocation = pickupLocationForOrder(order);
@@ -107,9 +111,17 @@ export function OrderPrintDocument({
         <tbody>
           {items.map((item, index) => (
             <tr className="border-b border-black/20" key={`${item.product_name}-${index}`}>
-              {kind === "packing-slip" ? <td className="py-3 pr-2">☐</td> : null}
-              <td className="py-3 break-words pr-3">{item.product_name}</td>
-              <td className="py-3 text-right">{item.quantity}</td>
+              {kind === "packing-slip" ? <td className="py-3 pr-2">{item.picked ? "☑" : "☐"}</td> : null}
+              <td className="py-3 break-words pr-3">
+                <div className="flex items-center gap-2">
+                  {kind === "packing-slip" && item.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img alt="" className="h-10 w-10 rounded object-cover" src={item.image_url} />
+                  ) : null}
+                  <span>{item.product_name}</span>
+                </div>
+              </td>
+              <td className="py-3 text-right">{item.quantity}{kind === "packing-slip" && item.picked ? " picked" : ""}</td>
               {kind !== "packing-slip" ? <td className="py-3 text-right">{money(item.product_price)}</td> : null}
               {kind !== "packing-slip" ? <td className="py-3 text-right">{money(Number(item.product_price) * item.quantity)}</td> : null}
             </tr>
@@ -168,7 +180,12 @@ export function OrderPrintDocument({
         </section>
       ) : null}
 
-      <p className="mt-10 text-xs">Ivoire Shop · Printed {formatStoreDateTime(new Date())}</p>
+      {kind === "packing-slip" && internalNotes?.length ? (
+        <section className="mt-6 border-t border-black/20 pt-4 text-sm">
+          <h2 className="font-semibold">Internal packing notes</h2>
+          {internalNotes.map((note) => <p className="mt-2 whitespace-pre-wrap" key={note}>{note}</p>)}
+        </section>
+      ) : null}
     </article>
   );
 }

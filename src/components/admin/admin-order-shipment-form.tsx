@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { saveOrderShipment, type ShipmentActionState } from "@/src/lib/delivery/actions";
-import { carrierDisplayName, isCarrierOrder, shippingOpsStatus } from "@/src/lib/delivery/tracking";
+import { carrierDisplayName, isCarrierOrder, officialTrackLabel, shippingOpsStatus, trackingUrl } from "@/src/lib/delivery/tracking";
 import { formatStoreDateTime } from "@/src/lib/store/timezone";
 import { useLiveNotifications } from "@/src/components/realtime/live-notifications-provider";
 
@@ -64,6 +64,11 @@ export function AdminOrderShipmentForm({
       {locked ? (
         <div className="mt-4 space-y-3">
           <p className="break-all font-mono text-sm text-[#173f35]">{order.tracking_number}</p>
+          {order.tracking_number && trackingUrl(order.fulfillment_provider ?? "", order.tracking_number) ? (
+            <a className="inline-flex min-h-11 items-center rounded-xl bg-[#173f35] px-4 text-sm font-semibold text-white" href={trackingUrl(order.fulfillment_provider ?? "", order.tracking_number)} rel="noreferrer" target="_blank">
+              {officialTrackLabel(order.fulfillment_provider)}
+            </a>
+          ) : null}
           <button className="min-h-11 rounded-xl border border-[#173f35]/20 px-4 text-sm font-semibold text-[#173f35]" onClick={() => setEditing(true)} type="button">
             Edit Tracking
           </button>

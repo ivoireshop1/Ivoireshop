@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/lib/audio/ivoire-tones.test.ts src/lib/delivery/origin.test.ts src/lib/delivery/tracking.test.ts src/lib/orders/buckets.test.ts src/lib/orders/status.test.ts src/lib/orders/timeline.test.ts src/lib/store/timezone.test.ts src/lib/notifications/drawer-box.test.ts src/lib/notifications/merge.test.ts src/lib/orders/action-state.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/audio/ivoire-tones.test.ts src/lib/delivery/origin.test.ts src/lib/delivery/tracking.test.ts src/lib/orders/buckets.test.ts src/lib/orders/status.test.ts src/lib/orders/timeline.test.ts src/lib/store/timezone.test.ts src/lib/notifications/drawer-box.test.ts src/lib/notifications/merge.test.ts src/lib/orders/action-state.test.ts src/lib/orders/ops.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

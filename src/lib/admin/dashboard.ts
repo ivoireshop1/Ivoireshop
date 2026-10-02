@@ -4,6 +4,7 @@ import { parseTaxMode, taxModeLabel } from "@/src/lib/tax/totals";
 import { productMissingRequirements, productNeedsReview, productReadyToPublish } from "@/src/lib/catalog/product-readiness";
 import { describeStoreStatus, getStoreStatus } from "@/src/lib/store/status";
 import { startOfStoreDayIso, storeGreetingAt, formatStoreShortDate } from "@/src/lib/store/timezone";
+import { dashboardFulfillmentCounts } from "@/src/lib/orders/ops";
 import { recordAdminIncident } from "@/src/lib/ops/incident";
 
 export type AdminDashboardMetric = {
@@ -78,7 +79,7 @@ export async function getAdminDashboardData() {
         .order("created_at", { ascending: false })
         .limit(5),
       supabase.from("order_items").select("order_id, product_id, product_name, quantity, product_price"),
-      supabase.from("orders").select("id, status, payment_status, total"),
+      supabase.from("orders").select("id, status, payment_status, total, fulfillment_method, fulfillment_provider, tracking_number"),
       supabase.from("product_reviews").select("id", { count: "exact", head: true }).eq("status", "pending"),
       getStoreStatus(),
       supabase.from("orders").select("id, status, fulfillment_provider, tracking_number"),
@@ -327,6 +328,7 @@ export async function getAdminDashboardData() {
       label: taxModeLabel(parseTaxMode(taxSettingsResult.data?.tax_mode)),
       required: parseTaxMode(taxSettingsResult.data?.tax_mode) === "not_configured",
     },
+    fulfillmentCounts: dashboardFulfillmentCounts(allOrders),
   };
 }
 

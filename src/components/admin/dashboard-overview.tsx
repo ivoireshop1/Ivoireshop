@@ -79,6 +79,24 @@ export function DashboardOverview({ initial }: { initial: AdminDashboardData }) 
         ))}
       </section>
 
+      <AdminCard title="Fulfillment" action={<Link href="/admin/orders" className="text-sm text-[#173f35] underline-offset-2 hover:underline">Orders</Link>}>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { label: "Needs Acceptance", value: dashboard.fulfillmentCounts.needsAcceptance, href: "/admin/orders?view=new&attention=needs_acceptance" },
+            { label: "Preparing", value: dashboard.fulfillmentCounts.preparing, href: "/admin/orders?view=in_progress&attention=preparing" },
+            { label: "Ready for Pickup", value: dashboard.fulfillmentCounts.readyPickup, href: "/admin/orders?view=in_progress&attention=ready_pickup" },
+            { label: "Ready for Delivery", value: dashboard.fulfillmentCounts.readyDelivery, href: "/admin/orders?view=in_progress&attention=ready_delivery" },
+            { label: "Awaiting Tracking", value: dashboard.fulfillmentCounts.awaitingTracking, href: "/admin/orders?view=in_progress&attention=awaiting_tracking" },
+            { label: "Out for Delivery", value: dashboard.fulfillmentCounts.outForDelivery, href: "/admin/orders?view=in_progress&attention=out_for_delivery" },
+          ].map((item) => (
+            <Link className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4" href={item.href} key={item.label}>
+              <p className="text-sm text-[#6b6b6b]">{item.label}</p>
+              <p className="mt-2 text-2xl font-semibold text-[#173f35]">{item.value}</p>
+            </Link>
+          ))}
+        </div>
+      </AdminCard>
+
       <AdminCard title="Shipping" action={<Link href="/admin/delivery" className="text-sm text-[#173f35] underline-offset-2 hover:underline">Delivery Center</Link>}>
         <div className="grid gap-3 sm:grid-cols-3">
           <Link className="rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-4" href="/admin/orders?shipping=awaiting">

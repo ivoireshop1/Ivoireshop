@@ -4,14 +4,31 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/src/lib/supabase/browser";
 import { AdminOrderListHeader, AdminOrderListItem, type AdminOrderListItemData } from "@/src/components/admin/admin-order-list-item";
 import { matchesAdminOrderView, type AdminOrderView } from "@/src/lib/orders/buckets";
+import { orderMatchesOpsFilters, orderMatchesSearch } from "@/src/lib/orders/ops";
 import { useLiveNotifications } from "@/src/components/realtime/live-notifications-provider";
 
 export function LiveAdminOrderList({
   initialOrders,
   view,
+  search = "",
+  attention = "",
+  status = "all",
+  payment = "all",
+  fulfillment = "all",
+  carrier = "all",
+  date = "all",
+  shipping = "all",
 }: {
   initialOrders: AdminOrderListItemData[];
   view: AdminOrderView;
+  search?: string;
+  attention?: string;
+  status?: string;
+  payment?: string;
+  fulfillment?: string;
+  carrier?: string;
+  date?: string;
+  shipping?: string;
 }) {
   const { dashboardTick } = useLiveNotifications();
   const [liveOrders, setLiveOrders] = useState<AdminOrderListItemData[] | null>(null);
@@ -23,16 +40,22 @@ export function LiveAdminOrderList({
     let cancelled = false;
     void client
       .from("orders")
-      .select("id, order_number, confirmation_code, customer_name, customer_email, total, status, payment_status, payment_provider, fulfillment_method, fulfillment_provider, fulfillment_service, tracking_number, created_at")
+      .select("id, order_number, confirmation_code, customer_name, customer_email, customer_phone, total, status, payment_status, payment_provider, fulfillment_method, fulfillment_provider, fulfillment_service, tracking_number, created_at, order_items(product_name, quantity, image_url, products(product_images(image_url, position)))")
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         if (cancelled || !data) return;
-        setLiveOrders(data.filter((order) => matchesAdminOrderView(order.status, view)));
+        setLiveOrders(
+          data.filter((order) => {
+            if (!matchesAdminOrderView(order.status, view)) return false;
+            if (search && !orderMatchesSearch(order, search)) return false;
+            return orderMatchesOpsFilters(order, { status, payment, fulfillment, carrier, date, shipping, attention });
+          }),
+        );
       });
     return () => {
       cancelled = true;
     };
-  }, [dashboardTick, view]);
+  }, [dashboardTick, view, search, attention, status, payment, fulfillment, carrier, date, shipping]);
 
   if (!orders.length) {
     return (

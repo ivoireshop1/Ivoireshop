@@ -357,6 +357,21 @@ export function LiveNotificationsProvider({
             const row = payload.new as { id: string; read_at: string | null };
             noteChange("admin_notifications", "UPDATE", row?.id);
             setItems((current) => current.map((item) => (item.id === row.id ? { ...item, read_at: row.read_at } : item)));
+          })
+          .on("postgres_changes", { event: "*", schema: "public", table: "order_item_picks" }, (payload) => {
+            const row = (payload.new || payload.old) as { order_id?: string; order_item_id?: string };
+            noteChange("order_item_picks", payload.eventType, row?.order_item_id);
+            if (row?.order_id) {
+              setOrderTicks((current) => ({ ...current, [row.order_id as string]: Date.now() }));
+              setDashboardTick(Date.now());
+            }
+          })
+          .on("postgres_changes", { event: "*", schema: "public", table: "order_internal_notes" }, (payload) => {
+            const row = (payload.new || payload.old) as { order_id?: string; id?: string };
+            noteChange("order_internal_notes", payload.eventType, row?.id);
+            if (row?.order_id) {
+              setOrderTicks((current) => ({ ...current, [row.order_id as string]: Date.now() }));
+            }
           });
       } else {
         next
