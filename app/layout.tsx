@@ -7,6 +7,8 @@ import { CartFeedback } from "@/src/components/cart/cart-feedback";
 import { WishlistProvider } from "@/src/lib/wishlist/wishlist-context";
 import { NavigationTracker } from "@/src/components/navigation/navigation-tracker";
 import { AuthHashCatcher } from "@/src/components/auth/auth-hash-catcher";
+import { LiveNotificationsProvider } from "@/src/components/realtime/live-notifications-provider";
+import { LiveToastHost } from "@/src/components/realtime/live-toast-host";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,7 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><CartProvider><WishlistProvider><AuthHashCatcher /><Suspense fallback={null}><NavigationTracker /></Suspense>{children}<CartFeedback /></WishlistProvider></CartProvider></body>
+      <body className="min-h-full flex flex-col"><CartProvider><WishlistProvider><LiveNotificationsProvider><AuthHashCatcher /><Suspense fallback={null}><NavigationTracker /></Suspense>{children}<CartFeedback /><LiveToastHost /></LiveNotificationsProvider></WishlistProvider></CartProvider></body>
     </html>
   );
 }

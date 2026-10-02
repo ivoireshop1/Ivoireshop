@@ -10,7 +10,7 @@ import { getEmailProviderStatus } from "@/src/lib/email/send";
 import { OrderMoneyBreakdown } from "@/src/components/orders/order-money-breakdown";
 import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 import { OrderLine } from "@/src/components/orders/order-line";
-import { OrderTimeline } from "@/src/components/orders/order-timeline";
+import { LiveOrderTimeline } from "@/src/components/orders/live-order-timeline";
 import { toOrderLineItem } from "@/src/lib/orders/line-image";
 
 export default async function OrderDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; success?: string }> }) {
@@ -64,7 +64,7 @@ export default async function OrderDetailPage({ params, searchParams }: { params
       </div>
       <section className="rounded-2xl bg-white p-5">
         <h2 className="font-semibold text-[#173f35]">Progress</h2>
-        <OrderTimeline
+        <LiveOrderTimeline
           events={events ?? []}
           order={{
             status: order.status,
@@ -72,6 +72,7 @@ export default async function OrderDetailPage({ params, searchParams }: { params
             fulfillment_provider: order.fulfillment_provider,
             created_at: order.created_at,
           }}
+          orderId={order.id}
         />
       </section>
       <section className="rounded-2xl bg-white p-5">

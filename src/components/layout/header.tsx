@@ -9,7 +9,6 @@ import { useWishlist } from "@/src/lib/wishlist/wishlist-context";
 import { createClient } from "@/src/lib/supabase/browser";
 import { type NavRole, resolveStorefrontHomeHref } from "@/src/lib/auth/session-navigation";
 import { NotificationBell } from "@/src/components/customer/notification-bell";
-import { NotificationSoundListener } from "@/src/components/customer/notification-sound-listener";
 import type { InboxItem } from "@/src/lib/notifications/inbox-item";
 
 function SearchIcon() {
@@ -21,13 +20,11 @@ export function Header({
   initialUnread = 0,
   initialInbox = [],
   navCategories = CANONICAL_CATEGORIES.map((category) => ({ slug: category.slug, name: category.name })),
-  notificationSounds = true,
 }: {
   initialRole?: NavRole;
   initialUnread?: number;
   initialInbox?: InboxItem[];
   navCategories?: Array<{ slug: string; name: string }>;
-  notificationSounds?: boolean;
 }) {
   const { totalItems, isLoaded, addEventId } = useCart();
   const { items: wishlistItems } = useWishlist();
@@ -87,10 +84,7 @@ export function Header({
           {isAuthenticated ? (
             <>
               {role === "customer" ? (
-                <>
-                  <NotificationSoundListener enabled={notificationSounds} />
-                  <NotificationBell initialInbox={initialInbox} initialUnread={initialUnread} />
-                </>
+                <NotificationBell initialInbox={initialInbox} initialUnread={initialUnread} />
               ) : null}
               <Link aria-label={wishlistCountLabel} className="text-forest-green xl:hidden" href="/wishlist">
                 {wishlistItems.length > 0 ? `♡ ${wishlistItems.length}` : "♡"}

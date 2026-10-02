@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/src/lib/supabase/server";
+import { requireAdmin } from "@/src/lib/auth/guards";
 
 export async function markWelcomeComplete() {
   const supabase = await createClient();
@@ -23,4 +24,11 @@ export async function setNotificationSounds(formData: FormData) {
   await supabase.from("profiles").update({ notification_sounds: enabled }).eq("id", user.id);
   revalidatePath("/account");
   revalidatePath("/account/notifications");
+}
+
+export async function setAdminNotificationSounds(formData: FormData) {
+  const enabled = String(formData.get("enabled") ?? "") === "on";
+  const { supabase, user } = await requireAdmin();
+  await supabase.from("profiles").update({ admin_notification_sounds: enabled }).eq("id", user.id);
+  revalidatePath("/admin/account");
 }

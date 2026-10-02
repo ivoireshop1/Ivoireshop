@@ -64,9 +64,9 @@ export function markPlayedNotification(id: string) {
 }
 
 export function toneForEvent(eventType: string): IvoireTone | null {
-  if (eventType === "order_confirmed") return "accepted";
-  if (eventType === "preparing") return "preparing";
-  if (eventType === "ready_for_pickup" || eventType === "ready_for_delivery" || eventType === "shipped" || eventType === "out_for_delivery" || eventType === "tracking_added" || eventType === "tracking_updated") return "ready";
+  if (eventType === "order_confirmed" || eventType === "new_order") return "accepted";
+  if (eventType === "preparing" || eventType === "customer_message" || eventType === "new_review") return "preparing";
+  if (eventType === "ready_for_pickup" || eventType === "ready_for_delivery" || eventType === "shipped" || eventType === "out_for_delivery" || eventType === "tracking_added" || eventType === "tracking_updated" || eventType === "shipping_attention" || eventType === "announcement") return "ready";
   if (eventType === "completed") return "success";
   return null;
 }
@@ -150,10 +150,41 @@ export function installIvoireAudioUnlock() {
 
 export async function playNotificationEvent(eventType: string, notificationId: string): Promise<boolean> {
   if (hasPlayedNotification(notificationId)) return false;
+  if (typeof window !== "undefined") {
+    try {
+      const claimKey = `ivoire-sound-claim:${notificationId}`;
+      if (localStorage.getItem(claimKey)) return false;
+      localStorage.setItem(claimKey, "1");
+    } catch {
+      /* ignore */
+    }
+  }
   const tone = toneForEvent(eventType);
   if (!tone) return false;
   const result = await playIvoireCue(tone);
-  if (!result.ok) return false;
+  if (!result.ok) {
+    try {
+      localStorage.removeItem(`ivoire-sound-claim:${notificationId}`);
+    } catch {
+      /* ignore */
+    }
+    return false;
+  }
   markPlayedNotification(notificationId);
+  try {
+    new BroadcastChannel("ivoire-sound").postMessage({ id: notificationId });
+  } catch {
+    /* ignore */
+  }
   return true;
+}
+
+export function listenForCrossTabSoundClaims(onClaim: (id: string) => void) {
+  if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") return () => undefined;
+  const channel = new BroadcastChannel("ivoire-sound");
+  channel.onmessage = (event) => {
+    const id = event.data && typeof event.data === "object" ? String((event.data as { id?: string }).id ?? "") : "";
+    if (id) onClaim(id);
+  };
+  return () => channel.close();
 }

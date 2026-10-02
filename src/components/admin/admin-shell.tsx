@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ReactNode, useState } from "react";
 import { usePathname } from "next/navigation";
 import LogoutButton from "@/src/components/auth/logout-button";
+import { NotificationBell } from "@/src/components/customer/notification-bell";
+import { LiveConnectionBadge } from "@/src/components/realtime/live-connection-badge";
 
 const navigation = [
   { href: "/admin", label: "Dashboard" },
@@ -13,6 +15,8 @@ const navigation = [
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/inventory", label: "Inventory" },
   { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/notifications", label: "Notifications" },
+  { href: "/admin/messages", label: "Messages" },
   { href: "/admin/printing", label: "Printing" },
   { href: "/admin/delivery", label: "Delivery" },
   { href: "/admin/payments", label: "Payments" },
@@ -40,15 +44,21 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <div className="min-w-0">
               <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#b8964c]">Ivoire Shop</p>
               <h1 className="mt-1 truncate text-lg font-semibold text-[#173f35] sm:text-xl">Admin</h1>
+              <div className="mt-2">
+                <LiveConnectionBadge />
+              </div>
             </div>
-            <button
-              aria-expanded={menuOpen}
-              className="min-h-11 rounded-lg border border-[#173f35]/20 px-3 text-sm text-[#173f35] lg:hidden"
-              onClick={() => setMenuOpen((open) => !open)}
-              type="button"
-            >
-              {menuOpen ? "Close" : "Menu"}
-            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              <NotificationBell historyHref="/admin/notifications" initialInbox={[]} initialUnread={0} />
+              <button
+                aria-expanded={menuOpen}
+                className="min-h-11 rounded-lg border border-[#173f35]/20 px-3 text-sm text-[#173f35] lg:hidden"
+                onClick={() => setMenuOpen((open) => !open)}
+                type="button"
+              >
+                {menuOpen ? "Close" : "Menu"}
+              </button>
+            </div>
           </div>
 
           <div className={`${menuOpen ? "block" : "hidden"} px-4 py-5 lg:block`}>

@@ -1,22 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { playIvoireCue } from "@/src/lib/audio/ivoire-tones";
+import { playIvoireCue, type IvoireTone } from "@/src/lib/audio/ivoire-tones";
 
-export function TestSoundButton() {
+export function TestSoundButton({
+  cue = "ready",
+  label = "🔊 Test Sound",
+}: {
+  cue?: IvoireTone;
+  label?: string;
+}) {
   const [state, setState] = useState<"idle" | "playing" | "played" | "blocked">("idle");
 
   async function onPlay() {
     setState("playing");
-    const result = await playIvoireCue("ready");
+    const result = await playIvoireCue(cue);
     setState(result.ok ? "played" : "blocked");
   }
 
-  const label =
+  const buttonLabel =
     state === "playing" ? "Playing…" :
     state === "played" ? "Sound played ✓" :
     state === "blocked" ? "Sound blocked" :
-    "🔊 Test Sound";
+    label;
 
   return (
     <div className="mt-4">
@@ -26,7 +32,7 @@ export function TestSoundButton() {
         onClick={() => void onPlay()}
         type="button"
       >
-        {label}
+        {buttonLabel}
       </button>
       {state === "blocked" ? (
         <p className="mt-2 text-sm text-muted">

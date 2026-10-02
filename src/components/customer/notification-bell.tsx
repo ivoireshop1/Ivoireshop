@@ -2,55 +2,25 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/src/lib/supabase/browser";
-import { acknowledgeInboxItem } from "@/src/lib/notifications/actions";
 import type { InboxItem } from "@/src/lib/notifications/inbox-item";
+import { useLiveNotifications } from "@/src/components/realtime/live-notifications-provider";
 
 export function NotificationBell({
   initialUnread,
   initialInbox = [],
+  historyHref = "/account/notifications",
 }: {
   initialUnread: number;
   initialInbox?: InboxItem[];
+  historyHref?: string;
 }) {
-  const [liveUnread, setLiveUnread] = useState<number | null>(null);
+  const live = useLiveNotifications();
   const [open, setOpen] = useState(false);
-  const router = useRouter();
   const menuId = useId();
   const headingId = useId();
   const root = useRef<HTMLDivElement>(null);
-  const unread = liveUnread ?? initialUnread;
-
-  useEffect(() => {
-    const client = createClient();
-    let channel: ReturnType<typeof client.channel> | null = null;
-    let cancelled = false;
-    void client.auth.getUser().then(({ data }) => {
-      if (cancelled || !data.user) return;
-      const refreshUnread = () => {
-        setLiveUnread(null);
-        router.refresh();
-      };
-      channel = client
-        .channel(`customer-inbox-${data.user.id}`)
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "customer_notifications", filter: `user_id=eq.${data.user.id}` },
-          refreshUnread,
-        )
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "customer_announcement_reads", filter: `user_id=eq.${data.user.id}` },
-          refreshUnread,
-        )
-        .subscribe();
-    });
-    return () => {
-      cancelled = true;
-      if (channel) void client.removeChannel(channel);
-    };
-  }, [router]);
+  const items = live.items.length ? live.items : initialInbox;
+  const unread = live.role === "guest" ? initialUnread : live.unread;
 
   useEffect(() => {
     function onPointer(event: MouseEvent) {
@@ -109,7 +79,7 @@ export function NotificationBell({
           />
           <div
             aria-labelledby={headingId}
-            className="fixed left-3 right-3 top-[4.75rem] z-50 max-h-[min(70dvh,32rem)] overflow-y-auto overflow-x-hidden rounded-2xl border border-forest-green/15 bg-white p-3 shadow-lg md:left-auto md:right-0 md:top-auto md:mt-2 md:w-80 md:max-w-[min(20rem,calc(100vw-1.5rem))]"
+            className="fixed left-3 right-3 top-[4.75rem] z-50 max-h-[min(70dvh,32rem)] overflow-y-auto overflow-x-hidden rounded-2xl border border-forest-green/15 bg-white p-3 shadow-lg md:absolute md:left-auto md:right-0 md:top-auto md:mt-2 md:w-80 md:max-w-[min(20rem,calc(100vw-1.5rem))]"
             id={menuId}
             role="dialog"
           >
@@ -117,29 +87,43 @@ export function NotificationBell({
               <h2 className="text-base font-semibold text-forest-green" id={headingId}>
                 Notifications
               </h2>
-              <button
-                aria-label="Close notifications"
-                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-sm font-semibold text-forest-green"
-                onClick={() => setOpen(false)}
-                type="button"
-              >
-                Close
-              </button>
+              <div className="flex items-center gap-1">
+                {unread > 0 ? (
+                  <button className="min-h-11 px-2 text-xs font-semibold text-forest-green underline" onClick={() => live.markAllRead()} type="button">
+                    Mark all as read
+                  </button>
+                ) : null}
+                <button
+                  aria-label="Close notifications"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-sm font-semibold text-forest-green"
+                  onClick={() => setOpen(false)}
+                  type="button"
+                >
+                  Close
+                </button>
+              </div>
             </div>
             <ul className="mt-2 space-y-2">
-              {initialInbox.length ? (
-                initialInbox.map((item) => (
+              {items.length ? (
+                items.slice(0, 8).map((item) => (
                   <li key={`${item.kind}-${item.id}`}>
-                    <InboxPreview item={item} onDone={() => { setOpen(false); router.refresh(); }} />
+                    <InboxPreview
+                      historyHref={historyHref}
+                      item={item}
+                      onDone={() => {
+                        live.markItemRead(item);
+                        setOpen(false);
+                      }}
+                    />
                   </li>
                 ))
               ) : (
-                <li className="px-2 py-3 text-sm text-muted">You are caught up. History stays in Account → Notifications.</li>
+                <li className="px-2 py-3 text-sm text-muted">You are caught up. History stays in notifications.</li>
               )}
             </ul>
             <Link
               className="mt-2 flex min-h-11 items-center rounded-xl px-2 text-sm font-semibold text-forest-green"
-              href="/account/notifications"
+              href={historyHref}
               onClick={() => setOpen(false)}
             >
               View all notifications{unread > 0 ? ` (${badge} unread)` : ""}
@@ -151,9 +135,9 @@ export function NotificationBell({
   );
 }
 
-function InboxPreview({ item, onDone }: { item: InboxItem; onDone: () => void }) {
+function InboxPreview({ item, onDone, historyHref }: { item: InboxItem; onDone: () => void; historyHref: string }) {
   const unread = !item.read_at && !item.dismissed_at;
-  const href = item.kind === "order" && item.order_id ? `/account/orders/${item.order_id}` : item.action_href;
+  const href = item.action_href || (item.kind === "order" && item.order_id ? (historyHref.startsWith("/admin") ? `/admin/orders/${item.order_id}` : `/account/orders/${item.order_id}`) : historyHref);
   return (
     <article className={`rounded-xl border px-3 py-3 ${unread ? "border-gold/40 bg-[#fffdf8]" : "border-forest-green/10 bg-[#f7f3ee]"}`}>
       <div className="flex flex-wrap items-center gap-2">
@@ -165,29 +149,13 @@ function InboxPreview({ item, onDone }: { item: InboxItem; onDone: () => void })
         {new Date(item.created_at).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
-        {href ? (
-          <Link className="inline-flex min-h-11 items-center rounded-lg border border-forest-green/20 px-3 text-sm font-semibold text-forest-green" href={href} onClick={onDone}>
-            {item.kind === "order" ? "View" : item.action_label || "View"}
-          </Link>
-        ) : null}
+        <Link className="inline-flex min-h-11 items-center rounded-lg border border-forest-green/20 px-3 text-sm font-semibold text-forest-green" href={href} onClick={onDone}>
+          {item.action_label || (item.kind === "order" ? "View" : "View")}
+        </Link>
         {unread ? (
-          <form action={acknowledgeInboxItem} onSubmit={onDone}>
-            <input name="id" type="hidden" value={item.id} />
-            <input name="kind" type="hidden" value={item.kind} />
-            <button className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-forest-green underline underline-offset-4" type="submit">
-              Mark as read
-            </button>
-          </form>
-        ) : null}
-        {item.kind === "announcement" ? (
-          <form action={acknowledgeInboxItem} onSubmit={onDone}>
-            <input name="id" type="hidden" value={item.id} />
-            <input name="kind" type="hidden" value={item.kind} />
-            <input name="dismiss" type="hidden" value="true" />
-            <button className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-muted underline underline-offset-4" type="submit">
-              Dismiss
-            </button>
-          </form>
+          <button className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-forest-green underline underline-offset-4" onClick={onDone} type="button">
+            Mark as read
+          </button>
         ) : null}
       </div>
     </article>
