@@ -42,6 +42,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
   const [breakdowns, setBreakdowns] = useState<Record<string, { shipping: number; tax: number; total: number }>>({});
   const [quoteSubtotal, setQuoteSubtotal] = useState<number | null>(null);
   const [taxSettings, setTaxSettings] = useState<TaxSettings | null>(null);
+  const [livePickupOrigin, setLivePickupOrigin] = useState<StoreOrigin | null>(pickupOrigin);
   const [quoteBusy, setQuoteBusy] = useState(false);
   const [attempt, setAttempt] = useState<CheckoutAttempt | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
@@ -98,6 +99,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
         setBreakdowns(result.breakdowns ?? {});
         setQuoteSubtotal(result.subtotal ?? null);
         setTaxSettings(result.tax ?? null);
+        if (result.origin) setLivePickupOrigin(result.origin);
         setDeliveryOptionId((current) => {
           if (result.options.some((option) => option.id === current)) return current;
           const next = result.options[0];
@@ -269,7 +271,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
         <OrderConfirmationExperience
           emailSent={emailSent}
           fulfillmentMethod={confirmation.request.fulfillmentMethod}
-          pickupLocation={pickupOrigin}
+          pickupLocation={livePickupOrigin}
           receipt={confirmation.receipt}
           viewHref={viewOrderHref({
             orderId: confirmation.receipt.order_id,
@@ -377,13 +379,13 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
                 <input name="city" type="hidden" value={address.city} />
                 <input name="country" type="hidden" value={address.country} />
                 <p className="rounded-xl border border-forest-green/10 bg-white/60 px-4 py-3 text-sm text-muted">We’ll have your groceries ready for pickup. No delivery address is needed.</p>
-                <PickupLocationBlock className="rounded-xl border border-forest-green/10 bg-white px-4 py-3" location={pickupOrigin} />
+                <PickupLocationBlock className="rounded-xl border border-forest-green/10 bg-white px-4 py-3" location={livePickupOrigin} />
               </>
             )}
             <CheckoutShippingMethods
               busy={quoteBusy}
               options={options}
-              pickupOrigin={pickupOrigin}
+              pickupOrigin={livePickupOrigin}
               value={deliveryOptionId}
               onChange={(option) => {
                 setDeliveryOptionId(option.id);
@@ -448,7 +450,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
 
           <fieldset className={checkoutStep === "review" ? "space-y-4" : "hidden"}>
             {selectedOption?.provider === "pickup" ? (
-              <PickupLocationBlock className="rounded-xl border border-forest-green/10 bg-white px-4 py-3" location={pickupOrigin} />
+              <PickupLocationBlock className="rounded-xl border border-forest-green/10 bg-white px-4 py-3" location={livePickupOrigin} />
             ) : null}
             <CheckoutOrderSummary
               continueDisabled={!storeOpen || isSubmitting || (!attempt && items.length === 0) || (payments.enabled && paymentMethod !== "square")}

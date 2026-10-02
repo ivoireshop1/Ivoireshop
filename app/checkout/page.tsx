@@ -12,7 +12,7 @@ export const metadata = pageMetadata("Checkout", "Submit your order with your co
 export default async function CheckoutRoute() {
   const supabase = await createClient();
   const [{ data: store }, storeOpen, payments] = await Promise.all([
-    supabase.from("store_settings").select("origin_name, origin_address_line_1, origin_address_line_2, origin_city, origin_state, origin_postal_code, origin_country, origin_phone").eq("id", STORE_SETTINGS_ID).maybeSingle(),
+    supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle(),
     isStoreOpen(),
     Promise.resolve(getPaymentReadiness()),
   ]);

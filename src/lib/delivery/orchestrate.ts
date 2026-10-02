@@ -83,6 +83,7 @@ export async function collectCheckoutOptions(input: {
       breakdowns,
       subtotal: moneyFromCents(subtotalCents),
       tax,
+      origin: originIsComplete(origin) ? origin : null,
       message: "No delivery methods are available right now. Please try pickup later or contact the store.",
     };
   }
@@ -91,6 +92,7 @@ export async function collectCheckoutOptions(input: {
     breakdowns,
     subtotal: moneyFromCents(subtotalCents),
     tax,
+    origin: originIsComplete(origin) ? origin : null,
     message: options.length
       ? undefined
       : "No delivery methods are available right now. Please try pickup later or contact the store.",
