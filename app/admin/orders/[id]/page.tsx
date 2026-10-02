@@ -54,7 +54,6 @@ export default async function OrderDetailPage({ params, searchParams }: { params
       {notices.error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Status could not be updated. Refresh the order and choose an allowed next status.</p>}
       {notices.error === "invalid_postage" && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Enter a valid actual postage amount, or leave it blank.</p>}
       {notices.error === "invalid_shipment" && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Shipping details could not be updated for this order.</p>}
-      {notices.success === "shipment_updated" && <p className="rounded-xl bg-[#173f35]/5 p-3 text-sm text-[#173f35]">Shipping details saved.</p>}
       {notices.success === "status_updated" && <p className="rounded-xl bg-[#173f35]/5 p-3 text-sm text-[#173f35]">Order status updated.</p>}
       <AdminOrderShipmentForm order={order} />
       <div className="grid gap-5 lg:grid-cols-2">

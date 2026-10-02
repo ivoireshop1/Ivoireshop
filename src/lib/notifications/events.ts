@@ -6,6 +6,7 @@ export const notificationEvents = [
   "out_for_delivery",
   "shipped",
   "tracking_added",
+  "tracking_updated",
   "completed",
   "cancelled",
   "payment_pending",
@@ -37,7 +38,12 @@ export function notificationIcon(eventType: string) {
   if (eventType === "ready_for_pickup" || eventType === "completed" || eventType === "order_confirmed") return "✓";
   if (eventType === "payment_received") return "$";
   if (eventType === "payment_failed" || eventType === "cancelled") return "!";
-  if (eventType === "out_for_delivery" || eventType === "tracking_added") return "→";
+  if (eventType === "shipped") return "📦";
+  if (eventType === "out_for_delivery" || eventType === "tracking_added" || eventType === "tracking_updated") return "→";
   if (eventType === "announcement") return "🌿";
   return "•";
+}
+
+export function isShipmentInboxEvent(eventType: string) {
+  return eventType === "shipped" || eventType === "tracking_added" || eventType === "tracking_updated";
 }

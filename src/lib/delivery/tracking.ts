@@ -45,9 +45,47 @@ export function trackingUrl(provider: string, tracking: string) {
   return "";
 }
 
+export function trackingLast4(tracking: string) {
+  const value = normalizeTracking(tracking);
+  return value.length >= 4 ? value.slice(-4) : value;
+}
+
+export function carrierDisplayName(provider?: string | null) {
+  const value = (provider ?? "").toLowerCase();
+  if (value === "ups") return "UPS";
+  if (value === "usps") return "USPS";
+  return "";
+}
+
+export function officialTrackLabel(provider?: string | null) {
+  const name = carrierDisplayName(provider);
+  return name ? `Track with ${name}` : "Track Package";
+}
+
 export function isCarrierOrder(provider?: string | null) {
   const value = (provider ?? "").toLowerCase();
   return value === "ups" || value === "usps";
+}
+
+export function carrierOpsLines(order: {
+  fulfillment_provider?: string | null;
+  status?: string | null;
+  tracking_number?: string | null;
+  shipped_at?: string | null;
+}) {
+  if (!isCarrierOrder(order.fulfillment_provider)) return null;
+  const carrier = carrierDisplayName(order.fulfillment_provider);
+  const ops = shippingOpsStatus(order);
+  if (ops === "shipped" || ops === "delivered") {
+    return {
+      headline: `${carrier} • ${ops === "delivered" ? "Delivered" : "Shipped"}`,
+      detail: order.tracking_number ? "Tracking added ✓" : "Missing tracking",
+    };
+  }
+  if (ops === "missing-tracking") {
+    return { headline: `${carrier} • Shipped`, detail: "Missing tracking" };
+  }
+  return { headline: `${carrier} • Awaiting Shipment`, detail: "Take package to carrier" };
 }
 
 export function shippingOpsStatus(order: {

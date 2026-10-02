@@ -50,7 +50,7 @@ export function OrderPrintDocument({
   const destination = pickupLines.length ? "" : formatPrintAddress(order.shipping_address);
   const fulfillment = fulfillmentDisplay(order);
   const snapshot = order.delivery_snapshot ?? {};
-  const tracking = order.tracking_number || (typeof snapshot.tracking_url === "string" ? snapshot.tracking_url : "");
+  const tracking = order.tracking_number || "";
   const externalId = typeof snapshot.external_id === "string" ? snapshot.external_id : "";
 
   return (
@@ -119,6 +119,7 @@ export function OrderPrintDocument({
         <p className="mt-2 text-xs">
           Item count: {items.reduce((sum, item) => sum + Number(item.quantity), 0)} · Carrier: {order.fulfillment_provider || "Not assigned"} · Method: {fulfillment}
           {order.tracking_number ? ` · Tracking: ${order.tracking_number}` : ""}
+          {order.shipped_at ? ` · Ship date: ${new Date(order.shipped_at).toLocaleString()}` : ""}
         </p>
       ) : null}
 
@@ -146,6 +147,7 @@ export function OrderPrintDocument({
           <p>Fulfillment: {fulfillment}</p>
           {order.fulfillment_provider ? <p>Carrier: {String(order.fulfillment_provider).toUpperCase()}</p> : null}
           {order.tracking_number ? <p className="break-all">Tracking: {order.tracking_number}</p> : null}
+          {order.shipped_at ? <p>Ship date: {new Date(order.shipped_at).toLocaleString()}</p> : null}
           {order.postage_cost != null ? <p>Actual postage: {money(order.postage_cost)}</p> : null}
         </div>
       ) : null}

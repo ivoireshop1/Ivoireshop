@@ -12,7 +12,7 @@ export function CustomerAlertBanner({ item }: { item: InboxItem }) {
       <div className="mt-5 flex min-w-0 flex-wrap gap-3">
         {item.kind === "order" && item.order_id ? (
           <a className="inline-flex min-h-11 items-center rounded-lg bg-forest-green px-4 text-sm font-semibold text-white" href={`/account/orders/${item.order_id}`}>
-            View Order
+            {item.event_type === "shipped" || item.event_type === "tracking_added" || item.event_type === "tracking_updated" ? "Track Package" : "View Order"}
           </a>
         ) : null}
         {item.action_href && item.action_label ? (

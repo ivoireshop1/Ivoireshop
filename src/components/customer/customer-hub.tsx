@@ -34,7 +34,7 @@ export async function CustomerHub() {
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
     supabase
       .from("orders")
-      .select("id, order_number, confirmation_code, status, payment_status, total, fulfillment_method, created_at, order_items(product_name, quantity)").eq("user_id", user.id)
+      .select("id, order_number, confirmation_code, status, payment_status, total, fulfillment_method, fulfillment_provider, tracking_number, created_at, order_items(product_name, quantity)").eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(3),
     supabase

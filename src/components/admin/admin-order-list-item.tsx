@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { orderStatusLabel, paymentStatusLabel } from "@/src/lib/orders/status";
 import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
+import { carrierOpsLines } from "@/src/lib/delivery/tracking";
 import { isAdminNewOrder, formatOrderDate } from "@/src/lib/orders/buckets";
 
 export type AdminOrderListItemData = {
@@ -17,6 +18,8 @@ export type AdminOrderListItemData = {
   fulfillment_method: string | null;
   fulfillment_provider?: string | null;
   fulfillment_service?: string | null;
+  tracking_number?: string | null;
+  shipped_at?: string | null;
   created_at: string;
 };
 
@@ -56,6 +59,7 @@ export function AdminOrderListHeader() {
 
 export function AdminOrderListItem({ order }: { order: AdminOrderListItemData }) {
   const fulfillment = order.fulfillment_method ?? "local_pickup";
+  const shipping = carrierOpsLines(order);
 
   return (
     <Link
@@ -94,10 +98,19 @@ export function AdminOrderListItem({ order }: { order: AdminOrderListItemData })
         </p>
       </Field>
       <Field label="Fulfillment">
-        <p className="text-[#173f35]">{orderStatusLabel(order.status, fulfillment)}</p>
-        <p className="mt-1 text-sm leading-5 text-[#6b6b6b]">
-          {fulfillmentDisplay(order)}
-        </p>
+        {shipping ? (
+          <>
+            <p className="text-[#173f35]">{shipping.headline}</p>
+            <p className="mt-1 text-sm leading-5 text-[#6b6b6b]">{shipping.detail}</p>
+          </>
+        ) : (
+          <>
+            <p className="text-[#173f35]">{orderStatusLabel(order.status, fulfillment, order.fulfillment_provider)}</p>
+            <p className="mt-1 text-sm leading-5 text-[#6b6b6b]">
+              {fulfillmentDisplay(order)}
+            </p>
+          </>
+        )}
       </Field>
       <Field label="Date">
         <p className="whitespace-nowrap text-[#173f35]">{formatOrderDate(order.created_at)}</p>

@@ -31,7 +31,7 @@ export function markPlayedNotification(id: string) {
 function toneForEvent(eventType: string): IvoireTone | null {
   if (eventType === "order_confirmed") return "accepted";
   if (eventType === "preparing") return "preparing";
-  if (eventType === "ready_for_pickup" || eventType === "ready_for_delivery" || eventType === "shipped" || eventType === "out_for_delivery" || eventType === "tracking_added") return "ready";
+  if (eventType === "ready_for_pickup" || eventType === "ready_for_delivery" || eventType === "shipped" || eventType === "out_for_delivery" || eventType === "tracking_added" || eventType === "tracking_updated") return "ready";
   if (eventType === "completed") return "success";
   return null;
 }

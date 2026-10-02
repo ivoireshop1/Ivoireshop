@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
 import { createClient } from "@/src/lib/supabase/server";
@@ -45,6 +44,8 @@ function revalidateFulfillment(orderId?: string) {
   if (orderId) {
     revalidatePath(`/admin/orders/${orderId}`);
     revalidatePath(`/account/orders/${orderId}`);
+    revalidatePath("/account");
+    revalidatePath("/account/notifications");
   }
 }
 
@@ -191,48 +192,88 @@ export async function saveTaxSettings(_prev: { error?: string; saved?: boolean }
   return { saved: true };
 }
 
-export async function saveOrderShipment(formData: FormData) {
+export type ShipmentActionState = {
+  error?: string;
+  saved?: boolean;
+  corrected?: boolean;
+  markedShipped?: boolean;
+};
+
+export async function saveOrderShipment(_prev: ShipmentActionState | null, formData: FormData): Promise<ShipmentActionState> {
   const { supabase } = await requireAdmin();
   const id = String(formData.get("id") ?? "").trim();
   const trackingRaw = String(formData.get("tracking_number") ?? "");
-  const markShipped = formData.get("mark_shipped") === "on" || formData.get("mark_shipped") === "true";
-  if (!id) redirect("/admin/orders?error=invalid_status");
+  const correction = String(formData.get("mode") ?? "") === "correction";
+  if (!id) return { error: "Order is missing." };
   const { data: order, error: readError } = await supabase
     .from("orders")
-    .select("id, status, fulfillment_method, fulfillment_provider, tracking_number, shipping_cost")
+    .select("id, status, fulfillment_method, fulfillment_provider, tracking_number, shipped_at")
     .eq("id", id)
     .maybeSingle();
-  if (readError || !order || !isCarrierOrder(order.fulfillment_provider)) {
-    redirect(`/admin/orders/${id}?error=invalid_shipment`);
+  if (readError || !order) return { error: "That order could not be found." };
+  if (!isCarrierOrder(order.fulfillment_provider)) {
+    return { error: "Carrier tracking is only for UPS and USPS orders." };
   }
   const checked = validateCarrierTracking(order.fulfillment_provider || "", trackingRaw);
-  if (!checked.ok) redirect(`/admin/orders/${id}?error=invalid_tracking`);
+  if (!checked.ok) return { error: checked.error };
   const postageRaw = String(formData.get("postage_cost") ?? "").trim();
   const postageParsed = postageRaw ? parseAdminMoney(postageRaw) : { ok: true as const, amount: null };
-  if (postageRaw && !postageParsed.ok) redirect(`/admin/orders/${id}?error=invalid_postage`);
+  if (postageRaw && !postageParsed.ok) return { error: "Enter a valid actual postage amount, or leave it blank." };
   const postage = postageParsed.ok ? postageParsed.amount : null;
+  const alreadyShipped = order.status === "shipped" || Boolean(order.shipped_at);
+  const hadTracking = Boolean(order.tracking_number);
+  const trackingChanged = normalizeStoredTracking(order.tracking_number) !== checked.tracking;
+  if (alreadyShipped && !correction && hadTracking && trackingChanged) {
+    return { error: "Use Edit Tracking to change a saved tracking number." };
+  }
+  if (!alreadyShipped && ["delivered", "cancelled"].includes(order.status)) {
+    return { error: "This order cannot be marked shipped." };
+  }
+  const shippedAt = alreadyShipped
+    ? order.shipped_at
+    : parseShipmentDate(String(formData.get("shipped_at") ?? ""));
   const patch: Record<string, unknown> = { tracking_number: checked.tracking };
   if (postage != null) patch.postage_cost = postage;
-  if (markShipped) {
-    const allowed = ["pending", "confirmed", "processing", "ready_for_delivery", "shipped"].includes(order.status);
-    if (!allowed) {
-      redirect(`/admin/orders/${id}?error=invalid_transition`);
-    }
+  if (!alreadyShipped) {
     patch.status = "shipped";
-    patch.shipped_at = new Date().toISOString();
+    patch.shipped_at = shippedAt;
   }
   const { data: changed, error } = await supabase.from("orders").update(patch).eq("id", id).select("id").maybeSingle();
-  if (error || !changed) redirect(`/admin/orders/${id}?error=status_update_failed`);
-  const hadTracking = Boolean(order.tracking_number);
-  if (!hadTracking && checked.tracking) {
-    await recordCustomerNotification(supabase, id, "tracking_added");
-  }
-  if (markShipped && order.status !== "shipped") {
+  if (error || !changed) return { error: "Shipping details could not be saved. Try again." };
+  await supabase.from("order_carrier_events").insert({
+    order_id: id,
+    carrier: order.fulfillment_provider,
+    tracking_number: checked.tracking,
+    event_code: correction && hadTracking ? "tracking_corrected" : "label_accepted",
+    source: "admin",
+    occurred_at: shippedAt,
+  });
+  if (!alreadyShipped) {
     const emailSent = await notifyFulfillmentEmail(supabase, id, "shipped");
     await recordFulfillmentNotification(supabase, id, "shipped", Boolean(emailSent), order.fulfillment_provider);
+  } else if (!hadTracking) {
+    await recordCustomerNotification(supabase, id, "tracking_added");
+  } else if (trackingChanged) {
+    await recordCustomerNotification(supabase, id, "tracking_updated");
   }
   revalidateFulfillment(id);
-  redirect(`/admin/orders/${id}?success=shipment_updated`);
+  return {
+    saved: true,
+    corrected: Boolean(correction && hadTracking && trackingChanged),
+    markedShipped: !alreadyShipped,
+  };
+}
+
+function normalizeStoredTracking(value?: string | null) {
+  return String(value ?? "").toUpperCase().replace(/[\s-]/g, "");
+}
+
+function parseShipmentDate(raw: string) {
+  const value = raw.trim();
+  if (!value) return new Date().toISOString();
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return new Date().toISOString();
+  return parsed.toISOString();
 }
 
 export async function checkDeliveryProviders(): Promise<void> {

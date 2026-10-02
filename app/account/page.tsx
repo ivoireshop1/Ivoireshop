@@ -36,7 +36,7 @@ export default async function AccountPage() {
     supabase.from("profiles")      .select("full_name, welcome_completed_at, notification_sounds").eq("id", user.id).maybeSingle(),
     supabase
       .from("orders")
-      .select("id, order_number, confirmation_code, status, payment_status, total, fulfillment_method, created_at, order_items(product_name, quantity, image_url)").eq("user_id", user.id)
+      .select("id, order_number, confirmation_code, status, payment_status, total, fulfillment_method, fulfillment_provider, tracking_number, created_at, order_items(product_name, quantity, image_url)").eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(20),
     supabase

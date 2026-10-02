@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notificationIcon } from "@/src/lib/notifications/events";
+import { isShipmentInboxEvent, notificationIcon } from "@/src/lib/notifications/events";
 import { acknowledgeInboxItem } from "@/src/lib/notifications/actions";
 import type { InboxItem } from "@/src/lib/notifications/inbox-item";
 
@@ -25,7 +25,7 @@ export function NotificationCard({ item }: { item: InboxItem }) {
           <div className="mt-4 flex flex-wrap items-center gap-3">
             {href ? (
               <Link className="inline-flex min-h-11 items-center rounded-lg border border-forest-green/20 px-4 text-sm font-semibold text-forest-green" href={href}>
-                {item.kind === "order" ? "View Order" : item.action_label || "Read more"}
+                {item.kind === "order" && isShipmentInboxEvent(item.event_type) ? "Track Package" : item.kind === "order" ? "View Order" : item.action_label || "Read more"}
               </Link>
             ) : null}
             {unread ? (

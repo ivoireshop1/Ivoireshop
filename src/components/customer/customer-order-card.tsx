@@ -5,6 +5,7 @@ import { fulfillmentLabel } from "@/src/lib/fulfillment/fulfillment";
 import { orderStatusLabel, paymentStatusLabel } from "@/src/lib/orders/status";
 import { formatOrderDate } from "@/src/lib/orders/buckets";
 import { isNextImageSrc } from "@/src/lib/catalog/image-url";
+import { isCarrierOrder, officialTrackLabel, trackingUrl } from "@/src/lib/delivery/tracking";
 
 export type CustomerOrderSummary = {
   id: string;
@@ -14,6 +15,8 @@ export type CustomerOrderSummary = {
   payment_status: string;
   total: number | string;
   fulfillment_method: string;
+  fulfillment_provider?: string | null;
+  tracking_number?: string | null;
   created_at: string;
   order_items: { product_name: string; quantity: number; image_url?: string | null }[];
 };
@@ -21,6 +24,9 @@ export type CustomerOrderSummary = {
 export function CustomerOrderCard({ order }: { order: CustomerOrderSummary }) {
   const itemCount = order.order_items.reduce((count, item) => count + item.quantity, 0);
   const preview = order.order_items.slice(0, 3).map((item) => item.product_name).join(", ");
+  const trackHref = isCarrierOrder(order.fulfillment_provider) && order.tracking_number
+    ? trackingUrl(order.fulfillment_provider ?? "", order.tracking_number)
+    : "";
 
   return (
     <article className="rounded-[24px] border border-forest-green/10 bg-[#f7f3ee] p-5 shadow-[0_12px_24px_rgba(23,63,53,0.05)]" id={`order-${order.id}`}>
@@ -38,7 +44,7 @@ export function CustomerOrderCard({ order }: { order: CustomerOrderSummary }) {
         <div className="text-right">
           <p className="font-semibold text-forest-green">${Number(order.total).toFixed(2)}</p>
           <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-gold">
-            {orderStatusLabel(order.status, order.fulfillment_method)} · {fulfillmentLabel(order.fulfillment_method)}
+            {orderStatusLabel(order.status, order.fulfillment_method, order.fulfillment_provider)} · {fulfillmentLabel(order.fulfillment_method)}
           </p>
         </div>
       </div>
@@ -61,6 +67,11 @@ export function CustomerOrderCard({ order }: { order: CustomerOrderSummary }) {
         <Link className="rounded-lg border border-forest-green/20 px-3 py-2 text-sm font-semibold text-forest-green" href={`/account/orders/${order.id}`}>
           View order
         </Link>
+        {trackHref ? (
+          <a className="rounded-lg bg-forest-green px-3 py-2 text-sm font-semibold text-white" href={trackHref} rel="noreferrer" target="_blank">
+            {officialTrackLabel(order.fulfillment_provider)}
+          </a>
+        ) : null}
         <ReorderButton orderId={order.id} />
       </div>
     </article>

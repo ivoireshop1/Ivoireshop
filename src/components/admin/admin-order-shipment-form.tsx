@@ -1,6 +1,26 @@
-import { saveOrderShipment } from "@/src/lib/delivery/actions";
-import { isCarrierOrder, shippingOpsStatus } from "@/src/lib/delivery/tracking";
-import { nextOrderStatuses } from "@/src/lib/orders/status";
+"use client";
+
+import { useActionState, useState } from "react";
+import { useFormStatus } from "react-dom";
+import { saveOrderShipment, type ShipmentActionState } from "@/src/lib/delivery/actions";
+import { carrierDisplayName, isCarrierOrder, shippingOpsStatus } from "@/src/lib/delivery/tracking";
+
+function SubmitButton({ label, success }: { label: string; success?: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <button className="min-h-11 rounded-xl bg-[#173f35] px-4 py-2 text-sm text-white" disabled={pending} type="submit">
+      {pending ? "Saving…" : success ? "Tracking saved ✓" : label}
+    </button>
+  );
+}
+
+function toDatetimeLocal(value?: string | null) {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60_000);
+  return local.toISOString().slice(0, 16);
+}
 
 export function AdminOrderShipmentForm({
   order,
@@ -17,38 +37,69 @@ export function AdminOrderShipmentForm({
     shipped_at?: string | null;
   };
 }) {
+  const [state, action] = useActionState(saveOrderShipment, null as ShipmentActionState | null);
+  const [editing, setEditing] = useState(!order.tracking_number);
   if (!isCarrierOrder(order.fulfillment_provider)) return null;
   const ops = shippingOpsStatus(order);
-  const canShip = nextOrderStatuses(order.status, order.fulfillment_method, order.fulfillment_provider).includes("shipped") || order.status === "shipped";
-  const carrier = (order.fulfillment_provider ?? "").toUpperCase();
+  const carrier = carrierDisplayName(order.fulfillment_provider);
+  const locked = Boolean(order.tracking_number) && !editing;
+  const correction = Boolean(order.tracking_number);
   return (
     <section className="rounded-2xl bg-white p-5">
-      <h2 className="font-semibold text-[#173f35]">Shipping</h2>
+      <h2 className="font-semibold text-[#173f35]">Package Shipment</h2>
       <dl className="mt-3 space-y-2 text-sm">
         <div className="flex justify-between gap-4"><dt>Carrier</dt><dd>{carrier}</dd></div>
         <div className="flex justify-between gap-4"><dt>Mode</dt><dd>{order.shipping_mode === "api" ? "API" : "Manual"}</dd></div>
         <div className="flex justify-between gap-4"><dt>Shipping collected</dt><dd>${Number(order.shipping_cost ?? 0).toFixed(2)}</dd></div>
         <div className="flex justify-between gap-4"><dt>Actual postage</dt><dd>{order.postage_cost == null ? "—" : `$${Number(order.postage_cost).toFixed(2)}`}</dd></div>
-        <div className="flex justify-between gap-4"><dt>Shipping status</dt><dd className="capitalize">{ops === "missing-tracking" ? "Shipped · missing tracking" : ops?.replace("-", " ") || "Awaiting shipment"}</dd></div>
+        <div className="flex justify-between gap-4"><dt>Shipping status</dt><dd>{ops === "missing-tracking" ? "Shipped · missing tracking" : ops === "awaiting-shipment" ? "Awaiting shipment" : ops?.replace("-", " ") || "Awaiting shipment"}</dd></div>
         {order.shipped_at ? <div className="flex justify-between gap-4"><dt>Ship date</dt><dd>{new Date(order.shipped_at).toLocaleString()}</dd></div> : null}
       </dl>
-      <form action={saveOrderShipment} className="mt-4 space-y-3">
-        <input name="id" type="hidden" value={order.id} />
-        <label className="block text-sm">
-          Tracking number
-          <input className="mt-2 min-h-11 w-full rounded-xl border border-[#173f35]/15 px-3" defaultValue={order.tracking_number ?? ""} name="tracking_number" required />
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input defaultChecked={canShip} name="mark_shipped" type="checkbox" />
-          Mark as Shipped
-        </label>
-        <label className="block text-sm">
-          Actual postage cost (USD)
-          <input className="mt-2 min-h-11 w-full rounded-xl border border-[#173f35]/15 px-3" defaultValue={order.postage_cost != null ? String(order.postage_cost) : ""} min="0" name="postage_cost" step="0.01" type="number" />
-        </label>
-        <p className="text-xs text-[#6b6b6b]">Actual postage never changes the shipping amount collected from the customer.</p>
-        <button className="min-h-11 rounded-xl bg-[#173f35] px-4 py-2 text-sm text-white" type="submit">Save tracking</button>
-      </form>
+      {locked ? (
+        <div className="mt-4 space-y-3">
+          <p className="break-all font-mono text-sm text-[#173f35]">{order.tracking_number}</p>
+          <button className="min-h-11 rounded-xl border border-[#173f35]/20 px-4 text-sm font-semibold text-[#173f35]" onClick={() => setEditing(true)} type="button">
+            Edit Tracking
+          </button>
+        </div>
+      ) : (
+        <form action={action} className="mt-4 space-y-3">
+          <input name="id" type="hidden" value={order.id} />
+          {correction ? <input name="mode" type="hidden" value="correction" /> : null}
+          <label className="block text-sm">
+            Tracking Number
+            <input
+              className="mt-2 min-h-11 w-full rounded-xl border border-[#173f35]/15 px-3"
+              defaultValue={order.tracking_number ?? ""}
+              name="tracking_number"
+              placeholder={carrier === "UPS" ? "1Z…" : "94…"}
+              required
+            />
+          </label>
+          <label className="block text-sm">
+            Actual Postage Cost
+            <input className="mt-2 min-h-11 w-full rounded-xl border border-[#173f35]/15 px-3" defaultValue={order.postage_cost != null ? String(order.postage_cost) : ""} min="0" name="postage_cost" step="0.01" type="number" />
+          </label>
+          {!order.shipped_at ? (
+            <label className="block text-sm">
+              Shipment Date
+              <input className="mt-2 min-h-11 w-full rounded-xl border border-[#173f35]/15 px-3" defaultValue={toDatetimeLocal()} name="shipped_at" type="datetime-local" />
+            </label>
+          ) : null}
+          <p className="text-xs text-[#6b6b6b]">Enter the tracking number from UPS/USPS. Actual postage never changes the shipping amount collected from the customer.</p>
+          {state?.error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{state.error}</p> : null}
+          {state?.saved ? (
+            <p className="rounded-xl bg-[#173f35]/5 p-3 text-sm text-[#173f35]">
+              {state.corrected
+                ? "Tracking information updated. Customer notified."
+                : state.markedShipped
+                  ? "Package marked as shipped. Customer notified."
+                  : "Tracking saved ✓ Customer notified."}
+            </p>
+          ) : null}
+          <SubmitButton label={correction ? "Save Correction" : "Save Tracking & Mark Shipped"} success={state?.saved} />
+        </form>
+      )}
     </section>
   );
 }

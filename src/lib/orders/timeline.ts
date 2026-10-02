@@ -7,7 +7,7 @@ export function isLocalDelivery(fulfillment: string, provider?: string | null) {
   return fulfillment === "delivery" && !isCarrierFulfillment(provider);
 }
 
-export type TimelineStepId = "accepted" | "preparing" | "ready" | "transit" | "completed";
+export type TimelineStepId = "accepted" | "preparing" | "ready" | "shipped" | "transit" | "completed";
 
 export type TimelineStep = {
   id: TimelineStepId;
@@ -31,8 +31,9 @@ export function timelineTemplate(fulfillment: string, provider?: string | null):
     return [
       { id: "accepted", label: "Order Accepted", statusValue: "confirmed" },
       { id: "preparing", label: "Preparing", statusValue: "processing" },
-      { id: "transit", label: "Shipped", statusValue: "shipped" },
-      { id: "completed", label: "Delivered / Completed", statusValue: "delivered" },
+      { id: "shipped", label: "Shipped", statusValue: "shipped" },
+      { id: "transit", label: "In Transit", statusValue: null },
+      { id: "completed", label: "Delivered", statusValue: "delivered" },
     ];
   }
   return [
@@ -61,16 +62,28 @@ export function buildOrderTimeline(input: {
   fulfillment_provider?: string | null;
   created_at: string;
   events?: Array<{ status: string; created_at: string }>;
+  carrierEvents?: Array<{ event_code: string; occurred_at: string }>;
 }): TimelineStep[] {
   const currentRank = rank[input.status] ?? 0;
   const times = new Map((input.events ?? []).map((event) => [event.status, event.created_at]));
+  const transitEvent = (input.carrierEvents ?? []).find((event) =>
+    ["in_transit", "out_for_delivery", "delivered"].includes(event.event_code),
+  );
   return timelineTemplate(input.fulfillment_method, input.fulfillment_provider).map((step) => {
     const stepRank = step.statusValue ? rank[step.statusValue] ?? 0 : 0;
     const accepted = step.id === "accepted";
-    const done = input.status !== "cancelled" && (accepted || currentRank >= stepRank);
+    if (step.id === "transit" && isCarrierFulfillment(input.fulfillment_provider)) {
+      const done = input.status !== "cancelled" && Boolean(transitEvent);
+      const current = input.status === "shipped" && !transitEvent;
+      return { ...step, done, current, at: done ? transitEvent?.occurred_at ?? null : null };
+    }
+    const done = input.status !== "cancelled" && (accepted || (step.statusValue != null && currentRank >= stepRank));
+    const shippedIsCurrent = input.status === "shipped" && step.statusValue === "shipped";
     const current = accepted
       ? input.status === "pending" || input.status === "confirmed"
-      : input.status === step.statusValue;
+      : shippedIsCurrent && isCarrierFulfillment(input.fulfillment_provider)
+        ? false
+        : input.status === step.statusValue;
     let at: string | null = null;
     if (accepted) at = input.created_at;
     else if (step.statusValue && times.has(step.statusValue)) at = times.get(step.statusValue) ?? null;
