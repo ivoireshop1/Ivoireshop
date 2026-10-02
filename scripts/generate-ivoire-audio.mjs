@@ -92,6 +92,15 @@ const cues = {
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "sounds");
 mkdirSync(dir, { recursive: true });
+const encoded = {};
 for (const [name, samples] of Object.entries(cues)) {
-  writeFileSync(join(dir, name), wavBuffer(samples));
+  const wav = wavBuffer(samples);
+  writeFileSync(join(dir, name), wav);
+  encoded[name.replace("ivoire-", "").replace(".wav", "")] = wav.toString("base64");
 }
+const dataFile = join(dirname(fileURLToPath(import.meta.url)), "..", "src", "lib", "audio", "cue-data.ts");
+writeFileSync(
+  dataFile,
+  `export const ivoireCueWav: Record<string, string> = ${JSON.stringify(encoded, null, 2)};\n`,
+);
+
