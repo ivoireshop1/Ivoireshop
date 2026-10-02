@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import LogoutButton from "@/src/components/auth/logout-button";
 import { NotificationBell } from "@/src/components/customer/notification-bell";
 import { LiveConnectionBadge } from "@/src/components/realtime/live-connection-badge";
+import { AdminRealtimeDiagnostic } from "@/src/components/admin/admin-realtime-diagnostic";
 
 const navigation = [
   { href: "/admin", label: "Dashboard" },
@@ -90,7 +91,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </aside>
 
         <div className="min-w-0 flex-1">
-          <main className="px-4 py-6 md:px-8">{children}</main>
+          <main className="px-4 py-6 md:px-8">
+            <div className="mb-4">
+              <AdminRealtimeDiagnostic />
+            </div>
+            {children}
+          </main>
         </div>
       </div>
     </div>

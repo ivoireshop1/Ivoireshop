@@ -1,18 +1,16 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getCustomerOrder } from "@/src/lib/customer/orders";
-import { orderStatusLabel, paymentProviderLabel, paymentStatusLabel } from "@/src/lib/orders/status";
 import { SmartBackButton } from "@/src/components/navigation/smart-back-button";
 import { ReorderButton } from "@/src/components/customer/reorder-button";
 import { CopyConfirmationButton } from "@/src/components/checkout/copy-confirmation-button";
-import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
 import { markOrderNotificationsSeen } from "@/src/lib/notifications/queries";
 import { PickupLocationBlock, pickupLocationForOrder } from "@/src/components/store/pickup-location-block";
-import { formatOrderDate } from "@/src/lib/orders/buckets";
 import { OrderMoneyBreakdown } from "@/src/components/orders/order-money-breakdown";
 import { ShipmentTrackingPanel } from "@/src/components/orders/shipment-tracking-panel";
 import { OrderLine } from "@/src/components/orders/order-line";
 import { LiveOrderTimeline } from "@/src/components/orders/live-order-timeline";
+import { LiveOrderStatusLine } from "@/src/components/orders/live-order-status-line";
 import { toOrderLineItem } from "@/src/lib/orders/line-image";
 
 export default async function CustomerOrderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -41,14 +39,16 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
           ) : null}
         </section>
       ) : null}
-      <p className="mt-3 text-muted">
-        {formatOrderDate(order.created_at)} · {new Date(order.created_at).toLocaleTimeString()} · {orderStatusLabel(order.status, order.fulfillment_method, order.fulfillment_provider)} · {fulfillmentDisplay(order)}
-      </p>
-
-      <p className="mt-3 text-muted">
-        {paymentStatusLabel(order.payment_status, order.payment_provider)}
-        {order.payment_provider || order.payment_method ? ` · ${paymentProviderLabel(order.payment_provider, order.payment_method)}` : ""}
-      </p>
+      <LiveOrderStatusLine
+        createdAt={order.created_at}
+        fulfillmentMethod={order.fulfillment_method}
+        fulfillmentProvider={order.fulfillment_provider}
+        orderId={order.id}
+        paymentMethod={order.payment_method}
+        paymentProvider={order.payment_provider}
+        paymentStatus={order.payment_status}
+        status={order.status}
+      />
       <section className="mt-8 rounded-2xl border border-black/10 bg-white p-6">
         <h2 className="font-semibold text-forest-green">Order progress</h2>
         <LiveOrderTimeline

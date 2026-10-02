@@ -11,7 +11,7 @@ import { CustomerHero } from "@/src/components/customer/customer-hero";
 import { StorefrontBillboard } from "@/src/components/storefront/storefront-billboard";
 import { NewArrivalsHome } from "@/src/components/storefront/home-merch-sections";
 import { CustomerAccountNav } from "@/src/components/customer/customer-account-nav";
-import { LiveCustomerOrderCard } from "@/src/components/customer/live-customer-order-card";
+import { LiveCustomerOrderLists } from "@/src/components/customer/live-customer-order-lists";
 import { CustomerAlertBanner } from "@/src/components/customer/customer-alert-banner";
 import { getProminentInboxItem } from "@/src/lib/notifications/inbox";
 import { AddAddressForm } from "@/src/components/customer/add-address-form";
@@ -19,7 +19,6 @@ import { CanonicalCategoryCards } from "@/src/components/storefront/canonical-ca
 import { getCategories, getProducts } from "@/src/lib/catalog/catalog";
 import { getWishlistProductsForUser } from "@/src/lib/wishlist/wishlist-server";
 import { WishlistButton } from "@/src/components/wishlist/wishlist-button";
-import { isCustomerCurrentOrder } from "@/src/lib/orders/buckets";
 import { AccountWelcome } from "@/src/components/customer/account-welcome";
 import { NotificationSoundsToggle } from "@/src/components/customer/notification-sounds-toggle";
 
@@ -52,8 +51,6 @@ export default async function AccountPage() {
   ]);
   if (ordersError) throw new Error("Unable to load your orders.");
   const heroName = profile?.full_name?.trim()?.split(/\s+/)[0] || null;
-  const currentOrders = (orders ?? []).filter((order) => isCustomerCurrentOrder(order.status, order.payment_status));
-  const pastOrders = (orders ?? []).filter((order) => !isCustomerCurrentOrder(order.status, order.payment_status));
   const recommendedProducts = [...recommended.filter((product) => product.isFeatured), ...recommended.filter((product) => !product.isFeatured)].slice(0, 8);
   const liveNames = new Set(recommended.map((product) => product.category));
 
@@ -143,36 +140,7 @@ export default async function AccountPage() {
 
         <p className="mt-12 text-sm text-muted">{user.email}</p>
 
-      <section className="mt-10" id="current-orders">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-semibold text-forest-green">Current orders</h2>
-            <p className="mt-1 text-sm text-muted">Placed, preparing, ready, or on the way.</p>
-          </div>
-          {pastOrders.length > 0 && (
-            <Link className="text-sm font-semibold text-forest-green underline underline-offset-4" href="#past-orders">
-              Past orders
-            </Link>
-          )}
-        </div>
-        {currentOrders.length ? (
-          <div className="mt-5 grid gap-4">
-            {currentOrders.map((order) => <LiveCustomerOrderCard key={order.id} order={order} />)}
-          </div>
-        ) : (
-          <p className="mt-3 text-sm text-muted">No current orders. When you place one, it will show up here.</p>
-        )}
-      </section>
-
-      {pastOrders.length > 0 && (
-        <section className="mt-12" id="past-orders">
-          <h2 className="text-2xl font-semibold text-forest-green">Past orders</h2>
-          <p className="mt-1 text-sm text-muted">Completed, picked up, delivered, cancelled, or refunded.</p>
-          <div className="mt-5 grid gap-4">
-            {pastOrders.map((order) => <LiveCustomerOrderCard key={`past-${order.id}`} order={order} />)}
-          </div>
-        </section>
-      )}
+      <LiveCustomerOrderLists orders={orders ?? []} />
 
       <section className="mt-12 grid gap-4 md:grid-cols-2" id="addresses">
         <article className="rounded-2xl border border-black/10 bg-white p-6">

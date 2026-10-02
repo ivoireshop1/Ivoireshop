@@ -14,6 +14,36 @@ import type { InboxItem } from "@/src/lib/notifications/inbox-item";
 
 export type LiveConnection = "offline" | "reconnecting" | "live";
 
+export type RealtimeProbe = {
+  supabaseUrl: "configured" | "missing";
+  supabaseHost: string;
+  authUser: "authenticated" | "missing";
+  jwtAttached: "yes" | "no";
+  channelName: string;
+  channelStatus: string;
+  lastDbEventAt: string | null;
+  lastDbTable: string | null;
+  lastDbEventType: string | null;
+  lastDbIdShort: string | null;
+  lastUiUpdateAt: string | null;
+};
+
+export function emptyProbe(): RealtimeProbe {
+  return {
+    supabaseUrl: "missing",
+    supabaseHost: "—",
+    authUser: "missing",
+    jwtAttached: "no",
+    channelName: "—",
+    channelStatus: "IDLE",
+    lastDbEventAt: null,
+    lastDbTable: null,
+    lastDbEventType: null,
+    lastDbIdShort: null,
+    lastUiUpdateAt: null,
+  };
+}
+
 export type LiveToast = {
   id: string;
   title: string;
@@ -40,6 +70,7 @@ type LiveContextValue = {
   dashboardTick: number;
   lastEvent: { at: string; eventType: string } | null;
   lastPlay: LastPlayState | null;
+  probe: RealtimeProbe;
   orderTicks: Record<string, number>;
   markItemRead: (item: InboxItem) => void;
   markAllRead: () => void;
@@ -104,10 +135,12 @@ export function LiveNotificationsProvider({
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [lastEvent, setLastEvent] = useState<{ at: string; eventType: string } | null>(null);
   const [lastPlay, setLastPlay] = useState<LastPlayState | null>(null);
+  const [probe, setProbe] = useState<RealtimeProbe>(emptyProbe);
   const soundsRef = useRef(initialSounds);
   const userIdRef = useRef<string | null>(null);
   const roleRef = useRef(initialRole);
   const connectionRef = useRef<LiveConnection>(initialRole === "guest" ? "offline" : "reconnecting");
+  const ingestRef = useRef<(row: InboxItem, audience: "admin" | "customer") => void>(() => undefined);
 
   useEffect(() => {
     soundsRef.current = soundsEnabled;
@@ -140,7 +173,9 @@ export function LiveNotificationsProvider({
 
   const ingestLive = useCallback((row: InboxItem, audience: "admin" | "customer") => {
     mergeItems([row]);
-    setLastEvent({ at: new Date().toISOString(), eventType: row.event_type });
+    const now = new Date().toISOString();
+    setLastEvent({ at: now, eventType: row.event_type });
+    setProbe((current) => ({ ...current, lastUiUpdateAt: now }));
     if (row.order_id) {
       setOrderTicks((current) => ({ ...current, [row.order_id as string]: Date.now() }));
     }
@@ -164,6 +199,9 @@ export function LiveNotificationsProvider({
     }
   }, [mergeItems, pushToast]);
 
+  useEffect(() => {
+    ingestRef.current = ingestLive;
+  }, [ingestLive]);
   useEffect(() => installIvoireAudioUnlock(), []);
   useEffect(() => {
     const sync = () => setAudioUnlocked(isIvoireAudioUnlocked());
@@ -177,6 +215,26 @@ export function LiveNotificationsProvider({
     const client = createClient();
     let cancelled = false;
     let channel: ReturnType<typeof client.channel> | null = null;
+    let retryTimer: number | undefined;
+    let runId = 0;
+
+    function hostFromUrl(url: string) {
+      try {
+        return new URL(url).host;
+      } catch {
+        return "invalid";
+      }
+    }
+
+    function noteChange(table: string, eventType: string, id?: string) {
+      setProbe((current) => ({
+        ...current,
+        lastDbEventAt: new Date().toISOString(),
+        lastDbTable: table,
+        lastDbEventType: eventType,
+        lastDbIdShort: id ? id.slice(0, 8) : current.lastDbIdShort,
+      }));
+    }
 
     async function reconcile(nextRole: "admin" | "customer", userId: string) {
       if (nextRole === "admin") {
@@ -209,7 +267,6 @@ export function LiveNotificationsProvider({
       }
     }
 
-    let retryTimer: number | undefined;
     const scheduleRetry = () => {
       window.clearTimeout(retryTimer);
       retryTimer = window.setTimeout(() => {
@@ -217,70 +274,91 @@ export function LiveNotificationsProvider({
       }, 2500);
     };
 
-    async function bindAuth() {
-      const { data: sessionData } = await client.auth.getSession();
-      if (sessionData.session?.access_token) {
-        await client.realtime.setAuth(sessionData.session.access_token);
-      }
-    }
-
     async function start() {
-      const { data } = await client.auth.getUser();
-      if (cancelled || !data.user) {
+      const thisRun = ++runId;
+      let url = "";
+      try {
+        url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+      } catch {
+        url = "";
+      }
+      setProbe((current) => ({
+        ...current,
+        supabaseUrl: url ? "configured" : "missing",
+        supabaseHost: url ? hostFromUrl(url) : "—",
+        channelStatus: "CONNECTING",
+      }));
+      const { data: sessionData } = await client.auth.getSession();
+      const session = sessionData.session;
+      if (cancelled || thisRun !== runId) return;
+      if (!session?.user || !session.access_token) {
         setRole("guest");
         setConnection("offline");
+        setProbe((current) => ({
+          ...current,
+          authUser: "missing",
+          jwtAttached: "no",
+          channelName: "—",
+          channelStatus: "NO_SESSION",
+        }));
         return;
       }
+      let jwtAttached: "yes" | "no" = "no";
+      try {
+        const realtime = client.realtime as { setAuth?: (token?: string) => Promise<unknown> };
+        if (typeof realtime.setAuth === "function") {
+          await realtime.setAuth(session.access_token);
+        }
+        jwtAttached = "yes";
+      } catch {
+        jwtAttached = "no";
+      }
+      if (cancelled || thisRun !== runId) return;
       const { data: profile } = await client
         .from("profiles")
         .select("role, notification_sounds, admin_notification_sounds")
-        .eq("id", data.user.id)
+        .eq("id", session.user.id)
         .maybeSingle();
+      if (cancelled || thisRun !== runId) return;
       const nextRole = profile?.role === "admin" ? "admin" : "customer";
       setRole(nextRole);
       roleRef.current = nextRole;
       const enabled = nextRole === "admin" ? profile?.admin_notification_sounds !== false : profile?.notification_sounds !== false;
       setSoundsEnabled(enabled);
       soundsRef.current = enabled;
-      userIdRef.current = data.user.id;
+      userIdRef.current = session.user.id;
       setConnection("reconnecting");
-      await bindAuth();
-      await reconcile(nextRole, data.user.id);
-      if (cancelled) return;
+      await reconcile(nextRole, session.user.id);
+      if (cancelled || thisRun !== runId) return;
       if (channel) {
         await client.removeChannel(channel);
         channel = null;
       }
+      const channelName = nextRole === "admin" ? `admin-live-${session.user.id}` : `customer-live-${session.user.id}`;
+      setProbe((current) => ({
+        ...current,
+        authUser: "authenticated",
+        jwtAttached,
+        channelName,
+        channelStatus: "SUBSCRIBING",
+      }));
 
+      const next = client.channel(channelName);
       if (nextRole === "admin") {
-        channel = client
-          .channel(`admin-live-${data.user.id}`)
+        next
           .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_notifications" }, (payload) => {
-            ingestLive(adminItem(payload.new as Parameters<typeof adminItem>[0]), "admin");
+            const row = payload.new as Parameters<typeof adminItem>[0];
+            noteChange("admin_notifications", "INSERT", row?.id);
+            if (row?.id) ingestRef.current(adminItem(row), "admin");
           })
           .on("postgres_changes", { event: "UPDATE", schema: "public", table: "admin_notifications" }, (payload) => {
             const row = payload.new as { id: string; read_at: string | null };
+            noteChange("admin_notifications", "UPDATE", row?.id);
             setItems((current) => current.map((item) => (item.id === row.id ? { ...item, read_at: row.read_at } : item)));
-          })
-          .subscribe((status) => {
-            if (status === "SUBSCRIBED") {
-              connectionRef.current = "live";
-              setConnection("live");
-            } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-              connectionRef.current = "reconnecting";
-              setConnection("reconnecting");
-              scheduleRetry();
-            }
           });
-        return;
-      }
-
-      channel = client
-        .channel(`customer-live-${data.user.id}`)
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "customer_notifications", filter: `user_id=eq.${data.user.id}` },
-          (payload) => {
+      } else {
+        next
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "customer_notifications" }, (payload) => {
             const row = payload.new as {
               id: string;
               order_id?: string | null;
@@ -292,8 +370,10 @@ export function LiveNotificationsProvider({
               created_at: string;
               user_id?: string;
             };
-            if (row.user_id && row.user_id !== data.user.id) return;
-            ingestLive({
+            noteChange("customer_notifications", "INSERT", row?.id);
+            if (row.user_id && row.user_id !== session.user.id) return;
+            if (!row.id) return;
+            ingestRef.current({
               id: row.id,
               kind: "order",
               title: row.title,
@@ -304,63 +384,70 @@ export function LiveNotificationsProvider({
               confirmation_code: row.confirmation_code,
               event_type: row.event_type,
             }, "customer");
-          },
-        )
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "customer_notifications", filter: `user_id=eq.${data.user.id}` },
-          (payload) => {
-            const row = payload.new as { id: string; read_at: string | null };
+          })
+          .on("postgres_changes", { event: "UPDATE", schema: "public", table: "customer_notifications" }, (payload) => {
+            const row = payload.new as { id: string; read_at: string | null; user_id?: string };
+            noteChange("customer_notifications", "UPDATE", row?.id);
+            if (row.user_id && row.user_id !== session.user.id) return;
             setItems((current) => current.map((item) => (item.id === row.id ? { ...item, read_at: row.read_at } : item)));
-          },
-        )
-        .on("postgres_changes", { event: "*", schema: "public", table: "customer_announcements" }, (payload) => {
-          const row = payload.new as {
-            id?: string;
-            title?: string;
-            message?: string;
-            action_label?: string | null;
-            action_href?: string | null;
-            status?: string;
-            published_at?: string | null;
-            created_at?: string;
-            archived_at?: string | null;
-          };
-          const previous = payload.old as { status?: string } | undefined;
-          const newlyPublished =
-            Boolean(row.id) &&
-            row.status === "published" &&
-            !row.archived_at &&
-            (payload.eventType === "INSERT" || previous?.status !== "published");
-          if (!newlyPublished || !row.id) return;
-          ingestLive({
-            id: row.id,
-            kind: "announcement",
-            title: row.title ?? "Announcement",
-            message: row.message ?? "",
-            created_at: row.published_at || row.created_at || new Date().toISOString(),
-            read_at: null,
-            event_type: "announcement",
-            action_label: row.action_label,
-            action_href: row.action_href,
-          }, "customer");
-        })
-        .subscribe((status) => {
-          if (status === "SUBSCRIBED") {
-            connectionRef.current = "live";
-            setConnection("live");
-          } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-            connectionRef.current = "reconnecting";
-            setConnection("reconnecting");
-            scheduleRetry();
-          }
-        });
+          })
+          .on("postgres_changes", { event: "*", schema: "public", table: "customer_announcements" }, (payload) => {
+            const row = payload.new as {
+              id?: string;
+              title?: string;
+              message?: string;
+              action_label?: string | null;
+              action_href?: string | null;
+              status?: string;
+              published_at?: string | null;
+              created_at?: string;
+              archived_at?: string | null;
+            };
+            noteChange("customer_announcements", payload.eventType, row?.id);
+            const previous = payload.old as { status?: string } | undefined;
+            const newlyPublished =
+              Boolean(row.id) &&
+              row.status === "published" &&
+              !row.archived_at &&
+              (payload.eventType === "INSERT" || previous?.status !== "published");
+            if (!newlyPublished || !row.id) return;
+            ingestRef.current({
+              id: row.id,
+              kind: "announcement",
+              title: row.title ?? "Announcement",
+              message: row.message ?? "",
+              created_at: row.published_at || row.created_at || new Date().toISOString(),
+              read_at: null,
+              event_type: "announcement",
+              action_label: row.action_label,
+              action_href: row.action_href,
+            }, "customer");
+          });
+      }
+      channel = next.subscribe((status, err) => {
+        const label = err ? `${status}:${err.message ?? "error"}` : status;
+        setProbe((current) => ({ ...current, channelStatus: label, jwtAttached, authUser: "authenticated", channelName }));
+        if (status === "SUBSCRIBED") {
+          connectionRef.current = "live";
+          setConnection("live");
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          connectionRef.current = "reconnecting";
+          setConnection("reconnecting");
+          scheduleRetry();
+        }
+      });
     }
 
     void start();
     const { data: authListener } = client.auth.onAuthStateChange((event, session) => {
-      if (session?.access_token) void client.realtime.setAuth(session.access_token);
-      if (event === "SIGNED_IN" && connectionRef.current !== "live") void start();
+      if (session?.access_token) {
+        const realtime = client.realtime as { setAuth?: (token?: string) => Promise<unknown> };
+        if (typeof realtime.setAuth === "function") void realtime.setAuth(session.access_token);
+        setProbe((current) => ({ ...current, jwtAttached: "yes", authUser: "authenticated" }));
+      }
+      if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+        if (connectionRef.current !== "live") void start();
+      }
     });
 
     const restartIfNeeded = () => {
@@ -381,13 +468,14 @@ export function LiveNotificationsProvider({
     window.addEventListener("online", restartIfNeeded);
     return () => {
       cancelled = true;
+      runId += 1;
       window.clearTimeout(retryTimer);
       authListener.subscription.unsubscribe();
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", restartIfNeeded);
       if (channel) void client.removeChannel(channel);
     };
-  }, [ingestLive, mergeItems]);
+  }, [mergeItems]);
 
   const markItemRead = useCallback((item: InboxItem) => {
     const client = createClient();
@@ -447,12 +535,13 @@ export function LiveNotificationsProvider({
       dashboardTick,
       lastEvent,
       lastPlay,
+      probe,
       orderTicks,
       markItemRead,
       markAllRead,
       dismissToast: (id: string) => setToasts((current) => current.filter((item) => item.id !== id)),
     }),
-    [role, connection, unread, items, toasts, soundsEnabled, audioUnlocked, dashboardTick, lastEvent, lastPlay, orderTicks, markItemRead, markAllRead],
+    [role, connection, unread, items, toasts, soundsEnabled, audioUnlocked, dashboardTick, lastEvent, lastPlay, probe, orderTicks, markItemRead, markAllRead],
   );
 
   return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;
@@ -472,6 +561,7 @@ export function useLiveNotifications() {
       dashboardTick: 0,
       lastEvent: null,
       lastPlay: null,
+      probe: emptyProbe(),
       orderTicks: {} as Record<string, number>,
       markItemRead: () => undefined,
       markAllRead: () => undefined,
