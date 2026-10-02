@@ -15,9 +15,32 @@ export const ivoireCueSrc: Record<IvoireTone, string> = {
 
 export type PlayResult = { ok: true } | { ok: false; reason: string };
 
+export type LastPlayDiagnostic = {
+  at: string;
+  cue: string;
+  result: "resolved" | "rejected" | "not_called";
+  reason?: string;
+};
+
 let shared: HTMLAudioElement | null = null;
 let unlocked = false;
 let unlocking: Promise<PlayResult> | null = null;
+let audioChain: Promise<unknown> = Promise.resolve();
+let lastPlay: LastPlayDiagnostic | null = null;
+
+function recordPlay(cue: string, result: LastPlayDiagnostic["result"], reason?: string) {
+  lastPlay = { at: new Date().toISOString(), cue, result, reason };
+}
+
+export function getLastPlayDiagnostic() {
+  return lastPlay;
+}
+
+function runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+  const next = audioChain.then(fn, fn);
+  audioChain = next.then(() => undefined, () => undefined);
+  return next;
+}
 
 function logAudio(event: string, detail?: Record<string, string>) {
   if (process.env.NODE_ENV === "production") return;
@@ -83,31 +106,37 @@ function reasonFromError(error: unknown) {
 }
 
 export async function playIvoireCue(kind: IvoireTone, volume = 0.72): Promise<PlayResult> {
-  if (typeof window === "undefined") return { ok: false, reason: "server" };
-  const el = audioElement();
-  const src = ivoireCueSrc[kind];
-  try {
-    if (!el.src.endsWith(src)) el.src = src;
-    el.muted = false;
-    el.volume = volume;
-    el.currentTime = 0;
-    const play = el.play();
-    if (play) await play;
-    unlocked = true;
-    logAudio("play_resolved", { kind });
-    return { ok: true };
-  } catch (error) {
-    const reason = reasonFromError(error);
-    logAudio("play_rejected", { kind, reason });
-    return { ok: false, reason };
-  }
+  return runExclusive(async () => {
+    if (typeof window === "undefined") return { ok: false, reason: "server" };
+    const el = audioElement();
+    const src = ivoireCueSrc[kind];
+    try {
+      if (!el.src.endsWith(src)) el.src = src;
+      el.muted = false;
+      el.volume = volume;
+      el.currentTime = 0;
+      const play = el.play();
+      if (play) await play;
+      unlocked = true;
+      recordPlay(kind, "resolved");
+      logAudio("play_resolved", { kind });
+      return { ok: true } as const;
+    } catch (error) {
+      const reason = reasonFromError(error);
+      recordPlay(kind, "rejected", reason);
+      logAudio("play_rejected", { kind, reason });
+      return { ok: false, reason };
+    }
+  });
 }
+
+export const playIvoireSound = playIvoireCue;
 
 export async function unlockIvoireAudio(): Promise<PlayResult> {
   if (typeof window === "undefined") return { ok: false, reason: "server" };
   if (unlocked) return { ok: true };
   if (unlocking) return unlocking;
-  unlocking = (async () => {
+  unlocking = runExclusive(async () => {
     const el = audioElement();
     try {
       el.src = UNLOCK_SRC;
@@ -129,7 +158,7 @@ export async function unlockIvoireAudio(): Promise<PlayResult> {
     } finally {
       unlocking = null;
     }
-  })();
+  });
   return unlocking;
 }
 
@@ -149,18 +178,27 @@ export function installIvoireAudioUnlock() {
 }
 
 export async function playNotificationEvent(eventType: string, notificationId: string): Promise<boolean> {
-  if (hasPlayedNotification(notificationId)) return false;
+  const tone = toneForEvent(eventType);
+  if (!tone) {
+    recordPlay(eventType, "not_called", "no_cue");
+    return false;
+  }
+  if (hasPlayedNotification(notificationId)) {
+    recordPlay(tone, "not_called", "already_played");
+    return false;
+  }
   if (typeof window !== "undefined") {
     try {
       const claimKey = `ivoire-sound-claim:${notificationId}`;
-      if (localStorage.getItem(claimKey)) return false;
+      if (localStorage.getItem(claimKey)) {
+        recordPlay(tone, "not_called", "other_tab");
+        return false;
+      }
       localStorage.setItem(claimKey, "1");
     } catch {
       /* ignore */
     }
   }
-  const tone = toneForEvent(eventType);
-  if (!tone) return false;
   const result = await playIvoireCue(tone);
   if (!result.ok) {
     try {

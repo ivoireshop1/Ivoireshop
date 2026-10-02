@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { playIvoireCue, type IvoireTone } from "@/src/lib/audio/ivoire-tones";
+import { playIvoireSound, type IvoireTone } from "@/src/lib/audio/ivoire-tones";
 
 export function TestSoundButton({
   cue = "ready",
@@ -14,7 +14,7 @@ export function TestSoundButton({
 
   async function onPlay() {
     setState("playing");
-    const result = await playIvoireCue(cue);
+    const result = await playIvoireSound(cue);
     setState(result.ok ? "played" : "blocked");
   }
 

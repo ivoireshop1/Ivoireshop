@@ -2,6 +2,7 @@ import { pageMetadata } from "@/src/lib/page-metadata";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { ChangePasswordForm } from "@/src/components/auth/change-password-form";
 import { AdminNotificationSoundsToggle } from "@/src/components/admin/admin-notification-sounds-toggle";
+import { AdminRealtimeDiagnostic } from "@/src/components/admin/admin-realtime-diagnostic";
 
 export const metadata = pageMetadata("Admin account", "Admin account security.", "/admin/account", false);
 
@@ -15,6 +16,7 @@ export default async function AdminAccountPage() {
       <p className="text-sm text-[#6b6b6b]">Change the password for this signed-in administrator. This uses your existing Ivoire Shop login.</p>
       <ChangePasswordForm />
       <AdminNotificationSoundsToggle enabled={profile?.admin_notification_sounds !== false} />
+      <AdminRealtimeDiagnostic />
     </div>
   );
 }

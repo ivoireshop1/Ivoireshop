@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/src/lib/supabase/server";
-import { CustomerOrderCard } from "@/src/components/customer/customer-order-card";
+import { LiveCustomerOrderCard } from "@/src/components/customer/live-customer-order-card";
 import { FulfillmentMethodCards } from "@/src/components/checkout/fulfillment-method-cards";
 import { firstNameFrom } from "@/src/lib/customer/display-name";
 
@@ -79,7 +79,7 @@ export async function CustomerHub() {
             <h3 className="text-xl font-semibold text-forest-green">Recent orders</h3>
             {orders?.length ? (
               <div className="mt-4 grid gap-4">
-                {orders.map((order) => <CustomerOrderCard key={order.id} order={order} />)}
+                {orders.map((order) => <LiveCustomerOrderCard key={order.id} order={order} />)}
               </div>
             ) : (
               <div className="mt-4 rounded-[24px] border border-dashed border-forest-green/20 bg-[#f7f3ee] p-6">

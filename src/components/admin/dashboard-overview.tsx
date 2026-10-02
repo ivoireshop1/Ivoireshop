@@ -1,10 +1,22 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminCard } from "@/src/components/admin/admin-card";
 import { StoreStatusControl } from "@/src/components/admin/store-status-control";
-import { getAdminDashboardData } from "@/src/lib/admin/dashboard";
+import { refreshAdminDashboard } from "@/src/lib/admin/dashboard-refresh";
+import { useLiveNotifications } from "@/src/components/realtime/live-notifications-provider";
 
-export async function DashboardOverview() {
-  const dashboard = await getAdminDashboardData();
+type AdminDashboardData = Awaited<ReturnType<typeof refreshAdminDashboard>>;
+
+export function DashboardOverview({ initial }: { initial: AdminDashboardData }) {
+  const { dashboardTick } = useLiveNotifications();
+  const [dashboard, setDashboard] = useState(initial);
+
+  useEffect(() => {
+    if (!dashboardTick) return;
+    void refreshAdminDashboard().then(setDashboard);
+  }, [dashboardTick]);
 
   return (
     <div className="space-y-6">

@@ -36,7 +36,7 @@ export function AdminNotificationSoundsToggle({ enabled }: { enabled: boolean })
           <SaveLabel>OFF</SaveLabel>
         </button>
       </form>
-      {enabled ? <TestSoundButton cue="accepted" label="🔊 Test Admin Sound" /> : null}
+      {enabled ? <TestSoundButton cue="accepted" label="🔊 Test Sound" /> : null}
     </section>
   );
 }

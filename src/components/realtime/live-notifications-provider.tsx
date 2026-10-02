@@ -3,7 +3,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createClient } from "@/src/lib/supabase/browser";
 import {
+  getLastPlayDiagnostic,
   installIvoireAudioUnlock,
+  isIvoireAudioUnlocked,
   listenForCrossTabSoundClaims,
   markPlayedNotification,
   playNotificationEvent,
@@ -20,6 +22,13 @@ export type LiveToast = {
   label?: string;
 };
 
+export type LastPlayState = {
+  at: string;
+  cue: string;
+  result: "resolved" | "rejected" | "not_called";
+  reason?: string;
+};
+
 type LiveContextValue = {
   role: "guest" | "customer" | "admin";
   connection: LiveConnection;
@@ -27,6 +36,10 @@ type LiveContextValue = {
   items: InboxItem[];
   toasts: LiveToast[];
   soundsEnabled: boolean;
+  audioUnlocked: boolean;
+  dashboardTick: number;
+  lastEvent: { at: string; eventType: string } | null;
+  lastPlay: LastPlayState | null;
   orderTicks: Record<string, number>;
   markItemRead: (item: InboxItem) => void;
   markAllRead: () => void;
@@ -87,6 +100,10 @@ export function LiveNotificationsProvider({
   const [toasts, setToasts] = useState<LiveToast[]>([]);
   const [soundsEnabled, setSoundsEnabled] = useState(initialSounds);
   const [orderTicks, setOrderTicks] = useState<Record<string, number>>({});
+  const [dashboardTick, setDashboardTick] = useState(0);
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const [lastEvent, setLastEvent] = useState<{ at: string; eventType: string } | null>(null);
+  const [lastPlay, setLastPlay] = useState<LastPlayState | null>(null);
   const soundsRef = useRef(initialSounds);
   const userIdRef = useRef<string | null>(null);
   const roleRef = useRef(initialRole);
@@ -123,22 +140,37 @@ export function LiveNotificationsProvider({
 
   const ingestLive = useCallback((row: InboxItem, audience: "admin" | "customer") => {
     mergeItems([row]);
+    setLastEvent({ at: new Date().toISOString(), eventType: row.event_type });
     if (row.order_id) {
       setOrderTicks((current) => ({ ...current, [row.order_id as string]: Date.now() }));
     }
+    if (audience === "admin") setDashboardTick(Date.now());
     if (!row.read_at) {
       pushToast({
         id: `${row.kind}-${row.id}`,
-        title: row.title,
-        message: audience === "admin" ? (row.message.split("\n")[0] ?? row.message) : row.message,
+        title: audience === "admin" ? row.title : row.kind === "order" ? "Order update" : row.title,
+        message: audience === "admin" ? (row.message.split("\n")[0] ?? row.message) : (row.message || row.title),
         href: audience === "admin" ? row.action_href || "/admin" : hrefForCustomer(row),
         label: audience === "admin" ? "View" : row.kind === "order" ? "View Order" : row.action_label || "View",
       });
-      if (soundsRef.current) void playNotificationEvent(row.event_type, row.id);
+      if (soundsRef.current) {
+        void playNotificationEvent(row.event_type, row.id).then(() => {
+          setLastPlay(getLastPlayDiagnostic());
+          setAudioUnlocked(isIvoireAudioUnlocked());
+        });
+      } else {
+        setLastPlay({ at: new Date().toISOString(), cue: row.event_type, result: "not_called", reason: "sounds_off" });
+      }
     }
   }, [mergeItems, pushToast]);
 
   useEffect(() => installIvoireAudioUnlock(), []);
+  useEffect(() => {
+    const sync = () => setAudioUnlocked(isIvoireAudioUnlocked());
+    sync();
+    window.addEventListener("pointerdown", sync, { capture: true });
+    return () => window.removeEventListener("pointerdown", sync, true);
+  }, []);
   useEffect(() => listenForCrossTabSoundClaims((id) => markPlayedNotification(id)), []);
 
   useEffect(() => {
@@ -177,6 +209,21 @@ export function LiveNotificationsProvider({
       }
     }
 
+    let retryTimer: number | undefined;
+    const scheduleRetry = () => {
+      window.clearTimeout(retryTimer);
+      retryTimer = window.setTimeout(() => {
+        if (!cancelled && connectionRef.current !== "live") void start();
+      }, 2500);
+    };
+
+    async function bindAuth() {
+      const { data: sessionData } = await client.auth.getSession();
+      if (sessionData.session?.access_token) {
+        await client.realtime.setAuth(sessionData.session.access_token);
+      }
+    }
+
     async function start() {
       const { data } = await client.auth.getUser();
       if (cancelled || !data.user) {
@@ -197,6 +244,7 @@ export function LiveNotificationsProvider({
       soundsRef.current = enabled;
       userIdRef.current = data.user.id;
       setConnection("reconnecting");
+      await bindAuth();
       await reconcile(nextRole, data.user.id);
       if (cancelled) return;
       if (channel) {
@@ -221,6 +269,7 @@ export function LiveNotificationsProvider({
             } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
               connectionRef.current = "reconnecting";
               setConnection("reconnecting");
+              scheduleRetry();
             }
           });
         return;
@@ -303,11 +352,16 @@ export function LiveNotificationsProvider({
           } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
             connectionRef.current = "reconnecting";
             setConnection("reconnecting");
+            scheduleRetry();
           }
         });
     }
 
     void start();
+    const { data: authListener } = client.auth.onAuthStateChange((event, session) => {
+      if (session?.access_token) void client.realtime.setAuth(session.access_token);
+      if (event === "SIGNED_IN" && connectionRef.current !== "live") void start();
+    });
 
     const restartIfNeeded = () => {
       if (document.visibilityState !== "visible") return;
@@ -327,6 +381,8 @@ export function LiveNotificationsProvider({
     window.addEventListener("online", restartIfNeeded);
     return () => {
       cancelled = true;
+      window.clearTimeout(retryTimer);
+      authListener.subscription.unsubscribe();
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", restartIfNeeded);
       if (channel) void client.removeChannel(channel);
@@ -387,12 +443,16 @@ export function LiveNotificationsProvider({
       items,
       toasts,
       soundsEnabled,
+      audioUnlocked,
+      dashboardTick,
+      lastEvent,
+      lastPlay,
       orderTicks,
       markItemRead,
       markAllRead,
       dismissToast: (id: string) => setToasts((current) => current.filter((item) => item.id !== id)),
     }),
-    [role, connection, unread, items, toasts, soundsEnabled, orderTicks, markItemRead, markAllRead],
+    [role, connection, unread, items, toasts, soundsEnabled, audioUnlocked, dashboardTick, lastEvent, lastPlay, orderTicks, markItemRead, markAllRead],
   );
 
   return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;
@@ -408,6 +468,10 @@ export function useLiveNotifications() {
       items: [] as InboxItem[],
       toasts: [] as LiveToast[],
       soundsEnabled: false,
+      audioUnlocked: false,
+      dashboardTick: 0,
+      lastEvent: null,
+      lastPlay: null,
       orderTicks: {} as Record<string, number>,
       markItemRead: () => undefined,
       markAllRead: () => undefined,

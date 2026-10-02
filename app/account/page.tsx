@@ -11,7 +11,7 @@ import { CustomerHero } from "@/src/components/customer/customer-hero";
 import { StorefrontBillboard } from "@/src/components/storefront/storefront-billboard";
 import { NewArrivalsHome } from "@/src/components/storefront/home-merch-sections";
 import { CustomerAccountNav } from "@/src/components/customer/customer-account-nav";
-import { CustomerOrderCard } from "@/src/components/customer/customer-order-card";
+import { LiveCustomerOrderCard } from "@/src/components/customer/live-customer-order-card";
 import { CustomerAlertBanner } from "@/src/components/customer/customer-alert-banner";
 import { getProminentInboxItem } from "@/src/lib/notifications/inbox";
 import { AddAddressForm } from "@/src/components/customer/add-address-form";
@@ -157,7 +157,7 @@ export default async function AccountPage() {
         </div>
         {currentOrders.length ? (
           <div className="mt-5 grid gap-4">
-            {currentOrders.map((order) => <CustomerOrderCard key={order.id} order={order} />)}
+            {currentOrders.map((order) => <LiveCustomerOrderCard key={order.id} order={order} />)}
           </div>
         ) : (
           <p className="mt-3 text-sm text-muted">No current orders. When you place one, it will show up here.</p>
@@ -169,7 +169,7 @@ export default async function AccountPage() {
           <h2 className="text-2xl font-semibold text-forest-green">Past orders</h2>
           <p className="mt-1 text-sm text-muted">Completed, picked up, delivered, cancelled, or refunded.</p>
           <div className="mt-5 grid gap-4">
-            {pastOrders.map((order) => <CustomerOrderCard key={`past-${order.id}`} order={order} />)}
+            {pastOrders.map((order) => <LiveCustomerOrderCard key={`past-${order.id}`} order={order} />)}
           </div>
         </section>
       )}

@@ -330,6 +330,8 @@ export async function getAdminDashboardData() {
   };
 }
 
+export type AdminDashboardData = Awaited<ReturnType<typeof getAdminDashboardData>>;
+
 async function getRevenueTrend(supabase: Awaited<ReturnType<typeof createClient>>, sinceIso: string) {
   const { data, error } = await supabase
     .from("orders")
