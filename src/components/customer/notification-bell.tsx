@@ -109,7 +109,7 @@ export function NotificationBell({
           />
           <div
             aria-labelledby={headingId}
-            className="fixed inset-x-3 top-[4.75rem] z-50 max-h-[min(70dvh,32rem)] overflow-y-auto overflow-x-hidden rounded-2xl border border-forest-green/15 bg-white p-3 shadow-lg md:absolute md:inset-x-auto md:right-0 md:top-auto md:mt-2 md:w-80 md:max-w-[min(20rem,calc(100vw-2rem))]"
+            className="fixed left-3 right-3 top-[4.75rem] z-50 max-h-[min(70dvh,32rem)] overflow-y-auto overflow-x-hidden rounded-2xl border border-forest-green/15 bg-white p-3 shadow-lg md:left-auto md:right-0 md:top-auto md:mt-2 md:w-80 md:max-w-[min(20rem,calc(100vw-1.5rem))]"
             id={menuId}
             role="dialog"
           >

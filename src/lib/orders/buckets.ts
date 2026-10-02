@@ -1,9 +1,9 @@
 export function isAdminNewOrder(status: string) {
-  return status === "pending" || status === "confirmed";
+  return status === "pending";
 }
 
 export function isAdminInProgressOrder(status: string) {
-  return status === "processing" || status === "ready_for_pickup" || status === "ready_for_delivery" || status === "shipped";
+  return status === "confirmed" || status === "processing" || status === "ready_for_pickup" || status === "ready_for_delivery" || status === "shipped";
 }
 
 export function isAdminCompletedOrder(status: string) {

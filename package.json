@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/lib/audio/ivoire-tones.test.ts src/lib/delivery/origin.test.ts src/lib/delivery/tracking.test.ts src/lib/orders/buckets.test.ts src/lib/orders/timeline.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/audio/ivoire-tones.test.ts src/lib/delivery/origin.test.ts src/lib/delivery/tracking.test.ts src/lib/orders/buckets.test.ts src/lib/orders/status.test.ts src/lib/orders/timeline.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

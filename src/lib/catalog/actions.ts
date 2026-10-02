@@ -531,25 +531,30 @@ export async function updateInventory(formData: FormData) {
   redirect("/admin/inventory?success=stock_updated");
 }
 
-export async function updateOrderStatus(formData: FormData) {
+export type OrderStatusActionState = {
+  error?: string;
+  saved?: boolean;
+};
+
+export async function updateOrderStatus(_prev: OrderStatusActionState | null, formData: FormData): Promise<OrderStatusActionState> {
   const { supabase } = await requireAdmin();
   const id = textValue(formData, "id");
   const status = textValue(formData, "status");
   const validStatuses = ["pending", "confirmed", "processing", "ready_for_pickup", "ready_for_delivery", "shipped", "delivered", "cancelled"];
 
   if (!id || !validStatuses.includes(status)) {
-    redirect("/admin/orders?error=invalid_status");
+    return { error: "That status is not allowed." };
   }
 
   const { data: current, error: readError } = await supabase.from("orders")
     .select("status, fulfillment_method, fulfillment_provider").eq("id", id).maybeSingle();
   if (readError || !current || textValue(formData, "expected_status") !== current.status
       || !nextOrderStatuses(current.status, current.fulfillment_method, current.fulfillment_provider).includes(status)) {
-    redirect(`/admin/orders/${id}?error=invalid_transition`);
+    return { error: "Refresh the order and choose the next allowed action." };
   }
   const { data: changed, error } = await supabase.from("orders").update({ status })
     .eq("id", id).eq("status", current.status).select("id").maybeSingle();
-  if (error || !changed) redirect(`/admin/orders/${id}?error=status_update_failed`);
+  if (error || !changed) return { error: "Status could not be updated. Try again." };
   const emailSent = await notifyFulfillmentEmail(supabase, id, status);
   await recordFulfillmentNotification(supabase, id, status, Boolean(emailSent), current.fulfillment_provider);
 
@@ -559,5 +564,5 @@ export async function updateOrderStatus(formData: FormData) {
   revalidatePath("/account");
   revalidatePath(`/account/orders/${id}`);
   revalidatePath("/account/notifications");
-  redirect(`/admin/orders/${id}?success=status_updated`);
+  return { saved: true };
 }

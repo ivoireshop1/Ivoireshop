@@ -7,7 +7,7 @@ export function isLocalDelivery(fulfillment: string, provider?: string | null) {
   return fulfillment === "delivery" && !isCarrierFulfillment(provider);
 }
 
-export type TimelineStepId = "accepted" | "preparing" | "ready" | "shipped" | "transit" | "completed";
+export type TimelineStepId = "placed" | "accepted" | "preparing" | "ready" | "shipped" | "transit" | "completed";
 
 export type TimelineStep = {
   id: TimelineStepId;
@@ -21,23 +21,26 @@ export type TimelineStep = {
 export function timelineTemplate(fulfillment: string, provider?: string | null): Array<{ id: TimelineStepId; label: string; statusValue: string | null }> {
   if (fulfillment === "local_pickup") {
     return [
-      { id: "accepted", label: "Order Accepted", statusValue: "confirmed" },
+      { id: "placed", label: "Order Placed", statusValue: "pending" },
+      { id: "accepted", label: "Accepted", statusValue: "confirmed" },
       { id: "preparing", label: "Preparing", statusValue: "processing" },
       { id: "ready", label: "Ready for Pickup", statusValue: "ready_for_pickup" },
-      { id: "completed", label: "Picked Up / Completed", statusValue: "delivered" },
+      { id: "completed", label: "Completed", statusValue: "delivered" },
     ];
   }
   if (isCarrierFulfillment(provider)) {
     return [
-      { id: "accepted", label: "Order Accepted", statusValue: "confirmed" },
+      { id: "placed", label: "Order Placed", statusValue: "pending" },
+      { id: "accepted", label: "Accepted", statusValue: "confirmed" },
       { id: "preparing", label: "Preparing", statusValue: "processing" },
+      { id: "ready", label: "Awaiting Carrier Drop-Off", statusValue: "ready_for_delivery" },
       { id: "shipped", label: "Shipped", statusValue: "shipped" },
-      { id: "transit", label: "In Transit", statusValue: null },
       { id: "completed", label: "Delivered", statusValue: "delivered" },
     ];
   }
   return [
-    { id: "accepted", label: "Order Accepted", statusValue: "confirmed" },
+    { id: "placed", label: "Order Placed", statusValue: "pending" },
+    { id: "accepted", label: "Accepted", statusValue: "confirmed" },
     { id: "preparing", label: "Preparing", statusValue: "processing" },
     { id: "ready", label: "Ready for Delivery", statusValue: "ready_for_delivery" },
     { id: "transit", label: "Out for Delivery", statusValue: "shipped" },
@@ -66,27 +69,17 @@ export function buildOrderTimeline(input: {
 }): TimelineStep[] {
   const currentRank = rank[input.status] ?? 0;
   const times = new Map((input.events ?? []).map((event) => [event.status, event.created_at]));
-  const transitEvent = (input.carrierEvents ?? []).find((event) =>
-    ["in_transit", "out_for_delivery", "delivered"].includes(event.event_code),
-  );
   return timelineTemplate(input.fulfillment_method, input.fulfillment_provider).map((step) => {
     const stepRank = step.statusValue ? rank[step.statusValue] ?? 0 : 0;
-    const accepted = step.id === "accepted";
-    if (step.id === "transit" && isCarrierFulfillment(input.fulfillment_provider)) {
-      const done = input.status !== "cancelled" && Boolean(transitEvent);
-      const current = input.status === "shipped" && !transitEvent;
-      return { ...step, done, current, at: done ? transitEvent?.occurred_at ?? null : null };
+    if (step.id === "placed") {
+      const done = input.status !== "cancelled";
+      return { ...step, done, current: input.status === "pending", at: done ? input.created_at : null };
     }
-    const done = input.status !== "cancelled" && (accepted || (step.statusValue != null && currentRank >= stepRank));
-    const shippedIsCurrent = input.status === "shipped" && step.statusValue === "shipped";
-    const current = accepted
-      ? input.status === "pending" || input.status === "confirmed"
-      : shippedIsCurrent && isCarrierFulfillment(input.fulfillment_provider)
-        ? false
-        : input.status === step.statusValue;
+    const done = input.status !== "cancelled" && currentRank >= stepRank && step.statusValue != null;
+    const current = input.status === step.statusValue;
     let at: string | null = null;
-    if (accepted) at = input.created_at;
-    else if (step.statusValue && times.has(step.statusValue)) at = times.get(step.statusValue) ?? null;
+    if (step.statusValue && times.has(step.statusValue)) at = times.get(step.statusValue) ?? null;
+    else if (step.id === "accepted" && done) at = times.get("confirmed") ?? input.created_at;
     if (!done) at = null;
     return { ...step, done, current: current && input.status !== "cancelled", at };
   });

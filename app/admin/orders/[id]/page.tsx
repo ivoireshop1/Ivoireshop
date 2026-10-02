@@ -1,15 +1,13 @@
-import { nextOrderStatuses, orderStatusLabel, paymentProviderLabel, paymentStatusLabel } from "@/src/lib/orders/status";
+import { orderStatusLabel } from "@/src/lib/orders/status";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { updateOrderStatus } from "@/src/lib/catalog/actions";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { CopyConfirmationButton } from "@/src/components/checkout/copy-confirmation-button";
 import { AdminOrderPrintControl } from "@/src/components/admin/admin-order-print-control";
 import { AdminOrderShipmentForm } from "@/src/components/admin/admin-order-shipment-form";
+import { AdminOrderFulfillmentActions } from "@/src/components/admin/admin-order-fulfillment-actions";
 import { getEmailProviderStatus } from "@/src/lib/email/send";
-import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
 import { OrderMoneyBreakdown } from "@/src/components/orders/order-money-breakdown";
-import { PickupLocationBlock, pickupLocationForOrder } from "@/src/components/store/pickup-location-block";
 import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 import { OrderLine } from "@/src/components/orders/order-line";
 import { OrderTimeline } from "@/src/components/orders/order-timeline";
@@ -26,7 +24,6 @@ export default async function OrderDetailPage({ params, searchParams }: { params
   ]);
   if (error || itemsError) return <AdminLoadFailure message="Unable to load order." title="Order" />;
   if (!order) notFound();
-  const nextStatuses = nextOrderStatuses(order.status, order.fulfillment_method, order.fulfillment_provider);
   return (
     <div className="space-y-6">
       <Link className="text-sm text-[#173f35] underline" href="/admin/orders">Back to orders</Link>
@@ -63,40 +60,7 @@ export default async function OrderDetailPage({ params, searchParams }: { params
           <p className="break-all text-sm text-[#6b6b6b]">{order.customer_email}</p>
           <p className="mt-2 text-sm text-[#6b6b6b]">{order.customer_phone ?? "No phone provided"}</p>
         </section>
-        <form action={updateOrderStatus} className="rounded-2xl bg-white p-5">
-          <input name="id" type="hidden" value={order.id} />
-          <input name="expected_status" type="hidden" value={order.status} />
-          <h2 className="font-semibold text-[#173f35]">Fulfillment</h2>
-          <p className="mt-3 text-sm">{fulfillmentDisplay(order)}</p>
-          {order.fulfillment_method === "local_pickup" ? (
-            <PickupLocationBlock className="mt-3" location={pickupLocationForOrder(order)} />
-          ) : null}
-          {order.fulfillment_service && order.fulfillment_provider ? (
-            <p className="mt-2 break-words text-sm text-[#6b6b6b]">Service snapshot: {order.fulfillment_service}</p>
-          ) : null}
-          {order.fulfillment_method === "delivery" && (
-            <address className="mt-3 whitespace-pre-line text-sm not-italic text-[#6b6b6b]">
-              {[order.shipping_address?.address_line_1, order.shipping_address?.address_line_2, order.shipping_address?.city, order.shipping_address?.state, order.shipping_address?.postal_code, order.shipping_address?.country].filter(Boolean).join("\n")}
-            </address>
-          )}
-          <p className="mt-4 text-sm">Payment: {paymentStatusLabel(order.payment_status, order.payment_provider)}</p>
-          <p className="mt-1 text-sm text-[#6b6b6b]">Provider: {paymentProviderLabel(order.payment_provider, order.payment_method)}</p>
-          {order.provider_payment_id ? <p className="mt-2 break-all text-xs text-[#6b6b6b]">Provider payment ID: {order.provider_payment_id}</p> : null}
-          {order.provider_order_id ? <p className="mt-1 break-all text-xs text-[#6b6b6b]">Provider order ID: {order.provider_order_id}</p> : null}
-          <label className="mt-4 block text-sm" htmlFor="next-status">
-            Next order status
-            <select className="mt-3 w-full rounded-xl border border-[#173f35]/15 px-3 py-2" defaultValue="" disabled={nextStatuses.length === 0} id="next-status" name="status">
-              <option value="" disabled>Choose next status</option>
-              {nextStatuses.map((value) => (
-                <option key={value} value={value}>{orderStatusLabel(value, order.fulfillment_method, order.fulfillment_provider)}</option>
-              ))}
-            </select>
-          </label>
-          <p className="mt-2 text-sm text-muted">Cancellation does not issue a refund or automatically restock inventory.</p>
-          <button className="mt-4 min-h-11 rounded-xl bg-[#173f35] px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={nextStatuses.length === 0} type="submit">
-            Update status
-          </button>
-        </form>
+        <AdminOrderFulfillmentActions order={order} />
       </div>
       <section className="rounded-2xl bg-white p-5">
         <h2 className="font-semibold text-[#173f35]">Progress</h2>
