@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { playIvoireTone } from "@/src/lib/audio/ivoire-tones";
+import { playIvoireCue } from "@/src/lib/audio/ivoire-tones";
 import { markWelcomeComplete } from "@/src/lib/customer/preferences";
 
 export function AccountWelcome({ enabled }: { enabled: boolean }) {
@@ -15,9 +15,11 @@ export function AccountWelcome({ enabled }: { enabled: boolean }) {
     const audioTimer = window.setTimeout(() => {
       if (reduced) return;
       try {
-        playIvoireTone("welcome");
+        if (sessionStorage.getItem("ivoire-welcome-sound")) return;
+        sessionStorage.setItem("ivoire-welcome-sound", "attempted");
+        void playIvoireCue("welcome");
       } catch {
-        /* autoplay may be blocked */
+        /* autoplay may be blocked; animation continues */
       }
     }, 350);
     const endTimer = window.setTimeout(() => finish(), duration);

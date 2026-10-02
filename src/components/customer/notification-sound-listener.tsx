@@ -1,23 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { createClient } from "@/src/lib/supabase/browser";
-import { playNotificationEvent } from "@/src/lib/audio/ivoire-tones";
+import { installIvoireAudioUnlock, playNotificationEvent } from "@/src/lib/audio/ivoire-tones";
 
 export function NotificationSoundListener({ enabled }: { enabled: boolean }) {
-  const unlocked = useRef(false);
-
-  useEffect(() => {
-    function unlock() {
-      unlocked.current = true;
-    }
-    window.addEventListener("pointerdown", unlock, { once: true });
-    window.addEventListener("keydown", unlock, { once: true });
-    return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-    };
-  }, []);
+  useEffect(() => installIvoireAudioUnlock(), []);
 
   useEffect(() => {
     if (!enabled) return;
@@ -32,10 +20,10 @@ export function NotificationSoundListener({ enabled }: { enabled: boolean }) {
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "customer_notifications", filter: `user_id=eq.${data.user.id}` },
           (payload) => {
-            if (!enabled || !unlocked.current) return;
+            if (!enabled) return;
             const row = payload.new as { id?: string; event_type?: string };
             if (!row.id || !row.event_type) return;
-            playNotificationEvent(row.event_type, row.id);
+            void playNotificationEvent(row.event_type, row.id);
           },
         )
         .subscribe();

@@ -3,6 +3,41 @@
 export type IvoireTone = "accepted" | "preparing" | "ready" | "success" | "welcome";
 
 const STORAGE_KEY = "ivoire-played-notifications";
+const UNLOCK_SRC = "/audio/ivoire-unlock.wav";
+
+export const ivoireCueSrc: Record<IvoireTone, string> = {
+  accepted: "/audio/ivoire-accepted.wav",
+  preparing: "/audio/ivoire-preparing.wav",
+  ready: "/audio/ivoire-ready.wav",
+  success: "/audio/ivoire-success.wav",
+  welcome: "/audio/ivoire-welcome.wav",
+};
+
+export type PlayResult = { ok: true } | { ok: false; reason: string };
+
+let shared: HTMLAudioElement | null = null;
+let unlocked = false;
+let unlocking: Promise<PlayResult> | null = null;
+
+function logAudio(event: string, detail?: Record<string, string>) {
+  if (process.env.NODE_ENV === "production") return;
+  console.debug("[ivoire-audio]", event, detail ?? {});
+}
+
+function audioElement() {
+  if (shared) return shared;
+  const el = new Audio();
+  el.preload = "auto";
+  el.setAttribute("playsinline", "true");
+  el.setAttribute("webkit-playsinline", "true");
+  el.muted = false;
+  shared = el;
+  return el;
+}
+
+export function isIvoireAudioUnlocked() {
+  return unlocked;
+}
 
 export function hasPlayedNotification(id: string) {
   if (typeof window === "undefined") return true;
@@ -28,7 +63,7 @@ export function markPlayedNotification(id: string) {
   }
 }
 
-function toneForEvent(eventType: string): IvoireTone | null {
+export function toneForEvent(eventType: string): IvoireTone | null {
   if (eventType === "order_confirmed") return "accepted";
   if (eventType === "preparing") return "preparing";
   if (eventType === "ready_for_pickup" || eventType === "ready_for_delivery" || eventType === "shipped" || eventType === "out_for_delivery" || eventType === "tracking_added" || eventType === "tracking_updated") return "ready";
@@ -36,49 +71,89 @@ function toneForEvent(eventType: string): IvoireTone | null {
   return null;
 }
 
-export function playIvoireTone(kind: IvoireTone) {
-  const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtx) return false;
-  const ctx = new AudioCtx();
-  if (ctx.state === "suspended") {
-    void ctx.resume();
+function reasonFromError(error: unknown) {
+  if (error && typeof error === "object" && "name" in error) {
+    const name = String((error as { name?: string }).name || "PlayError");
+    if (name === "NotAllowedError") return "blocked_by_browser";
+    if (name === "NotSupportedError") return "unsupported";
+    if (name === "AbortError") return "aborted";
+    return name;
   }
-  const now = ctx.currentTime;
-  const master = ctx.createGain();
-  master.gain.setValueAtTime(0.0001, now);
-  master.connect(ctx.destination);
-
-  const notes =
-    kind === "accepted" ? [392, 523.25] :
-    kind === "preparing" ? [349.23, 440] :
-    kind === "ready" ? [440, 554.37, 659.25] :
-    kind === "welcome" ? [329.63, 415.3, 523.25] :
-    [392, 523.25, 659.25];
-
-  notes.forEach((freq, index) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(freq, now);
-    const start = now + index * 0.16;
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.08, start + 0.04);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.42);
-    osc.connect(gain);
-    gain.connect(master);
-    osc.start(start);
-    osc.stop(start + 0.45);
-  });
-  master.gain.exponentialRampToValueAtTime(0.12, now + 0.05);
-  master.gain.exponentialRampToValueAtTime(0.0001, now + 1.35);
-  window.setTimeout(() => void ctx.close(), 1600);
-  return true;
+  return "play_failed";
 }
 
-export function playNotificationEvent(eventType: string, notificationId: string) {
+export async function playIvoireCue(kind: IvoireTone, volume = 0.72): Promise<PlayResult> {
+  if (typeof window === "undefined") return { ok: false, reason: "server" };
+  const el = audioElement();
+  const src = ivoireCueSrc[kind];
+  try {
+    if (!el.src.endsWith(src)) el.src = src;
+    el.muted = false;
+    el.volume = volume;
+    el.currentTime = 0;
+    const play = el.play();
+    if (play) await play;
+    unlocked = true;
+    logAudio("play_resolved", { kind });
+    return { ok: true };
+  } catch (error) {
+    const reason = reasonFromError(error);
+    logAudio("play_rejected", { kind, reason });
+    return { ok: false, reason };
+  }
+}
+
+export async function unlockIvoireAudio(): Promise<PlayResult> {
+  if (typeof window === "undefined") return { ok: false, reason: "server" };
+  if (unlocked) return { ok: true };
+  if (unlocking) return unlocking;
+  unlocking = (async () => {
+    const el = audioElement();
+    try {
+      el.src = UNLOCK_SRC;
+      el.muted = false;
+      el.volume = 0.04;
+      const play = el.play();
+      if (play) await play;
+      el.pause();
+      el.currentTime = 0;
+      el.muted = false;
+      el.volume = 0.72;
+      unlocked = true;
+      logAudio("unlock_resolved");
+      return { ok: true } as const;
+    } catch (error) {
+      const reason = reasonFromError(error);
+      logAudio("unlock_rejected", { reason });
+      return { ok: false, reason } as const;
+    } finally {
+      unlocking = null;
+    }
+  })();
+  return unlocking;
+}
+
+export function installIvoireAudioUnlock() {
+  if (typeof window === "undefined") return () => undefined;
+  const onGesture = () => {
+    void unlockIvoireAudio();
+  };
+  window.addEventListener("pointerdown", onGesture, { once: true, capture: true });
+  window.addEventListener("touchstart", onGesture, { once: true, capture: true, passive: true });
+  window.addEventListener("keydown", onGesture, { once: true, capture: true });
+  return () => {
+    window.removeEventListener("pointerdown", onGesture, true);
+    window.removeEventListener("touchstart", onGesture, true);
+    window.removeEventListener("keydown", onGesture, true);
+  };
+}
+
+export async function playNotificationEvent(eventType: string, notificationId: string): Promise<boolean> {
   if (hasPlayedNotification(notificationId)) return false;
   const tone = toneForEvent(eventType);
   if (!tone) return false;
+  const result = await playIvoireCue(tone);
+  if (!result.ok) return false;
   markPlayedNotification(notificationId);
-  return playIvoireTone(tone);
+  return true;
 }

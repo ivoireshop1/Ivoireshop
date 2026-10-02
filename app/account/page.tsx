@@ -21,6 +21,7 @@ import { getWishlistProductsForUser } from "@/src/lib/wishlist/wishlist-server";
 import { WishlistButton } from "@/src/components/wishlist/wishlist-button";
 import { isCustomerCurrentOrder } from "@/src/lib/orders/buckets";
 import { AccountWelcome } from "@/src/components/customer/account-welcome";
+import { NotificationSoundsToggle } from "@/src/components/customer/notification-sounds-toggle";
 
 export const metadata = pageMetadata("Your Account", "Manage your account and view your orders.", "/account", false);
 
@@ -63,6 +64,7 @@ export default async function AccountPage() {
       <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-6 sm:py-10">
         <CustomerAccountNav />
         <CustomerHero firstName={heroName} />
+        <NotificationSoundsToggle enabled={profile?.notification_sounds !== false} />
         {prominent ? (
           <div className="mt-8">
             <CustomerAlertBanner item={prominent} />
