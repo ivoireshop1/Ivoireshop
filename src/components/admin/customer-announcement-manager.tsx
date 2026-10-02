@@ -7,6 +7,7 @@ import {
 } from "@/src/lib/admin/customer-announcement-actions";
 import { displayAnnouncementStatus, toDatetimeLocalValue, type CustomerAnnouncement } from "@/src/lib/admin/announcement-helpers";
 import { AdminSaveButton } from "@/src/components/admin/admin-save-button";
+import { formatStoreDateTime } from "@/src/lib/store/timezone";
 
 export function CustomerAnnouncementManager({
   announcements,
@@ -56,7 +57,7 @@ export function CustomerAnnouncementManager({
                 <span className="rounded-full bg-[#173f35]/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#173f35]">{status}</span>
               </div>
               <p className="mt-2 whitespace-pre-line text-sm text-[#6b6b6b]">{announcement.message}</p>
-              <p className="mt-2 text-xs text-[#6b6b6b]">Published: {announcement.published_at ? new Date(announcement.published_at).toLocaleString() : "—"} · Expires: {announcement.ends_at ? new Date(announcement.ends_at).toLocaleString() : "—"}</p>
+              <p className="mt-2 text-xs text-[#6b6b6b]">Published: {announcement.published_at ? formatStoreDateTime(announcement.published_at) : "—"} · Expires: {announcement.ends_at ? formatStoreDateTime(announcement.ends_at) : "—"}</p>
               <form action={updateCustomerAnnouncement} className="mt-4 grid gap-3 sm:grid-cols-2">
                 <input name="id" type="hidden" value={announcement.id} />
                 <label className="block text-sm sm:col-span-2">Title<input className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3" defaultValue={announcement.title} name="title" /></label>

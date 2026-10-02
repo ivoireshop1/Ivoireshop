@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import LogoutButton from "@/src/components/auth/logout-button";
 import { NotificationBell } from "@/src/components/customer/notification-bell";
 import { LiveConnectionBadge } from "@/src/components/realtime/live-connection-badge";
-import { AdminRealtimeDiagnostic } from "@/src/components/admin/admin-realtime-diagnostic";
 
 const navigation = [
   { href: "/admin", label: "Dashboard" },
@@ -38,7 +37,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#f7f1e8] text-[#1a1a1a]">
+    <div className="min-h-screen bg-[#f7f1e8] text-[#1a1a1a]">
       <div className="mx-auto flex max-w-[1600px] flex-col lg:flex-row">
         <aside className="border-b border-[#173f35]/10 bg-[#f5efe6] lg:min-h-screen lg:w-[280px] lg:shrink-0 lg:border-b-0 lg:border-r">
           <div className="flex items-center justify-between gap-3 border-b border-[#173f35]/10 px-4 py-4 sm:px-6">
@@ -92,9 +91,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
         <div className="min-w-0 flex-1">
           <main className="px-4 py-6 md:px-8">
-            <div className="mb-4">
-              <AdminRealtimeDiagnostic />
-            </div>
             {children}
           </main>
         </div>

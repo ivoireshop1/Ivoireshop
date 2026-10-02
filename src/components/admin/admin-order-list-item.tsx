@@ -3,7 +3,8 @@ import Link from "next/link";
 import { orderStatusLabel, paymentStatusLabel } from "@/src/lib/orders/status";
 import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
 import { carrierOpsLines } from "@/src/lib/delivery/tracking";
-import { isAdminNewOrder, formatOrderDate } from "@/src/lib/orders/buckets";
+import { isAdminNewOrder } from "@/src/lib/orders/buckets";
+import { formatStoreCompact } from "@/src/lib/store/timezone";
 
 export type AdminOrderListItemData = {
   id: string;
@@ -113,7 +114,7 @@ export function AdminOrderListItem({ order }: { order: AdminOrderListItemData })
         )}
       </Field>
       <Field label="Date">
-        <p className="whitespace-nowrap text-[#173f35]">{formatOrderDate(order.created_at)}</p>
+        <p className="whitespace-nowrap text-[#173f35]">{formatStoreCompact(order.created_at)}</p>
       </Field>
     </Link>
   );

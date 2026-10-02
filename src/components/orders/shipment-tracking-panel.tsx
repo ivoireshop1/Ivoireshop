@@ -1,4 +1,5 @@
 import { carrierDisplayName, isCarrierOrder, officialTrackLabel, trackingUrl } from "@/src/lib/delivery/tracking";
+import { formatStoreDate } from "@/src/lib/store/timezone";
 
 export function ShipmentTrackingPanel({
   order,
@@ -24,7 +25,7 @@ export function ShipmentTrackingPanel({
       <p className="mt-2 text-lg font-semibold text-forest-green">{carrier}</p>
       <p className="mt-2 text-sm text-muted">Tracking number</p>
       <p className="mt-1 break-all font-mono text-sm text-forest-green">{tracking}</p>
-      {order.shipped_at ? <p className="mt-1 text-sm text-muted">Shipped {new Date(order.shipped_at).toLocaleDateString()}</p> : null}
+      {order.shipped_at ? <p className="mt-1 text-sm text-muted">Shipped {formatStoreDate(order.shipped_at)}</p> : null}
       {href ? (
         <a className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-forest-green px-4 py-2 text-sm font-semibold text-white" href={href} rel="noreferrer" target="_blank">
           {officialTrackLabel(provider)}

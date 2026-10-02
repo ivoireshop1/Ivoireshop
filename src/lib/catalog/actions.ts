@@ -534,9 +534,11 @@ export async function updateInventory(formData: FormData) {
 export type OrderStatusActionState = {
   error?: string;
   saved?: boolean;
+  status?: string;
 };
 
 export async function updateOrderStatus(_prev: OrderStatusActionState | null, formData: FormData): Promise<OrderStatusActionState> {
+  const started = Date.now();
   const { supabase } = await requireAdmin();
   const id = textValue(formData, "id");
   const status = textValue(formData, "status");
@@ -555,14 +557,14 @@ export async function updateOrderStatus(_prev: OrderStatusActionState | null, fo
   const { data: changed, error } = await supabase.from("orders").update({ status })
     .eq("id", id).eq("status", current.status).select("id").maybeSingle();
   if (error || !changed) return { error: "Status could not be updated. Try again." };
-  const emailSent = await notifyFulfillmentEmail(supabase, id, status);
-  await recordFulfillmentNotification(supabase, id, status, Boolean(emailSent), current.fulfillment_provider);
-
-  revalidatePath("/admin");
-  revalidatePath("/admin/orders");
-  revalidatePath(`/admin/orders/${id}`);
-  revalidatePath("/account");
-  revalidatePath(`/account/orders/${id}`);
-  revalidatePath("/account/notifications");
-  return { saved: true };
+  const afterDb = Date.now();
+  await recordFulfillmentNotification(supabase, id, status, false, current.fulfillment_provider);
+  const afterNotify = Date.now();
+  void notifyFulfillmentEmail(supabase, id, status);
+  console.info("[order-status]", {
+    dbMs: afterDb - started,
+    notifyMs: afterNotify - afterDb,
+    totalMs: afterNotify - started,
+  });
+  return { saved: true, status };
 }

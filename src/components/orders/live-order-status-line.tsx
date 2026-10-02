@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/src/lib/supabase/browser";
-import { formatOrderDate } from "@/src/lib/orders/buckets";
+import { formatStoreDateTime } from "@/src/lib/store/timezone";
 import { orderStatusLabel, paymentProviderLabel, paymentStatusLabel } from "@/src/lib/orders/status";
 import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
 import { useLiveNotifications } from "@/src/components/realtime/live-notifications-provider";
@@ -57,7 +57,7 @@ export function LiveOrderStatusLine({
   return (
     <>
       <p className="mt-3 text-muted">
-        {formatOrderDate(createdAt)} · {new Date(createdAt).toLocaleTimeString()} · {orderStatusLabel(live.status, live.fulfillment_method, live.fulfillment_provider)} · {fulfillmentDisplay({ fulfillment_method: live.fulfillment_method, fulfillment_provider: live.fulfillment_provider })}
+        {formatStoreDateTime(createdAt)} · {orderStatusLabel(live.status, live.fulfillment_method, live.fulfillment_provider)} · {fulfillmentDisplay({ fulfillment_method: live.fulfillment_method, fulfillment_provider: live.fulfillment_provider })}
       </p>
       <p className="mt-3 text-muted">
         {paymentStatusLabel(live.payment_status, live.payment_provider)}

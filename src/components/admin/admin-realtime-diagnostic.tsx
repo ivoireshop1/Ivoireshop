@@ -1,6 +1,7 @@
 "use client";
 
 import { useLiveNotifications } from "@/src/components/realtime/live-notifications-provider";
+import { formatStoreTime } from "@/src/lib/store/timezone";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -31,11 +32,11 @@ export function AdminRealtimeDiagnostic() {
         <Row label="JWT attached" value={probe.jwtAttached} />
         <Row label="Channel" value={probe.channelName} />
         <Row label="Channel status" value={connected ? "SUBSCRIBED" : probe.channelStatus} />
-        <Row label="Last database event" value={probe.lastDbEventAt ? new Date(probe.lastDbEventAt).toLocaleTimeString() : "NONE"} />
+        <Row label="Last database event" value={probe.lastDbEventAt ? formatStoreTime(probe.lastDbEventAt) : "NONE"} />
         <Row label="Last event table" value={probe.lastDbTable ?? "NONE"} />
         <Row label="Last event type" value={probe.lastDbEventType ?? "NONE"} />
         <Row label="Last event ID" value={probe.lastDbIdShort ?? "NONE"} />
-        <Row label="Last UI update" value={probe.lastUiUpdateAt ? new Date(probe.lastUiUpdateAt).toLocaleTimeString() : "NONE"} />
+        <Row label="Last UI update" value={probe.lastUiUpdateAt ? formatStoreTime(probe.lastUiUpdateAt) : "NONE"} />
         <Row label="Audio unlocked" value={audioUnlocked ? "YES" : "NO"} />
         <Row label="Last sound requested" value={lastPlay?.cue ?? "NONE"} />
         <Row label="Last play()" value={playLabel} />

@@ -3,7 +3,7 @@ import Image from "next/image";
 import { ReorderButton } from "@/src/components/customer/reorder-button";
 import { fulfillmentLabel } from "@/src/lib/fulfillment/fulfillment";
 import { orderStatusLabel, paymentStatusLabel } from "@/src/lib/orders/status";
-import { formatOrderDate } from "@/src/lib/orders/buckets";
+import { formatStoreDate } from "@/src/lib/store/timezone";
 import { isNextImageSrc } from "@/src/lib/catalog/image-url";
 import { isCarrierOrder, officialTrackLabel, trackingUrl } from "@/src/lib/delivery/tracking";
 
@@ -38,7 +38,7 @@ export function CustomerOrderCard({ order }: { order: CustomerOrderSummary }) {
             <p className="mt-1 font-mono text-sm tracking-[0.14em] text-forest-green">{order.confirmation_code}</p>
           ) : null}
           <p className="mt-1 text-sm text-muted">
-            {formatOrderDate(order.created_at)} · {itemCount} item{itemCount === 1 ? "" : "s"}
+            {formatStoreDate(order.created_at)} · {itemCount} item{itemCount === 1 ? "" : "s"}
           </p>
         </div>
         <div className="text-right">

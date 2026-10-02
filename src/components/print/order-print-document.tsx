@@ -3,6 +3,7 @@ import { formatPrintAddress, money, orderPrintTitle, type OrderPrintKind, type P
 import { PrintToolbar } from "@/src/components/print/print-toolbar";
 import { pickupLocationForOrder } from "@/src/components/store/pickup-location-block";
 import { formatOriginLines } from "@/src/lib/delivery/origin";
+import { formatStoreDateTime } from "@/src/lib/store/timezone";
 
 type PrintItem = {
   product_name: string;
@@ -60,7 +61,7 @@ export function OrderPrintDocument({
         <p className="text-xs uppercase tracking-[0.24em]">Ivoire Shop</p>
         <h1 className="mt-2 text-3xl font-semibold">{title}</h1>
         <p className="mt-2 text-sm">Order {order.order_number}</p>
-        <p className="text-sm">{new Date(order.created_at).toLocaleString()}</p>
+        <p className="text-sm">{formatStoreDateTime(order.created_at)}</p>
       </header>
 
       <section className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -119,7 +120,7 @@ export function OrderPrintDocument({
         <p className="mt-2 text-xs">
           Item count: {items.reduce((sum, item) => sum + Number(item.quantity), 0)} · Carrier: {order.fulfillment_provider || "Not assigned"} · Method: {fulfillment}
           {order.tracking_number ? ` · Tracking: ${order.tracking_number}` : ""}
-          {order.shipped_at ? ` · Ship date: ${new Date(order.shipped_at).toLocaleString()}` : ""}
+          {order.shipped_at ? ` · Ship date: ${formatStoreDateTime(order.shipped_at)}` : ""}
         </p>
       ) : null}
 
@@ -147,7 +148,7 @@ export function OrderPrintDocument({
           <p>Fulfillment: {fulfillment}</p>
           {order.fulfillment_provider ? <p>Carrier: {String(order.fulfillment_provider).toUpperCase()}</p> : null}
           {order.tracking_number ? <p className="break-all">Tracking: {order.tracking_number}</p> : null}
-          {order.shipped_at ? <p>Ship date: {new Date(order.shipped_at).toLocaleString()}</p> : null}
+          {order.shipped_at ? <p>Ship date: {formatStoreDateTime(order.shipped_at)}</p> : null}
           {order.postage_cost != null ? <p>Actual postage: {money(order.postage_cost)}</p> : null}
         </div>
       ) : null}
@@ -163,11 +164,11 @@ export function OrderPrintDocument({
           {order.tracking_number ? <p className="break-all">Tracking: {order.tracking_number}</p> : tracking ? <p className="break-all">Tracking: {tracking}</p> : <p className="mt-2 text-xs">Tracking appears here after admin enters the carrier tracking number.</p>}
           {order.postage_cost != null ? <p>Actual postage: {money(order.postage_cost)}</p> : null}
           <p>Shipping collected: {money(order.shipping_cost)}</p>
-          {order.shipped_at ? <p>Ship date: {new Date(order.shipped_at).toLocaleString()}</p> : null}
+          {order.shipped_at ? <p>Ship date: {formatStoreDateTime(order.shipped_at)}</p> : null}
         </section>
       ) : null}
 
-      <p className="mt-10 text-xs">Ivoire Shop · Printed {new Date().toLocaleString()}</p>
+      <p className="mt-10 text-xs">Ivoire Shop · Printed {formatStoreDateTime(new Date())}</p>
     </article>
   );
 }

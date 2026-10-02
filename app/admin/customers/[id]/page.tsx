@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
+import { formatStoreDateTime } from "@/src/lib/store/timezone";
 
 type AccountStatus = {
   user_id: string;
@@ -14,7 +15,7 @@ type AccountStatus = {
 
 function formatWhen(value: string | null | undefined) {
   if (!value) return "Not available";
-  return new Date(value).toLocaleString();
+  return formatStoreDateTime(value);
 }
 
 function customerStatus(role: string | null | undefined, account: AccountStatus | null) {

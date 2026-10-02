@@ -1,4 +1,5 @@
 import { buildOrderTimeline } from "@/src/lib/orders/timeline";
+import { formatStoreDateTime } from "@/src/lib/store/timezone";
 
 export function OrderTimeline({
   order,
@@ -22,7 +23,7 @@ export function OrderTimeline({
           </span>
           <div className="min-w-0">
             <p className={`font-medium ${step.current ? "text-forest-green" : "text-forest-green/80"}`}>{step.label}</p>
-            {step.at ? <p className="text-xs text-muted">{new Date(step.at).toLocaleString()}</p> : null}
+            {step.at ? <p className="text-xs text-muted">{formatStoreDateTime(step.at)}</p> : null}
           </div>
         </li>
       ))}

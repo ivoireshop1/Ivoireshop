@@ -11,6 +11,7 @@ import {
   playNotificationEvent,
 } from "@/src/lib/audio/ivoire-tones";
 import type { InboxItem } from "@/src/lib/notifications/inbox-item";
+import { mergeInboxItems } from "@/src/lib/notifications/merge";
 
 export type LiveConnection = "offline" | "reconnecting" | "live";
 
@@ -75,6 +76,7 @@ type LiveContextValue = {
   markItemRead: (item: InboxItem) => void;
   markAllRead: () => void;
   dismissToast: (id: string) => void;
+  bumpLiveOrder: (orderId?: string) => void;
 };
 
 const LiveContext = createContext<LiveContextValue | null>(null);
@@ -160,15 +162,15 @@ export function LiveNotificationsProvider({
   }, []);
 
   const mergeItems = useCallback((incoming: InboxItem[]) => {
-    setItems((current) => {
-      const next = [...current];
-      for (const row of incoming) {
-        const index = next.findIndex((item) => item.id === row.id && item.kind === row.kind);
-        if (index >= 0) next[index] = { ...next[index], ...row };
-        else next.unshift(row);
-      }
-      return next.slice(0, 80);
-    });
+    setItems((current) => mergeInboxItems(current, incoming));
+  }, []);
+
+  const bumpLiveOrder = useCallback((orderId?: string) => {
+    const now = Date.now();
+    if (orderId) {
+      setOrderTicks((current) => ({ ...current, [orderId]: now }));
+    }
+    setDashboardTick(now);
   }, []);
 
   const ingestLive = useCallback((row: InboxItem, audience: "admin" | "customer") => {
@@ -540,8 +542,9 @@ export function LiveNotificationsProvider({
       markItemRead,
       markAllRead,
       dismissToast: (id: string) => setToasts((current) => current.filter((item) => item.id !== id)),
+      bumpLiveOrder,
     }),
-    [role, connection, unread, items, toasts, soundsEnabled, audioUnlocked, dashboardTick, lastEvent, lastPlay, probe, orderTicks, markItemRead, markAllRead],
+    [role, connection, unread, items, toasts, soundsEnabled, audioUnlocked, dashboardTick, lastEvent, lastPlay, probe, orderTicks, markItemRead, markAllRead, bumpLiveOrder],
   );
 
   return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;
@@ -566,6 +569,7 @@ export function useLiveNotifications() {
       markItemRead: () => undefined,
       markAllRead: () => undefined,
       dismissToast: () => undefined,
+      bumpLiveOrder: () => undefined,
     };
   }
   return value;

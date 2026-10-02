@@ -2,6 +2,7 @@ import { money } from "@/src/lib/print/kinds";
 import { PrintToolbar } from "@/src/components/print/print-toolbar";
 import { catalogPrintTitle, type CatalogPrintKind } from "@/src/lib/print/kinds";
 import { isLowStock } from "@/src/lib/catalog/low-stock";
+import { formatStoreDateTime } from "@/src/lib/store/timezone";
 
 export type PrintProduct = {
   name: string;
@@ -95,7 +96,7 @@ export function CatalogPrintDocument({ kind, products }: { kind: CatalogPrintKin
           </tbody>
         </table>
       </div>
-      <p className="mt-10 text-xs">Ivoire Shop · Printed {new Date().toLocaleString()}</p>
+      <p className="mt-10 text-xs">Ivoire Shop · Printed {formatStoreDateTime(new Date())}</p>
     </article>
   );
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { isShipmentInboxEvent, notificationIcon } from "@/src/lib/notifications/events";
 import { acknowledgeInboxItem } from "@/src/lib/notifications/actions";
 import type { InboxItem } from "@/src/lib/notifications/inbox-item";
+import { formatStoreDateTime } from "@/src/lib/store/timezone";
 
 export function NotificationCard({ item }: { item: InboxItem }) {
   const unread = !item.read_at && !item.dismissed_at;
@@ -13,7 +14,7 @@ export function NotificationCard({ item }: { item: InboxItem }) {
           {notificationIcon(item.event_type)}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted">{new Date(item.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</p>
+          <p className="text-xs text-muted">{formatStoreDateTime(item.created_at)}</p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-semibold text-forest-green">{item.title}</h2>
             {unread ? <span className="rounded-full bg-gold px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-forest-green">Unread</span> : <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">Read</span>}

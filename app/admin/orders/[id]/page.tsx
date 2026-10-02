@@ -12,6 +12,7 @@ import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 import { OrderLine } from "@/src/components/orders/order-line";
 import { LiveOrderTimeline } from "@/src/components/orders/live-order-timeline";
 import { toOrderLineItem } from "@/src/lib/orders/line-image";
+import { formatStoreDateTime } from "@/src/lib/store/timezone";
 
 export default async function OrderDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; success?: string }> }) {
   const [{ id }, notices] = await Promise.all([params, searchParams]);
@@ -30,7 +31,7 @@ export default async function OrderDetailPage({ params, searchParams }: { params
       <div>
         <p className="text-[11px] uppercase tracking-[0.2em] text-[#b8964c]">Order</p>
         <h1 className="mt-2 break-words text-3xl font-semibold text-[#173f35]">{order.order_number}</h1>
-        <p className="mt-2 text-sm capitalize">{orderStatusLabel(order.status, order.fulfillment_method, order.fulfillment_provider)} &middot; {new Date(order.created_at).toLocaleString()}</p>
+        <p className="mt-2 text-sm capitalize">{orderStatusLabel(order.status, order.fulfillment_method, order.fulfillment_provider)} &middot; {formatStoreDateTime(order.created_at)}</p>
       </div>
       <AdminOrderPrintControl orderId={order.id} />
       <section className="rounded-2xl border border-[#b8964c]/40 bg-white p-5">

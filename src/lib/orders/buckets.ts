@@ -35,5 +35,10 @@ export function isCustomerCurrentOrder(status: string, paymentStatus?: string | 
 }
 
 export function formatOrderDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: process.env.NEXT_PUBLIC_STORE_TIMEZONE || "America/New_York",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(iso));
 }

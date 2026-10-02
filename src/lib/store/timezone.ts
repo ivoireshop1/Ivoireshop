@@ -31,12 +31,45 @@ export function storeGreetingAt(date: Date, timeZone = storeTimeZone()) {
 }
 
 export function formatInStoreTimeZone(date: Date | string, timeZone = storeTimeZone()) {
-  const value = typeof date === "string" ? new Date(date) : date;
+  return formatStoreDateTime(date, timeZone);
+}
+
+export function formatStoreDate(date: Date | string, timeZone = storeTimeZone()) {
   return new Intl.DateTimeFormat("en-US", {
     timeZone,
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(value);
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(toDate(date));
+}
+
+export function formatStoreTime(date: Date | string, timeZone = storeTimeZone()) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(toDate(date));
+}
+
+export function formatStoreDateTime(date: Date | string, timeZone = storeTimeZone()) {
+  return `${formatStoreDate(date, timeZone)} at ${formatStoreTime(date, timeZone)}`;
+}
+
+export function formatStoreCompact(date: Date | string, timeZone = storeTimeZone()) {
+  const value = toDate(date);
+  return `${formatStoreShortDate(value, timeZone)}, ${formatStoreTime(value, timeZone)}`;
+}
+
+export function formatStoreShortDate(date: Date | string, timeZone = storeTimeZone()) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    month: "short",
+    day: "numeric",
+  }).format(toDate(date));
+}
+
+function toDate(date: Date | string) {
+  return typeof date === "string" ? new Date(date) : date;
 }
 
 export function startOfStoreDayIso(date = new Date(), timeZone = storeTimeZone()) {

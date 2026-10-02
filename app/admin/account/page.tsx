@@ -16,7 +16,12 @@ export default async function AdminAccountPage() {
       <p className="text-sm text-[#6b6b6b]">Change the password for this signed-in administrator. This uses your existing Ivoire Shop login.</p>
       <ChangePasswordForm />
       <AdminNotificationSoundsToggle enabled={profile?.admin_notification_sounds !== false} />
-      <AdminRealtimeDiagnostic />
+      <section className="space-y-3">
+        <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#b8964c]">Diagnostics</p>
+        <h2 className="text-xl font-semibold text-[#173f35]">Realtime diagnostics</h2>
+        <p className="text-sm text-[#6b6b6b]">Admin-only technical probe. It is not shown on the dashboard during normal store operation.</p>
+        <AdminRealtimeDiagnostic />
+      </section>
     </div>
   );
 }

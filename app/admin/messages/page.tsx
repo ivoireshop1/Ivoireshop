@@ -1,5 +1,6 @@
 import { pageMetadata } from "@/src/lib/page-metadata";
 import { requireAdmin } from "@/src/lib/auth/guards";
+import { formatStoreDateTime } from "@/src/lib/store/timezone";
 
 export const metadata = pageMetadata("Customer messages", "Website inquiries from the contact form.", "/admin/messages", false);
 
@@ -21,7 +22,7 @@ export default async function AdminMessagesPage() {
             <p className="font-semibold text-[#173f35]">{row.name}</p>
             <p className="break-all text-sm text-[#6b6b6b]">{row.email}</p>
             <p className="mt-2 whitespace-pre-line text-sm text-[#173f35]">{row.message}</p>
-            <p className="mt-2 text-xs text-[#6b6b6b]">{new Date(row.created_at).toLocaleString()}</p>
+            <p className="mt-2 text-xs text-[#6b6b6b]">{formatStoreDateTime(row.created_at)}</p>
           </li>
         )) : (
           <li className="rounded-2xl border border-dashed border-[#173f35]/20 bg-white p-6 text-sm text-[#6b6b6b]">No website messages yet.</li>

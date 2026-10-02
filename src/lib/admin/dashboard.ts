@@ -3,7 +3,7 @@ import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
 import { parseTaxMode, taxModeLabel } from "@/src/lib/tax/totals";
 import { productMissingRequirements, productNeedsReview, productReadyToPublish } from "@/src/lib/catalog/product-readiness";
 import { describeStoreStatus, getStoreStatus } from "@/src/lib/store/status";
-import { startOfStoreDayIso, storeGreetingAt } from "@/src/lib/store/timezone";
+import { startOfStoreDayIso, storeGreetingAt, formatStoreShortDate } from "@/src/lib/store/timezone";
 import { recordAdminIncident } from "@/src/lib/ops/incident";
 
 export type AdminDashboardMetric = {
@@ -350,7 +350,7 @@ async function getRevenueTrend(supabase: Awaited<ReturnType<typeof createClient>
 
   data.forEach((order) => {
     if (order.payment_status !== "paid") return;
-    const key = new Date(order.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const key = formatStoreShortDate(order.created_at);
     totalsByDay.set(key, (totalsByDay.get(key) ?? 0) + Number(order.total ?? 0));
   });
 
@@ -358,7 +358,7 @@ async function getRevenueTrend(supabase: Awaited<ReturnType<typeof createClient>
     const date = new Date();
     date.setHours(0, 0, 0, 0);
     date.setDate(date.getDate() - (6 - index));
-    const label = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const label = formatStoreShortDate(date);
     return {
       label,
       value: totalsByDay.get(label) ?? 0,
@@ -370,5 +370,5 @@ function dayLabel(offset: number) {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
   date.setDate(date.getDate() - (6 - offset));
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatStoreShortDate(date);
 }

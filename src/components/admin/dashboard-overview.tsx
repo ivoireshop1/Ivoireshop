@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AdminCard } from "@/src/components/admin/admin-card";
 import { StoreStatusControl } from "@/src/components/admin/store-status-control";
 import { refreshAdminDashboard } from "@/src/lib/admin/dashboard-refresh";
+import { formatStoreCompact } from "@/src/lib/store/timezone";
 import { useLiveNotifications } from "@/src/components/realtime/live-notifications-provider";
 
 type AdminDashboardData = Awaited<ReturnType<typeof refreshAdminDashboard>>;
@@ -256,7 +257,10 @@ export function DashboardOverview({ initial }: { initial: AdminDashboardData }) 
               </div>
               {dashboard.recentOrders.map((order) => (
                 <Link href={`/admin/orders/${order.id}`} key={order.id} className="grid grid-cols-[1.2fr_1fr_0.65fr_0.75fr_0.8fr] gap-3 border-b border-[#173f35]/10 px-4 py-3 text-sm last:border-b-0 hover:bg-[#f9f7f3]">
-                  <span className="font-medium text-[#173f35]">{order.orderNumber}</span>
+                  <span className="font-medium text-[#173f35]">
+                    {order.orderNumber}
+                    <span className="mt-1 block text-xs font-normal text-[#6b6b6b]">{formatStoreCompact(order.createdAt)}</span>
+                  </span>
                   <span className="text-[#6b6b6b]">{order.customerName}</span>
                   <span className="text-[#6b6b6b]">{order.itemCount}</span>
                   <span className="font-medium text-[#173f35]">{formatCurrency(order.total)}</span>

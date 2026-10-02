@@ -1,6 +1,7 @@
 import { pageMetadata } from "@/src/lib/page-metadata";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import Link from "next/link";
+import { formatStoreDateTime } from "@/src/lib/store/timezone";
 
 export const metadata = pageMetadata("Admin notifications", "Operational notification history.", "/admin/notifications", false);
 
@@ -25,7 +26,7 @@ export default async function AdminNotificationsPage() {
               {!row.read_at ? <span className="rounded-full bg-[#b8964c] px-2 py-0.5 text-[10px] font-semibold uppercase text-[#173f35]">Unread</span> : null}
             </div>
             <p className="mt-1 whitespace-pre-line text-sm text-[#6b6b6b]">{row.message}</p>
-            <p className="mt-2 text-xs text-[#6b6b6b]">{new Date(row.created_at).toLocaleString()}</p>
+            <p className="mt-2 text-xs text-[#6b6b6b]">{formatStoreDateTime(row.created_at)}</p>
             {row.target_path ? (
               <Link className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-[#173f35] underline" href={row.target_path}>
                 View

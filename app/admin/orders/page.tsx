@@ -1,7 +1,7 @@
-import { AdminOrderListHeader, AdminOrderListItem } from "@/src/components/admin/admin-order-list-item";
 import { orderStatusLabel, orderStatuses, paymentStatusLabel } from "@/src/lib/orders/status";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
+import { LiveAdminOrderList } from "@/src/components/admin/live-admin-order-list";
 import type { AdminOrderView } from "@/src/lib/orders/buckets";
 import Link from "next/link";
 
@@ -112,19 +112,7 @@ export default async function AdminOrdersPage({
           <button className="min-h-11 w-full rounded-xl bg-[#173f35] px-4 py-2.5 text-sm font-medium text-white @4xl:w-auto @4xl:min-w-28" type="submit">Filter</button>
         </div>
       </form>
-      {!orders?.length ? (
-        <div className="rounded-2xl border border-dashed border-[#173f35]/20 bg-white p-10 text-center">
-          <p className="font-medium text-[#173f35]">No matching orders</p>
-          <p className="mt-2 text-sm text-[#6b6b6b]">Orders in this operational state will appear here.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <AdminOrderListHeader />
-          {orders.map((order) => (
-            <AdminOrderListItem key={order.id} order={order} />
-          ))}
-        </div>
-      )}
+      <LiveAdminOrderList initialOrders={orders ?? []} key={view} view={view} />
     </div>
   );
 }

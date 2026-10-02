@@ -10,4 +10,5 @@ test("maps admin and customer events to existing cues", () => {
   assert.equal(toneForEvent("shipping_attention"), "ready");
   assert.equal(toneForEvent("preparing"), "preparing");
   assert.equal(toneForEvent("completed"), "success");
+  assert.equal(toneForEvent("tracking_added"), "ready");
 });

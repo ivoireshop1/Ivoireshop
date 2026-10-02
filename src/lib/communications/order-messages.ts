@@ -2,6 +2,7 @@ import "server-only";
 
 import { sendTransactionalEmail, type EmailPayload } from "@/src/lib/email/send";
 import { paymentProviderLabel, paymentStatusLabel } from "@/src/lib/orders/status";
+import { formatStoreDateTime } from "@/src/lib/store/timezone";
 
 type Event = "received" | "status_updated" | "fulfilled" | "cancelled";
 type MessageOrder = {
@@ -68,7 +69,7 @@ function money(value: number | string | undefined) {
 }
 
 function formatDate(value?: string) {
-  return value ? new Date(value).toLocaleString() : new Date().toLocaleString();
+  return value ? formatStoreDateTime(value) : formatStoreDateTime(new Date());
 }
 
 function deliveryLines(order: ConfirmationOrder) {

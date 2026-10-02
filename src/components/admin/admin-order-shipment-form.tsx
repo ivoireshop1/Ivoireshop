@@ -1,9 +1,11 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { saveOrderShipment, type ShipmentActionState } from "@/src/lib/delivery/actions";
 import { carrierDisplayName, isCarrierOrder, shippingOpsStatus } from "@/src/lib/delivery/tracking";
+import { formatStoreDateTime } from "@/src/lib/store/timezone";
+import { useLiveNotifications } from "@/src/components/realtime/live-notifications-provider";
 
 function SubmitButton({ label, success }: { label: string; success?: boolean }) {
   const { pending } = useFormStatus();
@@ -39,6 +41,10 @@ export function AdminOrderShipmentForm({
 }) {
   const [state, action] = useActionState(saveOrderShipment, null as ShipmentActionState | null);
   const [editing, setEditing] = useState(!order.tracking_number);
+  const live = useLiveNotifications();
+  useEffect(() => {
+    if (state?.saved) live.bumpLiveOrder(order.id);
+  }, [state?.saved, live, order.id]);
   if (!isCarrierOrder(order.fulfillment_provider)) return null;
   const ops = shippingOpsStatus(order);
   const carrier = carrierDisplayName(order.fulfillment_provider);
@@ -53,7 +59,7 @@ export function AdminOrderShipmentForm({
         <div className="flex justify-between gap-4"><dt>Shipping collected</dt><dd>${Number(order.shipping_cost ?? 0).toFixed(2)}</dd></div>
         <div className="flex justify-between gap-4"><dt>Actual postage</dt><dd>{order.postage_cost == null ? "—" : `$${Number(order.postage_cost).toFixed(2)}`}</dd></div>
         <div className="flex justify-between gap-4"><dt>Shipping status</dt><dd>{ops === "missing-tracking" ? "Shipped · missing tracking" : ops === "awaiting-shipment" ? "Awaiting shipment" : ops?.replace("-", " ") || "Awaiting shipment"}</dd></div>
-        {order.shipped_at ? <div className="flex justify-between gap-4"><dt>Ship date</dt><dd>{new Date(order.shipped_at).toLocaleString()}</dd></div> : null}
+        {order.shipped_at ? <div className="flex justify-between gap-4"><dt>Ship date</dt><dd>{formatStoreDateTime(order.shipped_at)}</dd></div> : null}
       </dl>
       {locked ? (
         <div className="mt-4 space-y-3">
