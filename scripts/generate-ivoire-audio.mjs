@@ -90,7 +90,7 @@ const cues = {
   ),
 };
 
-const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "audio");
+const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "sounds");
 mkdirSync(dir, { recursive: true });
 for (const [name, samples] of Object.entries(cues)) {
   writeFileSync(join(dir, name), wavBuffer(samples));

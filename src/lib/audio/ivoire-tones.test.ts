@@ -9,6 +9,6 @@ test("maps order events to short local cue files", () => {
   assert.equal(toneForEvent("shipped"), "ready");
   assert.equal(toneForEvent("completed"), "success");
   assert.equal(toneForEvent("announcement"), null);
-  assert.equal(ivoireCueSrc.ready, "/audio/ivoire-ready.wav");
-  assert.equal(ivoireCueSrc.welcome, "/audio/ivoire-welcome.wav");
+  assert.equal(ivoireCueSrc.ready, "/sounds/ivoire-ready.wav");
+  assert.equal(ivoireCueSrc.welcome, "/sounds/ivoire-welcome.wav");
 });

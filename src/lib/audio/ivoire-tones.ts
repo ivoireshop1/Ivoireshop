@@ -3,14 +3,14 @@
 export type IvoireTone = "accepted" | "preparing" | "ready" | "success" | "welcome";
 
 const STORAGE_KEY = "ivoire-played-notifications";
-const UNLOCK_SRC = "/audio/ivoire-unlock.wav";
+const UNLOCK_SRC = "/sounds/ivoire-unlock.wav";
 
 export const ivoireCueSrc: Record<IvoireTone, string> = {
-  accepted: "/audio/ivoire-accepted.wav",
-  preparing: "/audio/ivoire-preparing.wav",
-  ready: "/audio/ivoire-ready.wav",
-  success: "/audio/ivoire-success.wav",
-  welcome: "/audio/ivoire-welcome.wav",
+  accepted: "/sounds/ivoire-accepted.wav",
+  preparing: "/sounds/ivoire-preparing.wav",
+  ready: "/sounds/ivoire-ready.wav",
+  success: "/sounds/ivoire-success.wav",
+  welcome: "/sounds/ivoire-welcome.wav",
 };
 
 export type PlayResult = { ok: true } | { ok: false; reason: string };
