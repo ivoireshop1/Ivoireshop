@@ -1,7 +1,9 @@
 "use client";
 
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { CategoryImageField } from "@/src/components/admin/category-image-field";
+import type { CategorySaveState } from "@/src/lib/catalog/actions";
 
 function SubmitButton({ label, pendingLabel, className }: { label: string; pendingLabel: string; className: string }) {
   const { pending } = useFormStatus();
@@ -44,50 +46,87 @@ export function CategoryRowForm({
   updateAction,
   deleteAction,
   deactivateAction,
+  activateAction,
 }: {
   category: { id: string; name: string; slug: string; description: string | null; image_url: string | null; is_active: boolean };
   totalCount: number;
   activeCount: number;
   isCanonical: boolean;
-  updateAction: (formData: FormData) => void | Promise<void>;
+  updateAction: (prev: CategorySaveState, formData: FormData) => Promise<CategorySaveState>;
   deleteAction: (formData: FormData) => void | Promise<void>;
   deactivateAction: (formData: FormData) => void | Promise<void>;
+  activateAction: (formData: FormData) => void | Promise<void>;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [state, action] = useActionState(updateAction, null);
+
   return (
-    <form action={updateAction} className="grid gap-3 rounded-[24px] border border-[#173f35]/10 bg-white p-5 shadow-[0_10px_25px_rgba(23,63,53,0.04)] lg:grid-cols-[1.1fr_1fr_1.3fr_auto]">
-      <input name="id" type="hidden" value={category.id} />
-      <input className="min-h-11 rounded-xl border border-[#173f35]/15 px-3 py-2 read-only:bg-[#f4f1ea]" defaultValue={category.name} name="name" readOnly={isCanonical} required />
-      <input className="min-h-11 rounded-xl border border-[#173f35]/15 px-3 py-2 read-only:bg-[#f4f1ea]" defaultValue={category.slug} name="slug" readOnly={isCanonical} required />
-      <input className="min-h-11 rounded-xl border border-[#173f35]/15 px-3 py-2" defaultValue={category.description ?? ""} name="description" placeholder="Description" />
-      <label className="flex min-h-11 items-center gap-2 text-sm text-[#173f35]">
-        {isCanonical ? <input name="is_active" type="hidden" value="on" /> : null}
-        <input defaultChecked={category.is_active} disabled={isCanonical} name={isCanonical ? undefined : "is_active"} type="checkbox" />
-        Active
-      </label>
-      <div className="lg:col-span-4">
-        <CategoryImageField defaultValue={category.image_url} />
-      </div>
-      <div className="flex flex-col justify-center gap-1 text-sm text-[#6b6b6b]">
-        <span>{totalCount} total</span>
-        <span>{activeCount} active</span>
-      </div>
-      <div className="flex flex-wrap items-center gap-3 lg:col-span-4">
-        {isCanonical ? <p className="text-xs text-[#6b6b6b]">Primary storefront category. Name and slug are locked.</p> : null}
-        <SubmitButton className="min-h-11 text-sm font-medium text-[#173f35] underline-offset-2 hover:underline disabled:opacity-60" label="Save" pendingLabel="Saving..." />
-        {!isCanonical && totalCount === 0 ? (
-          <button className="min-h-11 text-sm font-medium text-[#7f1d1d] underline-offset-2 hover:underline" formAction={deleteAction} type="submit">
-            Delete
+    <article className="rounded-[24px] border border-[#173f35]/10 bg-white p-5 shadow-[0_10px_25px_rgba(23,63,53,0.04)]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold text-[#173f35]">{category.name}</h3>
+          <p className="mt-1 text-sm text-[#6b6b6b]">
+            {category.is_active ? "Active" : "Inactive"} · {totalCount} product{totalCount === 1 ? "" : "s"} ({activeCount} live)
+          </p>
+          <p className="mt-1 text-xs text-[#6b6b6b]">URL slug: {category.slug}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button className="min-h-11 rounded-xl border border-[#173f35]/20 px-4 text-sm font-semibold text-[#173f35]" onClick={() => setEditing((open) => !open)} type="button">
+            {editing ? "Close" : "Edit"}
           </button>
-        ) : null}
-        {!isCanonical && category.is_active ? (
-          <button className="min-h-11 text-sm font-medium text-[#7c5d1a] underline-offset-2 hover:underline" formAction={deactivateAction} type="submit">
-            Deactivate
-          </button>
-        ) : null}
-        {!isCanonical && totalCount > 0 ? (
-          <p className="text-xs text-[#6b6b6b]">Assigned products are kept. Deactivate instead of deleting.</p>
-        ) : null}
+          {!isCanonical && category.is_active ? (
+            <form action={deactivateAction}>
+              <input name="id" type="hidden" value={category.id} />
+              <button className="min-h-11 px-3 text-sm font-semibold text-[#7c5d1a] underline underline-offset-4" type="submit">
+                Deactivate
+              </button>
+            </form>
+          ) : null}
+          {!isCanonical && !category.is_active ? (
+            <form action={activateAction}>
+              <input name="id" type="hidden" value={category.id} />
+              <button className="min-h-11 px-3 text-sm font-semibold text-[#173f35] underline underline-offset-4" type="submit">
+                Activate
+              </button>
+            </form>
+          ) : null}
+          {!isCanonical && totalCount === 0 ? (
+            <form
+              action={deleteAction}
+              onSubmit={(event) => {
+                if (!window.confirm(`Delete ${category.name}? This cannot be undone.`)) event.preventDefault();
+              }}
+            >
+              <input name="id" type="hidden" value={category.id} />
+              <button className="min-h-11 px-3 text-sm font-semibold text-[#7f1d1d] underline underline-offset-4" type="submit">
+                Delete
+              </button>
+            </form>
+          ) : null}
+        </div>
       </div>
-    </form>
+      {state?.message ? (
+        <p className={`mt-3 text-sm ${state.ok ? "text-[#173f35]" : "text-[#7f1d1d]"}`}>{state.message}</p>
+      ) : null}
+      {editing ? (
+        <form action={action} className="mt-4 grid gap-3 border-t border-[#173f35]/10 pt-4">
+          <input name="id" type="hidden" value={category.id} />
+          <input name="slug" type="hidden" value={category.slug} />
+          {category.is_active ? <input name="is_active" type="hidden" value="on" /> : null}
+          <label className="text-sm text-[#173f35]">
+            Category Name
+            <input className="mt-2 min-h-11 w-full rounded-xl border border-[#173f35]/15 px-3 py-2" defaultValue={category.name} name="name" required />
+          </label>
+          <label className="text-sm text-[#173f35]">
+            Description
+            <input className="mt-2 min-h-11 w-full rounded-xl border border-[#173f35]/15 px-3 py-2" defaultValue={category.description ?? ""} name="description" />
+          </label>
+          <CategoryImageField defaultValue={category.image_url} />
+          {isCanonical ? <p className="text-xs text-[#6b6b6b]">Display name can change. The slug stays {category.slug} so product assignments and shop URLs remain valid.</p> : null}
+          {!isCanonical && totalCount > 0 ? <p className="text-xs text-[#6b6b6b]">Assigned products stay on this category ID. Delete is blocked while products are assigned.</p> : null}
+          <SubmitButton className="min-h-11 w-fit rounded-xl bg-[#173f35] px-4 text-sm font-medium text-white disabled:opacity-60" label="Save" pendingLabel="Saving..." />
+        </form>
+      ) : null}
+    </article>
   );
 }

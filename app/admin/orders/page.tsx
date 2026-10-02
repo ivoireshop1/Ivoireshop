@@ -29,7 +29,7 @@ export default async function AdminOrdersPage({
     .order("created_at", { ascending: false });
   if ((orderStatuses as readonly string[]).includes(status)) query = query.eq("status", status);
   else if (view === "new") query = query.in("status", ["pending", "confirmed"]);
-  else if (view === "in_progress") query = query.in("status", ["processing", "ready_for_pickup", "shipped"]);
+  else if (view === "in_progress") query = query.in("status", ["processing", "ready_for_pickup", "ready_for_delivery", "shipped"]);
   else if (view === "completed") query = query.eq("status", "delivered");
   else if (view === "cancelled") query = query.eq("status", "cancelled");
   if ((paymentFilters as readonly string[]).includes(payment)) query = query.eq("payment_status", payment);

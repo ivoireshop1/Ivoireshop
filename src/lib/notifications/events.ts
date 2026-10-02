@@ -2,7 +2,9 @@ export const notificationEvents = [
   "order_confirmed",
   "preparing",
   "ready_for_pickup",
+  "ready_for_delivery",
   "out_for_delivery",
+  "shipped",
   "tracking_added",
   "completed",
   "cancelled",
@@ -13,11 +15,12 @@ export const notificationEvents = [
 
 export type NotificationEvent = (typeof notificationEvents)[number];
 
-export function notificationEventFromOrderStatus(status: string): NotificationEvent | null {
+export function notificationEventFromOrderStatus(status: string, provider?: string | null): NotificationEvent | null {
   if (status === "pending" || status === "confirmed") return "order_confirmed";
   if (status === "processing") return "preparing";
   if (status === "ready_for_pickup") return "ready_for_pickup";
-  if (status === "shipped") return "out_for_delivery";
+  if (status === "ready_for_delivery") return "ready_for_delivery";
+  if (status === "shipped") return provider === "ups" || provider === "usps" ? "shipped" : "out_for_delivery";
   if (status === "delivered") return "completed";
   if (status === "cancelled") return "cancelled";
   return null;

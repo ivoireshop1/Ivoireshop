@@ -7,6 +7,8 @@ import { NotificationCard } from "@/src/components/customer/notification-card";
 import { SmartBackButton } from "@/src/components/navigation/smart-back-button";
 import { getCustomerInbox } from "@/src/lib/notifications/inbox";
 import { markAllNotificationsRead } from "@/src/lib/notifications/actions";
+import { NotificationSoundsToggle } from "@/src/components/customer/notification-sounds-toggle";
+import { createClient } from "@/src/lib/supabase/server";
 
 export const metadata = pageMetadata("Notifications", "Your Ivoire Shop order notifications.", "/account/notifications", false);
 
@@ -14,6 +16,13 @@ export default async function CustomerNotificationsPage() {
   const result = await getCustomerInbox();
   if (result.kind === "unauthenticated") redirect("/login?next=/account/notifications");
   const unread = result.items.filter((item) => !item.read_at && !item.dismissed_at).length;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  let soundsEnabled = true;
+  if (user) {
+    const { data: profile } = await supabase.from("profiles").select("notification_sounds").eq("id", user.id).maybeSingle();
+    soundsEnabled = profile?.notification_sounds !== false;
+  }
 
   return (
     <>
@@ -37,6 +46,7 @@ export default async function CustomerNotificationsPage() {
             </form>
           ) : null}
         </div>
+        <NotificationSoundsToggle enabled={soundsEnabled} />
         <div className="mt-8 space-y-4">
           {result.items.length ? (
             result.items.map((item) => (

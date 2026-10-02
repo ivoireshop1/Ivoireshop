@@ -90,32 +90,40 @@ export async function createCategory(formData: FormData) {
   redirect("/admin/categories?success=category_created");
 }
 
-export async function updateCategory(formData: FormData) {
+export type CategorySaveState = { ok: boolean; message: string } | null;
+
+export async function updateCategory(_prev: CategorySaveState, formData: FormData): Promise<CategorySaveState> {
   const { supabase } = await requireAdmin();
   const id = textValue(formData, "id");
   const name = textValue(formData, "name");
-  const slug = slugify(textValue(formData, "slug") || name);
+  const requestedSlug = slugify(textValue(formData, "slug") || name);
 
-  if (!id || !name || !slug) {
-    redirect("/admin/categories?error=category_required");
+  if (!id || !name) {
+    return { ok: false, message: "Enter a category name." };
   }
 
   const { data: existing } = await supabase.from("categories").select("slug, image_url").eq("id", id).maybeSingle();
-  if (existing && isCanonicalSlug(existing.slug) && (slug !== existing.slug || canonicalSlugForName(name, slug) !== existing.slug)) {
-    redirect("/admin/categories?error=canonical_locked");
+  if (!existing?.slug) {
+    return { ok: false, message: "The category could not be saved. Check the values and try again." };
   }
-  if (!existing?.slug && canonicalSlugForName(name, slug)) {
-    redirect("/admin/categories?error=canonical_duplicate");
+
+  const slug = isCanonicalSlug(existing.slug) ? existing.slug : requestedSlug;
+  if (!slug) {
+    return { ok: false, message: "Enter a category name." };
   }
-  if (existing && !isCanonicalSlug(existing.slug) && canonicalSlugForName(name, slug)) {
-    redirect("/admin/categories?error=canonical_duplicate");
+  if (isCanonicalSlug(existing.slug) && requestedSlug && requestedSlug !== existing.slug) {
+    return { ok: false, message: "Primary category URLs stay on their original slugs." };
+  }
+  if (!isCanonicalSlug(existing.slug) && canonicalSlugForName(name, slug)) {
+    return { ok: false, message: "Cosmetics, Foods, and Ivoire Market already exist. Do not create a duplicate." };
   }
 
   const imageUrl = textValue(formData, "image_url") || null;
   if (imageUrl && !isPersistentImageUrl(imageUrl)) {
-    redirect("/admin/categories?error=category_image_invalid");
+    return { ok: false, message: "Choose a valid category image." };
   }
 
+  const keepActive = isCanonicalSlug(existing.slug) || formData.get("is_active") === "on";
   const { error } = await supabase
     .from("categories")
     .update({
@@ -123,15 +131,15 @@ export async function updateCategory(formData: FormData) {
       slug,
       description: textValue(formData, "description") || null,
       image_url: imageUrl,
-      is_active: formData.get("is_active") === "on",
+      is_active: keepActive,
     })
     .eq("id", id);
 
   if (error) {
-    redirect("/admin/categories?error=category_update_failed");
+    return { ok: false, message: error.code === "23505" ? "A category with that slug already exists." : "The category could not be saved. Check the values and try again." };
   }
 
-  const previousPath = existing?.image_url ? productImagesObjectPath(existing.image_url) : null;
+  const previousPath = existing.image_url ? productImagesObjectPath(existing.image_url) : null;
   const nextPath = imageUrl ? productImagesObjectPath(imageUrl) : null;
   if (previousPath && previousPath !== nextPath) {
     await supabase.storage.from("product-images").remove([previousPath]);
@@ -140,8 +148,9 @@ export async function updateCategory(formData: FormData) {
   revalidatePath("/admin/categories");
   revalidatePath("/admin/products");
   revalidatePath("/categories");
+  revalidatePath("/shop");
   revalidatePath("/");
-  redirect("/admin/categories?success=category_updated");
+  return { ok: true, message: "Category updated ✓" };
 }
 
 export async function deleteCategory(formData: FormData) {
@@ -184,21 +193,30 @@ export async function deleteCategory(formData: FormData) {
 }
 
 export async function deactivateCategory(formData: FormData) {
+  await setCategoryActive(formData, false);
+}
+
+export async function activateCategory(formData: FormData) {
+  await setCategoryActive(formData, true);
+}
+
+async function setCategoryActive(formData: FormData, isActive: boolean) {
   const { supabase } = await requireAdmin();
   const id = textValue(formData, "id");
   if (!id) redirect("/admin/categories?error=category_delete_failed");
 
   const { data: existing } = await supabase.from("categories").select("slug").eq("id", id).maybeSingle();
-  if (existing && isCanonicalSlug(existing.slug)) {
+  if (existing && isCanonicalSlug(existing.slug) && !isActive) {
     redirect("/admin/categories?error=canonical_locked");
   }
 
-  const { error } = await supabase.from("categories").update({ is_active: false }).eq("id", id);
+  const { error } = await supabase.from("categories").update({ is_active: isActive }).eq("id", id);
   if (error) redirect("/admin/categories?error=category_update_failed");
 
   revalidatePath("/admin/categories");
   revalidatePath("/admin/products");
   revalidatePath("/categories");
+  revalidatePath("/shop");
   revalidatePath("/");
   redirect("/admin/categories?success=category_updated");
 }
@@ -517,23 +535,23 @@ export async function updateOrderStatus(formData: FormData) {
   const { supabase } = await requireAdmin();
   const id = textValue(formData, "id");
   const status = textValue(formData, "status");
-  const validStatuses = ["pending", "confirmed", "processing", "ready_for_pickup", "shipped", "delivered", "cancelled"];
+  const validStatuses = ["pending", "confirmed", "processing", "ready_for_pickup", "ready_for_delivery", "shipped", "delivered", "cancelled"];
 
   if (!id || !validStatuses.includes(status)) {
     redirect("/admin/orders?error=invalid_status");
   }
 
   const { data: current, error: readError } = await supabase.from("orders")
-    .select("status, fulfillment_method").eq("id", id).maybeSingle();
+    .select("status, fulfillment_method, fulfillment_provider").eq("id", id).maybeSingle();
   if (readError || !current || textValue(formData, "expected_status") !== current.status
-      || !nextOrderStatuses(current.status, current.fulfillment_method).includes(status)) {
+      || !nextOrderStatuses(current.status, current.fulfillment_method, current.fulfillment_provider).includes(status)) {
     redirect(`/admin/orders/${id}?error=invalid_transition`);
   }
   const { data: changed, error } = await supabase.from("orders").update({ status })
     .eq("id", id).eq("status", current.status).select("id").maybeSingle();
   if (error || !changed) redirect(`/admin/orders/${id}?error=status_update_failed`);
   const emailSent = await notifyFulfillmentEmail(supabase, id, status);
-  await recordFulfillmentNotification(supabase, id, status, Boolean(emailSent));
+  await recordFulfillmentNotification(supabase, id, status, Boolean(emailSent), current.fulfillment_provider);
 
   revalidatePath("/admin");
   revalidatePath("/admin/orders");

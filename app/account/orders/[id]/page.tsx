@@ -11,6 +11,9 @@ import { PickupLocationBlock, pickupLocationForOrder } from "@/src/components/st
 import { formatOrderDate } from "@/src/lib/orders/buckets";
 import { OrderMoneyBreakdown } from "@/src/components/orders/order-money-breakdown";
 import { ShipmentTrackingPanel } from "@/src/components/orders/shipment-tracking-panel";
+import { OrderLine } from "@/src/components/orders/order-line";
+import { OrderTimeline } from "@/src/components/orders/order-timeline";
+import { toOrderLineItem } from "@/src/lib/orders/line-image";
 
 export default async function CustomerOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -39,7 +42,7 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
         </section>
       ) : null}
       <p className="mt-3 text-muted">
-        {formatOrderDate(order.created_at)} · {new Date(order.created_at).toLocaleTimeString()} · {orderStatusLabel(order.status, order.fulfillment_method)} · {fulfillmentDisplay(order)}
+        {formatOrderDate(order.created_at)} · {new Date(order.created_at).toLocaleTimeString()} · {orderStatusLabel(order.status, order.fulfillment_method, order.fulfillment_provider)} · {fulfillmentDisplay(order)}
       </p>
 
       <p className="mt-3 text-muted">
@@ -47,14 +50,23 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
         {order.payment_provider || order.payment_method ? ` · ${paymentProviderLabel(order.payment_provider, order.payment_method)}` : ""}
       </p>
       <section className="mt-8 rounded-2xl border border-black/10 bg-white p-6">
+        <h2 className="font-semibold text-forest-green">Order progress</h2>
+        <OrderTimeline
+          events={order.order_status_events ?? []}
+          order={{
+            status: order.status,
+            fulfillment_method: order.fulfillment_method,
+            fulfillment_provider: order.fulfillment_provider,
+            created_at: order.created_at,
+          }}
+        />
+      </section>
+      <section className="mt-8 rounded-2xl border border-black/10 bg-white p-6">
         <h2 className="font-semibold text-forest-green">Items</h2>
-        <div className="mt-4 space-y-3">
+        <div className="mt-4">
           {!items?.length && <p className="text-sm text-muted">No items recorded for this order.</p>}
           {(items ?? []).map((item, index) => (
-            <div className="flex justify-between gap-4 text-sm" key={`${item.product_name}-${index}`}>
-              <span className="text-muted">{item.product_name} × {item.quantity}</span>
-              <span className="font-semibold text-forest-green">${(Number(item.product_price) * item.quantity).toFixed(2)}</span>
-            </div>
+            <OrderLine item={toOrderLineItem(item)} key={`${item.product_name}-${index}`} />
           ))}
         </div>
         <dl className="mt-5">

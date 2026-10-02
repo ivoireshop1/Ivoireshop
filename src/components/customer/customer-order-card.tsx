@@ -1,8 +1,10 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ReorderButton } from "@/src/components/customer/reorder-button";
 import { fulfillmentLabel } from "@/src/lib/fulfillment/fulfillment";
 import { orderStatusLabel, paymentStatusLabel } from "@/src/lib/orders/status";
 import { formatOrderDate } from "@/src/lib/orders/buckets";
+import { isNextImageSrc } from "@/src/lib/catalog/image-url";
 
 export type CustomerOrderSummary = {
   id: string;
@@ -13,7 +15,7 @@ export type CustomerOrderSummary = {
   total: number | string;
   fulfillment_method: string;
   created_at: string;
-  order_items: { product_name: string; quantity: number }[];
+  order_items: { product_name: string; quantity: number; image_url?: string | null }[];
 };
 
 export function CustomerOrderCard({ order }: { order: CustomerOrderSummary }) {
@@ -42,6 +44,19 @@ export function CustomerOrderCard({ order }: { order: CustomerOrderSummary }) {
       </div>
       <p className="mt-2 text-sm text-muted">{paymentStatusLabel(order.payment_status)}</p>
       {preview ? <p className="mt-3 text-sm text-muted">{preview}</p> : null}
+      {order.order_items.length ? (
+        <div className="mt-3 flex gap-2">
+          {order.order_items.slice(0, 4).map((item, index) => (
+            <span className="relative h-12 w-12 overflow-hidden rounded-lg bg-[#eadfce]" key={`${item.product_name}-${index}`}>
+              {item.image_url && isNextImageSrc(item.image_url) ? (
+                <Image alt="" className="object-cover" fill sizes="48px" src={item.image_url} unoptimized />
+              ) : (
+                <span className="flex h-full items-center justify-center text-[9px] font-semibold uppercase tracking-wide text-forest-green">Ivoire</span>
+              )}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Link className="rounded-lg border border-forest-green/20 px-3 py-2 text-sm font-semibold text-forest-green" href={`/account/orders/${order.id}`}>
           View order

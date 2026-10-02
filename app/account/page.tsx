@@ -20,6 +20,7 @@ import { getCategories, getProducts } from "@/src/lib/catalog/catalog";
 import { getWishlistProductsForUser } from "@/src/lib/wishlist/wishlist-server";
 import { WishlistButton } from "@/src/components/wishlist/wishlist-button";
 import { isCustomerCurrentOrder } from "@/src/lib/orders/buckets";
+import { AccountWelcome } from "@/src/components/customer/account-welcome";
 
 export const metadata = pageMetadata("Your Account", "Manage your account and view your orders.", "/account", false);
 
@@ -32,10 +33,10 @@ export default async function AccountPage() {
   }
 
   const [{ data: profile }, { data: orders, error: ordersError }, { data: addresses }, prominent, wishlistPreview, recommended, categories] = await Promise.all([
-    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles")      .select("full_name, welcome_completed_at, notification_sounds").eq("id", user.id).maybeSingle(),
     supabase
       .from("orders")
-      .select("id, order_number, confirmation_code, status, payment_status, total, fulfillment_method, created_at, order_items(product_name, quantity)").eq("user_id", user.id)
+      .select("id, order_number, confirmation_code, status, payment_status, total, fulfillment_method, created_at, order_items(product_name, quantity, image_url)").eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(20),
     supabase
@@ -57,6 +58,7 @@ export default async function AccountPage() {
 
   return (
     <>
+      <AccountWelcome enabled={!profile?.welcome_completed_at} />
       <SiteHeader />
       <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-6 sm:py-10">
         <CustomerAccountNav />
@@ -113,7 +115,7 @@ export default async function AccountPage() {
 
         <section className="mt-12" id="shop-by-category">
           <h2 className="text-2xl font-semibold text-forest-green">Shop by category</h2>
-          <p className="mt-1 text-sm text-muted">Cosmetics, Foods, and Ivoire Market.</p>
+          <p className="mt-1 text-sm text-muted">Shop by department. Names may change; product assignments stay on the same category.</p>
           <div className="mt-5">
             <CanonicalCategoryCards categories={categories} liveNames={liveNames} />
           </div>

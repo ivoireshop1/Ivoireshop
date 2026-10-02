@@ -10,7 +10,7 @@ import { CatalogPreparingNotice } from "@/src/components/storefront/catalog-prep
 import { MerchProductRail } from "@/src/components/storefront/merch-product-rail";
 import { createClient } from "@/src/lib/supabase/browser";
 import { toOneRelation } from "@/src/lib/catalog/relation-utils";
-import { CANONICAL_CATEGORIES } from "@/src/lib/catalog/canonical-categories";
+import { shopCategoryQueryMatches, CANONICAL_CATEGORIES } from "@/src/lib/catalog/canonical-categories";
 import type { Product } from "@/src/types/catalog";
 
 type ShopExperienceProps = {
@@ -18,6 +18,7 @@ type ShopExperienceProps = {
   initialSearch?: string;
   newArrivals?: Product[];
   comingSoon?: Product[];
+  shopCategories?: Array<{ name: string; slug: string }>;
 };
 
 type ProductRow = {
@@ -32,11 +33,11 @@ type ProductRow = {
   is_new_arrival?: boolean;
   stock_quantity: number | null;
   track_inventory?: boolean | null;
-  categories?: { name: string | null } | Array<{ name: string | null }> | null;
+  categories?: { name: string | null; slug?: string | null } | Array<{ name: string | null; slug?: string | null }> | null;
   product_images?: Array<{ image_url: string; position: number }> | null;
 };
 
-export function ShopExperience({ initialCategory = "All", initialSearch = "", newArrivals = [], comingSoon = [] }: ShopExperienceProps) {
+export function ShopExperience({ initialCategory = "All", initialSearch = "", newArrivals = [], comingSoon = [], shopCategories }: ShopExperienceProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -51,7 +52,7 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "", ne
       const supabase = createClient();
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, slug, description, short_description, price, compare_at_price, is_featured, is_new_arrival, stock_quantity, track_inventory, categories(name), product_images(image_url, position)")
+        .select("id, name, slug, description, short_description, price, compare_at_price, is_featured, is_new_arrival, stock_quantity, track_inventory, categories(name, slug), product_images(image_url, position)")
         .eq("is_active", true)
         .order("created_at", { ascending: false });
 
@@ -70,6 +71,7 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "", ne
         price: Number(row.price),
         compareAtPrice: row.compare_at_price === null ? undefined : Number(row.compare_at_price),
         category: toOneRelation(row.categories)?.name || "Uncategorized",
+        categorySlug: toOneRelation(row.categories)?.slug || undefined,
         image: row.product_images?.slice().sort((a: { position: number }, b: { position: number }) => a.position - b.position)[0]?.image_url ?? "",
         weight: row.stock_quantity !== null ? `${row.stock_quantity} in stock` : "",
         stockQuantity: row.stock_quantity,
@@ -85,10 +87,15 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "", ne
     void loadProducts();
   }, []);
 
-  const activeCategories = useMemo(() => CANONICAL_CATEGORIES.map((category) => category.name), []);
+  const activeCategories = useMemo(
+    () => shopCategories?.length
+      ? shopCategories
+      : CANONICAL_CATEGORIES.map((category) => ({ name: category.name, slug: category.slug })),
+    [shopCategories],
+  );
   const arrivalOnly = searchParams.get("arrival") === "new";
   const normalizedProducts = useMemo(() => products.filter((product) => {
-    const matchesCategory = category === "All" || product.category === category;
+    const matchesCategory = shopCategoryQueryMatches(category, { name: product.category, slug: product.categorySlug });
     const text = `${product.name} ${product.category}`.toLowerCase();
     const matchesArrival = !arrivalOnly || (product.isNew && product.price > 0);
     return matchesCategory && matchesArrival && text.includes(query.toLowerCase().trim());

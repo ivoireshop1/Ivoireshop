@@ -10,14 +10,14 @@ export function CanonicalCategoryCards({
   categories: Array<{ name: string; slug: string; imageUrl?: string | null }>;
   liveNames: Set<string>;
 }) {
-  const byName = new Map(categories.map((category) => [category.name, category]));
+  const bySlug = new Map(categories.map((category) => [category.slug, category]));
   const cards = CANONICAL_CATEGORIES.map((canonical) => {
-    const match = byName.get(canonical.name);
+    const match = bySlug.get(canonical.slug);
     return {
-      name: canonical.name,
+      name: match?.name ?? canonical.name,
       slug: canonical.slug,
       imageUrl: match?.imageUrl ?? null,
-      hasProducts: liveNames.has(canonical.name),
+      hasProducts: liveNames.has(match?.name ?? canonical.name) || liveNames.has(canonical.name),
     };
   });
 
@@ -26,7 +26,7 @@ export function CanonicalCategoryCards({
       {cards.map((category) => (
         <Link
           className="group rounded-[24px] border border-black/10 bg-[#fffdf9] p-3 shadow-[0_15px_30px_rgba(23,63,53,0.04)] transition duration-200 hover:-translate-y-1 hover:border-gold/60"
-          href={`/shop?category=${encodeURIComponent(category.name)}`}
+          href={`/shop?category=${encodeURIComponent(category.slug)}`}
           key={category.slug}
         >
           <div className="relative aspect-[4/3] overflow-hidden rounded-[18px] bg-[#dfe8df]">

@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/src/lib/auth/guards";
-import { createCategory, deactivateCategory, deleteCategory, updateCategory } from "@/src/lib/catalog/actions";
+import { activateCategory, createCategory, deactivateCategory, deleteCategory, updateCategory } from "@/src/lib/catalog/actions";
 import { isCanonicalSlug } from "@/src/lib/catalog/canonical-categories";
 import { CategoryCreateForm, CategoryRowForm } from "@/src/components/admin/category-forms";
 import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
@@ -47,7 +47,7 @@ export default async function AdminCategoriesPage({
             : params.error === "canonical_duplicate"
               ? "Cosmetics, Foods, and Ivoire Market already exist. Do not create a duplicate."
               : params.error === "canonical_locked"
-                ? "The three primary categories cannot be renamed or deleted."
+                ? "Primary storefront categories cannot be deleted or deactivated."
                 : params.error === "category_duplicate"
                   ? "A category with that slug already exists."
                   : "The category could not be saved. Check the values and try again."}
@@ -65,6 +65,7 @@ export default async function AdminCategoriesPage({
         <h2 className="text-lg font-semibold text-[#173f35]">Active categories</h2>
         {activeCategories.map((category) => (
           <CategoryRowForm
+            activateAction={activateCategory}
             activeCount={actives.get(category.id) ?? 0}
             category={category}
             deactivateAction={deactivateCategory}
@@ -84,6 +85,7 @@ export default async function AdminCategoriesPage({
         {legacyCategories.map((category) => (
           <div className="opacity-80" key={category.id}>
             <CategoryRowForm
+              activateAction={activateCategory}
               activeCount={actives.get(category.id) ?? 0}
               category={category}
               deactivateAction={deactivateCategory}

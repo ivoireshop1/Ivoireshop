@@ -11,25 +11,29 @@ import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
 import { OrderMoneyBreakdown } from "@/src/components/orders/order-money-breakdown";
 import { PickupLocationBlock, pickupLocationForOrder } from "@/src/components/store/pickup-location-block";
 import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
+import { OrderLine } from "@/src/components/orders/order-line";
+import { OrderTimeline } from "@/src/components/orders/order-timeline";
+import { toOrderLineItem } from "@/src/lib/orders/line-image";
 
 export default async function OrderDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; success?: string }> }) {
   const [{ id }, notices] = await Promise.all([params, searchParams]);
   const { supabase } = await requireAdmin();
-  const [{ data: order, error }, { data: items, error: itemsError }, { data: notes }] = await Promise.all([
+  const [{ data: order, error }, { data: items, error: itemsError }, { data: notes }, { data: events }] = await Promise.all([
     supabase.from("orders").select("*").eq("id", id).maybeSingle(),
-    supabase.from("order_items").select("product_name, product_price, quantity").eq("order_id", id),
+    supabase.from("order_items").select("product_id, product_name, product_price, quantity, image_url, products(product_images(image_url, position))").eq("order_id", id),
     supabase.from("customer_notifications").select("event_type, title, email_sent, created_at").eq("order_id", id).order("created_at", { ascending: true }),
+    supabase.from("order_status_events").select("status, created_at").eq("order_id", id).order("created_at", { ascending: true }),
   ]);
   if (error || itemsError) return <AdminLoadFailure message="Unable to load order." title="Order" />;
   if (!order) notFound();
-  const nextStatuses = nextOrderStatuses(order.status, order.fulfillment_method);
+  const nextStatuses = nextOrderStatuses(order.status, order.fulfillment_method, order.fulfillment_provider);
   return (
     <div className="space-y-6">
       <Link className="text-sm text-[#173f35] underline" href="/admin/orders">Back to orders</Link>
       <div>
         <p className="text-[11px] uppercase tracking-[0.2em] text-[#b8964c]">Order</p>
         <h1 className="mt-2 break-words text-3xl font-semibold text-[#173f35]">{order.order_number}</h1>
-        <p className="mt-2 text-sm capitalize">{orderStatusLabel(order.status, order.fulfillment_method)} &middot; {new Date(order.created_at).toLocaleString()}</p>
+        <p className="mt-2 text-sm capitalize">{orderStatusLabel(order.status, order.fulfillment_method, order.fulfillment_provider)} &middot; {new Date(order.created_at).toLocaleString()}</p>
       </div>
       <AdminOrderPrintControl orderId={order.id} />
       <section className="rounded-2xl border border-[#b8964c]/40 bg-white p-5">
@@ -85,7 +89,7 @@ export default async function OrderDetailPage({ params, searchParams }: { params
             <select className="mt-3 w-full rounded-xl border border-[#173f35]/15 px-3 py-2" defaultValue="" disabled={nextStatuses.length === 0} id="next-status" name="status">
               <option value="" disabled>Choose next status</option>
               {nextStatuses.map((value) => (
-                <option key={value} value={value}>{orderStatusLabel(value, order.fulfillment_method)}</option>
+                <option key={value} value={value}>{orderStatusLabel(value, order.fulfillment_method, order.fulfillment_provider)}</option>
               ))}
             </select>
           </label>
@@ -96,16 +100,25 @@ export default async function OrderDetailPage({ params, searchParams }: { params
         </form>
       </div>
       <section className="rounded-2xl bg-white p-5">
+        <h2 className="font-semibold text-[#173f35]">Progress</h2>
+        <OrderTimeline
+          events={events ?? []}
+          order={{
+            status: order.status,
+            fulfillment_method: order.fulfillment_method,
+            fulfillment_provider: order.fulfillment_provider,
+            created_at: order.created_at,
+          }}
+        />
+      </section>
+      <section className="rounded-2xl bg-white p-5">
         <h2 className="font-semibold text-[#173f35]">Items</h2>
         {!items?.length ? (
           <p className="mt-3 text-sm text-[#6b6b6b]">No order items recorded.</p>
         ) : (
-          <div className="mt-3 space-y-2">
+          <div className="mt-3">
             {items.map((item, index) => (
-              <div className="flex justify-between gap-4 border-b border-[#173f35]/10 py-3" key={`${item.product_name}-${index}`}>
-                <span>{item.product_name} × {item.quantity}</span>
-                <span>${(Number(item.product_price) * item.quantity).toFixed(2)}</span>
-              </div>
+              <OrderLine expandable item={toOrderLineItem(item)} key={`${item.product_name}-${index}`} />
             ))}
           </div>
         )}

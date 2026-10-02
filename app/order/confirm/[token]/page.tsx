@@ -8,6 +8,8 @@ import { ShipmentTrackingPanel } from "@/src/components/orders/shipment-tracking
 import { SiteHeader } from "@/src/components/layout/site-header";
 import { Footer } from "@/src/components/layout/footer";
 import { pickupLocationForOrder } from "@/src/components/store/pickup-location-block";
+import { OrderLine } from "@/src/components/orders/order-line";
+import { toOrderLineItem } from "@/src/lib/orders/line-image";
 
 export const metadata = pageMetadata("Order confirmation", "View your Ivoire Shop order confirmation.", "/order/confirm", false);
 
@@ -61,6 +63,16 @@ export default async function GuestOrderConfirmationPage({ params }: { params: P
             accountOrder,
           })}
         />
+        {Array.isArray(order.items) && order.items.length ? (
+          <section className="mt-6 rounded-2xl border border-black/10 bg-white p-5">
+            <h2 className="font-semibold text-forest-green">Items</h2>
+            <div className="mt-3">
+              {order.items.map((item: { product_name: string; product_price: number; quantity: number; image_url?: string | null }, index: number) => (
+                <OrderLine item={toOrderLineItem(item)} key={`${item.product_name}-${index}`} />
+              ))}
+            </div>
+          </section>
+        ) : null}
         <ShipmentTrackingPanel
           order={{
             fulfillment_method: String(order.fulfillment_method),

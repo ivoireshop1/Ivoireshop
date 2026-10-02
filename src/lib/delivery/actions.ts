@@ -214,7 +214,7 @@ export async function saveOrderShipment(formData: FormData) {
   const patch: Record<string, unknown> = { tracking_number: checked.tracking };
   if (postage != null) patch.postage_cost = postage;
   if (markShipped) {
-    const allowed = ["pending", "confirmed", "processing", "shipped"].includes(order.status);
+    const allowed = ["pending", "confirmed", "processing", "ready_for_delivery", "shipped"].includes(order.status);
     if (!allowed) {
       redirect(`/admin/orders/${id}?error=invalid_transition`);
     }
@@ -229,7 +229,7 @@ export async function saveOrderShipment(formData: FormData) {
   }
   if (markShipped && order.status !== "shipped") {
     const emailSent = await notifyFulfillmentEmail(supabase, id, "shipped");
-    await recordFulfillmentNotification(supabase, id, "shipped", Boolean(emailSent));
+    await recordFulfillmentNotification(supabase, id, "shipped", Boolean(emailSent), order.fulfillment_provider);
   }
   revalidateFulfillment(id);
   redirect(`/admin/orders/${id}?success=shipment_updated`);

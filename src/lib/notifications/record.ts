@@ -62,8 +62,9 @@ export async function recordFulfillmentNotification(
   orderId: string,
   status: string,
   emailSent = false,
+  provider?: string | null,
 ) {
-  const event = notificationEventFromOrderStatus(status);
+  const event = notificationEventFromOrderStatus(status, provider);
   if (!event) return;
   await recordCustomerNotification(supabase, orderId, event, emailSent);
 }

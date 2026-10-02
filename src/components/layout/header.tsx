@@ -9,6 +9,7 @@ import { useWishlist } from "@/src/lib/wishlist/wishlist-context";
 import { createClient } from "@/src/lib/supabase/browser";
 import { type NavRole, resolveStorefrontHomeHref } from "@/src/lib/auth/session-navigation";
 import { NotificationBell } from "@/src/components/customer/notification-bell";
+import { NotificationSoundListener } from "@/src/components/customer/notification-sound-listener";
 import type { InboxItem } from "@/src/lib/notifications/inbox-item";
 
 function SearchIcon() {
@@ -19,10 +20,14 @@ export function Header({
   initialRole = "guest",
   initialUnread = 0,
   initialInbox = [],
+  navCategories = CANONICAL_CATEGORIES.map((category) => ({ slug: category.slug, name: category.name })),
+  notificationSounds = true,
 }: {
   initialRole?: NavRole;
   initialUnread?: number;
   initialInbox?: InboxItem[];
+  navCategories?: Array<{ slug: string; name: string }>;
+  notificationSounds?: boolean;
 }) {
   const { totalItems, isLoaded, addEventId } = useCart();
   const { items: wishlistItems } = useWishlist();
@@ -63,8 +68,8 @@ export function Header({
         <nav aria-label="Main navigation" className="hidden min-w-0 items-center gap-5 text-sm font-medium text-foreground/75 xl:flex">
           <Link className="hover:text-forest-green" href={homeHref}>Home</Link>
           <Link className="hover:text-forest-green" href="/shop">Shop</Link>
-          {CANONICAL_CATEGORIES.map((category) => (
-            <Link className="hover:text-forest-green" href={`/shop?category=${encodeURIComponent(category.name)}`} key={category.slug}>{category.name}</Link>
+          {navCategories.map((category) => (
+            <Link className="hover:text-forest-green" href={`/shop?category=${encodeURIComponent(category.slug)}`} key={category.slug}>{category.name}</Link>
           ))}
           {role === "customer" ? (
             <>
@@ -81,7 +86,12 @@ export function Header({
           <Link aria-label="Search products" className="hidden text-forest-green sm:inline-flex" href="/shop"><SearchIcon /></Link>
           {isAuthenticated ? (
             <>
-              {role === "customer" ? <NotificationBell initialInbox={initialInbox} initialUnread={initialUnread} /> : null}
+              {role === "customer" ? (
+                <>
+                  <NotificationSoundListener enabled={notificationSounds} />
+                  <NotificationBell initialInbox={initialInbox} initialUnread={initialUnread} />
+                </>
+              ) : null}
               <Link aria-label={wishlistCountLabel} className="text-forest-green xl:hidden" href="/wishlist">
                 {wishlistItems.length > 0 ? `♡ ${wishlistItems.length}` : "♡"}
               </Link>
@@ -98,8 +108,8 @@ export function Header({
         <div className="mx-auto flex max-w-7xl flex-col gap-1 text-sm [&_a]:min-h-11 [&_a]:py-3 [&_button]:min-h-11 [&_button]:py-3 font-medium text-forest-green">
           <Link href={homeHref} onClick={() => setMenuOpen(false)}>Home</Link>
           <Link href="/shop" onClick={() => setMenuOpen(false)}>Shop</Link>
-          {CANONICAL_CATEGORIES.map((category) => (
-            <Link href={`/shop?category=${encodeURIComponent(category.name)}`} key={category.slug} onClick={() => setMenuOpen(false)}>{category.name}</Link>
+          {navCategories.map((category) => (
+            <Link href={`/shop?category=${encodeURIComponent(category.slug)}`} key={category.slug} onClick={() => setMenuOpen(false)}>{category.name}</Link>
           ))}
           {role === "customer" ? (
             <>

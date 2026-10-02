@@ -29,6 +29,7 @@ export interface Product {
   price: number;
   compareAtPrice?: number;
   category: string;
+  categorySlug?: string;
   image: string;
   weight: string;
   stockQuantity?: number | null;

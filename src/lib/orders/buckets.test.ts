@@ -6,6 +6,7 @@ test("new orders are pending or confirmed, not date-based", () => {
   assert.equal(isAdminNewOrder("pending"), true);
   assert.equal(isAdminNewOrder("confirmed"), true);
   assert.equal(isAdminNewOrder("processing"), false);
+  assert.equal(adminOrderView("ready_for_delivery"), "in_progress");
   assert.equal(adminOrderView("delivered"), "completed");
   assert.equal(adminOrderView("cancelled"), "cancelled");
 });

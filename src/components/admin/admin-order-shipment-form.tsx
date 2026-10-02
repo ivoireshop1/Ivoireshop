@@ -19,7 +19,7 @@ export function AdminOrderShipmentForm({
 }) {
   if (!isCarrierOrder(order.fulfillment_provider)) return null;
   const ops = shippingOpsStatus(order);
-  const canShip = nextOrderStatuses(order.status, order.fulfillment_method).includes("shipped") || order.status === "shipped";
+  const canShip = nextOrderStatuses(order.status, order.fulfillment_method, order.fulfillment_provider).includes("shipped") || order.status === "shipped";
   const carrier = (order.fulfillment_provider ?? "").toUpperCase();
   return (
     <section className="rounded-2xl bg-white p-5">

@@ -3,7 +3,7 @@ export function isAdminNewOrder(status: string) {
 }
 
 export function isAdminInProgressOrder(status: string) {
-  return status === "processing" || status === "ready_for_pickup" || status === "shipped";
+  return status === "processing" || status === "ready_for_pickup" || status === "ready_for_delivery" || status === "shipped";
 }
 
 export function isAdminCompletedOrder(status: string) {
