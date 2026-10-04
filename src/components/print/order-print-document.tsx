@@ -4,6 +4,7 @@ import { PrintToolbar } from "@/src/components/print/print-toolbar";
 import { pickupLocationForOrder } from "@/src/components/store/pickup-location-block";
 import { formatOriginLines } from "@/src/lib/delivery/origin";
 import { formatStoreDateTime } from "@/src/lib/store/timezone";
+import { paymentStatusLabel } from "@/src/lib/orders/status";
 
 type PrintItem = {
   product_name: string;
@@ -156,7 +157,8 @@ export function OrderPrintDocument({
 
       {kind === "receipt" || kind === "summary" ? (
         <div className="mt-4 space-y-1 text-sm">
-          <p>Payment status: {order.payment_status}</p>
+          <p>Payment: {paymentStatusLabel(order.payment_status)}</p>
+          <p>Payment method: Card</p>
           <p>Fulfillment: {fulfillment}</p>
           {order.fulfillment_provider ? <p>Carrier: {String(order.fulfillment_provider).toUpperCase()}</p> : null}
           {order.tracking_number ? <p className="break-all">Tracking: {order.tracking_number}</p> : null}

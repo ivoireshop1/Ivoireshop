@@ -15,6 +15,7 @@ import { getEmailProviderStatus } from "@/src/lib/email/send";
 import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 import { LiveOrderTimeline } from "@/src/components/orders/live-order-timeline";
 import { catalogImageFromProduct } from "@/src/lib/orders/line-image";
+import { getStripeConfig } from "@/src/lib/payments/stripe-config";
 import { isCarrierFulfillment } from "@/src/lib/orders/timeline";
 
 export default async function OrderDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; success?: string }> }) {
@@ -83,7 +84,7 @@ export default async function OrderDetailPage({ params, searchParams }: { params
         <AdminOrderFulfillmentPanel events={events ?? []} order={order} />
         <AdminOrderFulfillmentActions order={order} />
       </div>
-      <AdminOrderPaymentPanel order={order} />
+      <AdminOrderPaymentPanel order={order} stripeMode={getStripeConfig().mode} />
       <AdminOrderPicking
         items={(items ?? []).map((item) => ({
           id: item.id,

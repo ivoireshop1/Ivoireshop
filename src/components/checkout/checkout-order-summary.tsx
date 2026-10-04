@@ -21,6 +21,7 @@ export function CheckoutOrderSummary({
   continueDisabled,
   continueType = "button",
   onContinue,
+  showContinue = true,
 }: {
   items: SummaryItem[];
   subtotal: number;
@@ -34,6 +35,7 @@ export function CheckoutOrderSummary({
   continueDisabled?: boolean;
   continueType?: "button" | "submit";
   onContinue?: () => void;
+  showContinue?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const count = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -72,14 +74,16 @@ export function CheckoutOrderSummary({
           ))}
         </ul>
       ) : null}
-      <button
-        className="mt-5 min-h-12 w-full rounded-xl bg-forest-green px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={continueDisabled}
-        onClick={onContinue}
-        type={continueType}
-      >
-        {continueLabel}
-      </button>
+      {showContinue ? (
+        <button
+          className="mt-5 min-h-12 w-full rounded-xl bg-forest-green px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={continueDisabled}
+          onClick={onContinue}
+          type={continueType}
+        >
+          {continueLabel}
+        </button>
+      ) : null}
     </section>
   );
 }

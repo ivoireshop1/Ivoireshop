@@ -8,15 +8,18 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/lib/audio/ivoire-tones.test.ts src/lib/delivery/origin.test.ts src/lib/delivery/tracking.test.ts src/lib/orders/buckets.test.ts src/lib/orders/status.test.ts src/lib/orders/timeline.test.ts src/lib/store/timezone.test.ts src/lib/notifications/drawer-box.test.ts src/lib/notifications/merge.test.ts src/lib/orders/action-state.test.ts src/lib/orders/ops.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/audio/ivoire-tones.test.ts src/lib/delivery/origin.test.ts src/lib/delivery/tracking.test.ts src/lib/orders/buckets.test.ts src/lib/orders/status.test.ts src/lib/orders/timeline.test.ts src/lib/store/timezone.test.ts src/lib/notifications/drawer-box.test.ts src/lib/notifications/merge.test.ts src/lib/orders/action-state.test.ts src/lib/orders/ops.test.ts src/lib/payments/totals.test.ts src/lib/payments/stripe-webhook.test.ts src/lib/payments/stripe-config.test.ts"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^7.0.0",
+    "@stripe/stripe-js": "^10.0.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
     "ai": "^7.0.118",
     "next": "16.3.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "stripe": "^23.0.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

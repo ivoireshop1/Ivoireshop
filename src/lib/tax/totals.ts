@@ -1,4 +1,4 @@
-import { usdToCents, centsToUsdString } from "@/src/lib/payments/money";
+import { usdToCents, centsToUsdString } from "../payments/money.ts";
 
 export type TaxMode = "not_configured" | "no_tax" | "manual_rate";
 
@@ -31,11 +31,8 @@ export function taxModeLabel(mode: TaxMode) {
 }
 
 export function taxDisplayLabel(tax: TaxSettings) {
-  if (tax.tax_mode === "not_configured") return "Tax (not configured)";
   if (tax.tax_mode === "manual_rate" && tax.tax_rate_percent != null && Number.isFinite(tax.tax_rate_percent)) {
-    const rate = Number(tax.tax_rate_percent);
-    const label = Number.isInteger(rate) ? String(rate) : String(rate);
-    return `${tax.tax_name} (${label}%)`;
+    return `${tax.tax_name} (${tax.tax_rate_percent}%)`;
   }
   return tax.tax_name || "Tax";
 }

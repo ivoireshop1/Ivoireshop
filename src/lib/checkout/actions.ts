@@ -10,6 +10,7 @@ import { collectCheckoutOptions, optionToSnapshot } from "@/src/lib/delivery/orc
 import { originFromSettings, originIsComplete, pickupLocationSnapshot } from "@/src/lib/delivery/origin";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { centsToUsdString, usdToCents } from "@/src/lib/payments/money";
+import { getStripeConfig } from "@/src/lib/payments/stripe-config";
 
 export async function placeCheckoutOrder(input: unknown): Promise<CheckoutResponse> {
   const validated = validateCheckout(input);
@@ -59,11 +60,12 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
     if (admin) {
       const { data: current } = await admin
         .from("orders")
-        .select("shipping_cost, tax_amount, total, fulfillment_provider, tax_snapshot")
+        .select("subtotal, shipping_cost, tax_amount, total, fulfillment_provider, tax_snapshot, payment_status")
         .eq("id", row.order_id)
         .maybeSingle();
-      if (!current?.tax_snapshot && !current?.fulfillment_provider) {
-        const subtotalCents = usdToCents(row.total);
+      const unpaid = current?.payment_status !== "paid" && current?.payment_status !== "partially_refunded" && current?.payment_status !== "refunded";
+      if (unpaid) {
+        const subtotalCents = usdToCents(current?.subtotal ?? row.total);
         const shippingCents = usdToCents(shipping);
         const taxCents = usdToCents(tax);
         const total = Number(centsToUsdString(subtotalCents + shippingCents + taxCents));
@@ -83,7 +85,7 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
             amount: tax,
             decided_at: new Date().toISOString(),
           },
-        }).eq("id", row.order_id);
+        }).eq("id", row.order_id).neq("payment_status", "paid");
         row.total = total;
       } else if (current) {
         row.total = current.total;
@@ -118,18 +120,21 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
       tax_amount: tax,
     };
     let emailSent = false;
-    try {
-      if (receipt.guest_access_token) {
-        const confirmation = await supabase.rpc("get_checkout_confirmation", { p_access_token: receipt.guest_access_token });
-        const details = Array.isArray(confirmation.data) ? confirmation.data[0] : confirmation.data;
-        emailSent = await trySendOrderConfirmation(details ?? {});
+    const stripeOnline = getStripeConfig().canCollect;
+    if (!stripeOnline) {
+      try {
+        if (receipt.guest_access_token) {
+          const confirmation = await supabase.rpc("get_checkout_confirmation", { p_access_token: receipt.guest_access_token });
+          const details = Array.isArray(confirmation.data) ? confirmation.data[0] : confirmation.data;
+          emailSent = await trySendOrderConfirmation(details ?? {});
+        }
+      } catch {
+        console.error("[order-email] confirmation failed", { orderNumber: receipt.order_number });
       }
-    } catch {
-      console.error("[order-email] confirmation failed", { orderNumber: receipt.order_number });
     }
     receipt.email_sent = emailSent;
     try {
-      await recordCheckoutNotifications(supabase, receipt.order_id, receipt.payment_status, emailSent, Boolean(user));
+      if (!stripeOnline) await recordCheckoutNotifications(supabase, receipt.order_id, receipt.payment_status, emailSent, Boolean(user));
     } catch {
       console.error("[order-notification] confirmation failed", { orderNumber: receipt.order_number });
     }

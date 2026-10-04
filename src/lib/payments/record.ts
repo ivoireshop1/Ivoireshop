@@ -6,8 +6,8 @@ import { sendTransactionalEmail } from "@/src/lib/email/send";
 import { recordPaymentNotification } from "@/src/lib/notifications/record";
 import { usdToCents } from "./money";
 
-export type PaymentLifecycleStatus = "pending" | "paid" | "failed" | "cancelled" | "refunded";
-export type PaymentProvider = "square" | "paypal";
+export type PaymentLifecycleStatus = "pending" | "paid" | "failed" | "cancelled" | "refunded" | "partially_refunded";
+export type PaymentProvider = "square" | "paypal" | "stripe";
 
 export type RecordedOrder = {
   id: string;
@@ -26,11 +26,15 @@ export type RecordedOrder = {
   status: string;
   email_sent_at: string | null;
   created_at?: string;
+  paid_at?: string | null;
+  amount_paid?: number | string | null;
+  refunded_amount?: number | string | null;
+  payment_currency?: string | null;
   shipping_address?: PaidConfirmationOrder["shipping_address"];
 };
 
 const ORDER_COLUMNS =
-  "id, order_number, confirmation_code, guest_access_token, payment_status, payment_method, payment_provider, provider_order_id, provider_payment_id, fulfillment_method, customer_email, customer_name, total, status, email_sent_at, shipping_address, created_at";
+  "id, order_number, confirmation_code, guest_access_token, payment_status, payment_method, payment_provider, provider_order_id, provider_payment_id, fulfillment_method, customer_email, customer_name, total, status, email_sent_at, shipping_address, created_at, paid_at, amount_paid, refunded_amount, payment_currency";
 
 export function requireAdminClient() {
   const client = createAdminClient();
@@ -97,19 +101,20 @@ export async function applyVerifiedPayment(input: {
     if (input.amountCents == null || input.amountCents !== usdToCents(existing.total)) {
       throw new Error("Verified payment amount does not match the order total.");
     }
-    if (existing.payment_status === "paid") {
+    if (existing.payment_status === "paid" || existing.payment_status === "refunded" || existing.payment_status === "partially_refunded") {
       return { order: existing, duplicate: true, emailSent: Boolean(existing.email_sent_at) };
     }
-    const nextStatus = existing.status === "pending" ? "confirmed" : existing.status;
     const { data, error } = await supabase
       .from("orders")
       .update({
         payment_status: "paid",
         payment_provider: input.provider,
-        payment_method: input.provider,
+        payment_method: input.provider === "stripe" ? "card" : input.provider,
         provider_payment_id: input.providerPaymentId ?? existing.provider_payment_id,
         provider_order_id: input.providerOrderId ?? existing.provider_order_id,
-        status: nextStatus,
+        amount_paid: Number((input.amountCents / 100).toFixed(2)),
+        paid_at: new Date().toISOString(),
+        payment_currency: "usd",
         updated_at: new Date().toISOString(),
       })
       .eq("id", existing.id)
@@ -123,7 +128,7 @@ export async function applyVerifiedPayment(input: {
     return { order, duplicate: false, emailSent };
   }
 
-  if (existing.payment_status === "paid") {
+  if (existing.payment_status === "paid" || existing.payment_status === "refunded" || existing.payment_status === "partially_refunded") {
     return { order: existing, duplicate: true, emailSent: Boolean(existing.email_sent_at) };
   }
 
@@ -132,7 +137,7 @@ export async function applyVerifiedPayment(input: {
     .update({
       payment_status: input.status,
       payment_provider: input.provider,
-      payment_method: input.provider,
+      payment_method: input.provider === "stripe" ? "card" : input.provider,
       provider_payment_id: input.providerPaymentId ?? existing.provider_payment_id,
       provider_order_id: input.providerOrderId ?? existing.provider_order_id,
       updated_at: new Date().toISOString(),
@@ -141,10 +146,70 @@ export async function applyVerifiedPayment(input: {
     .neq("payment_status", "paid")
     .select(ORDER_COLUMNS)
     .maybeSingle();
-    if (error) throw new Error("Unable to update payment status.");
-    const updated = (data as RecordedOrder | null) ?? existing;
-    await recordPaymentNotification(supabase, updated.id, input.status, false);
-    return { order: updated, duplicate: false, emailSent: false };
+  if (error) throw new Error("Unable to update payment status.");
+  const updated = (data as RecordedOrder | null) ?? existing;
+  if (input.status === "cancelled") {
+    await supabase.rpc("restore_order_inventory", { p_order_id: existing.id });
+  }
+  await recordPaymentNotification(supabase, updated.id, input.status, false);
+  return { order: updated, duplicate: false, emailSent: false };
+}
+
+export async function applyVerifiedRefund(input: {
+  orderId: string;
+  provider: PaymentProvider;
+  refundedCents: number;
+  eventId: string;
+  providerPaymentId?: string | null;
+}) {
+  const supabase = requireAdminClient();
+  const existing = await loadOrderById(input.orderId);
+  if (!existing) throw new Error("Order not found.");
+  const event = await recordPaymentEvent({
+    provider: input.provider,
+    providerEventId: input.eventId,
+    orderId: input.orderId,
+  });
+  if (event.duplicate) return { order: existing, duplicate: true as const };
+
+  const paidCents = usdToCents(existing.amount_paid && Number(existing.amount_paid) > 0 ? existing.amount_paid : existing.total);
+  const refundedCents = Math.min(Math.max(0, input.refundedCents), paidCents);
+  const nextStatus = refundedCents >= paidCents && paidCents > 0 ? "refunded" : "partially_refunded";
+  const { data, error } = await supabase
+    .from("orders")
+    .update({
+      payment_status: nextStatus,
+      refunded_amount: Number((refundedCents / 100).toFixed(2)),
+      provider_payment_id: input.providerPaymentId ?? existing.provider_payment_id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", existing.id)
+    .select(ORDER_COLUMNS)
+    .maybeSingle();
+  if (error) throw new Error("Unable to record the refund.");
+  const order = (data as RecordedOrder | null) ?? existing;
+  await recordPaymentNotification(supabase, order.id, "refunded", false);
+  return { order, duplicate: false as const };
+}
+
+export async function markWebhookHealth(provider: PaymentProvider, ok: boolean, errorCode?: string) {
+  const supabase = requireAdminClient();
+  const stamp = new Date().toISOString();
+  if (ok) {
+    await supabase.from("payment_webhook_health").upsert({
+      provider,
+      last_success_at: stamp,
+      last_error_code: null,
+    }, { onConflict: "provider" });
+    return;
+  }
+  const { data } = await supabase.from("payment_webhook_health").select("recent_failures").eq("provider", provider).maybeSingle();
+  await supabase.from("payment_webhook_health").upsert({
+    provider,
+    last_error_at: stamp,
+    last_error_code: errorCode ?? "webhook_error",
+    recent_failures: Number(data?.recent_failures ?? 0) + 1,
+  }, { onConflict: "provider" });
 }
 
 export async function storeProviderOrderId(orderId: string, provider: PaymentProvider, providerOrderId: string) {
@@ -153,7 +218,7 @@ export async function storeProviderOrderId(orderId: string, provider: PaymentPro
     .from("orders")
     .update({
       payment_provider: provider,
-      payment_method: provider,
+      payment_method: provider === "stripe" ? "card" : provider,
       provider_order_id: providerOrderId,
       updated_at: new Date().toISOString(),
     })

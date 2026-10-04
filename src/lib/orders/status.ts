@@ -49,15 +49,17 @@ export function nextOrderActionLabel(status: string, fulfillment: string, provid
 }
 
 export function paymentStatusLabel(status: string, provider?: string | null) {
-  if (status === "paid") return "Payment received";
-  if (status === "failed") return "Payment failed";
+  if (status === "paid") return "Paid";
+  if (status === "failed") return "Failed";
   if (status === "cancelled") return "Payment cancelled";
   if (status === "refunded") return "Refunded";
-  if (status === "pending" && provider) return "Payment processing";
-  return "Payment pending";
+  if (status === "partially_refunded") return "Partially Refunded";
+  if (status === "pending" && provider) return "Payment Pending";
+  return "Unpaid";
 }
 
 export function paymentProviderLabel(provider?: string | null, method?: string | null) {
+  if (provider === "stripe" || method === "card") return "Stripe";
   if (provider === "square" || method === "square") return "Square";
   if (provider === "paypal" || method === "paypal") return "PayPal";
   if (!method || method === "not_collected") return "To be collected";

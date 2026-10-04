@@ -7,6 +7,7 @@ import { isCarrierFulfillment } from "@/src/lib/orders/timeline";
 import { fulfillmentDisplay } from "@/src/lib/delivery/labels";
 import { PickupLocationBlock, pickupLocationForOrder } from "@/src/components/store/pickup-location-block";
 import { useLiveNotifications } from "@/src/components/realtime/live-notifications-provider";
+import { requiresStripePaymentBeforeFulfillment } from "@/src/lib/payments/totals";
 
 export function AdminOrderFulfillmentActions({
   order,
@@ -39,7 +40,8 @@ export function AdminOrderFulfillmentActions({
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const next = nextOrderStatuses(status, order.fulfillment_method, order.fulfillment_provider);
-  const primary = next.filter((value) => value !== "cancelled");
+  const unpaid = requiresStripePaymentBeforeFulfillment(order);
+  const primary = unpaid ? [] : next.filter((value) => value !== "cancelled");
   const canCancel = next.includes("cancelled");
   const carrier = isCarrierFulfillment(order.fulfillment_provider);
 
@@ -88,6 +90,7 @@ export function AdminOrderFulfillmentActions({
       )}
       <p className="mt-4 text-sm">Payment: {paymentStatusLabel(order.payment_status, order.payment_provider)}</p>
       <p className="mt-1 text-sm text-[#6b6b6b]">Provider: {paymentProviderLabel(order.payment_provider, order.payment_method)}</p>
+      {unpaid ? <p className="mt-3 rounded-xl bg-[#f3efe9] p-3 text-sm text-[#7c5d1a]">Collect Stripe payment before fulfillment.</p> : null}
       {order.provider_payment_id ? <p className="mt-2 break-all text-xs text-[#6b6b6b]">Provider payment ID: {order.provider_payment_id}</p> : null}
       {order.provider_order_id ? <p className="mt-1 break-all text-xs text-[#6b6b6b]">Provider order ID: {order.provider_order_id}</p> : null}
       {carrier && (status === "ready_for_delivery" || status === "processing") ? (
@@ -118,7 +121,7 @@ export function AdminOrderFulfillmentActions({
       </div>
       {error ? <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
       {saved && !error ? <p className="mt-3 rounded-xl bg-[#173f35]/5 p-3 text-sm text-[#173f35]">Updated ✓</p> : null}
-      {canCancel ? <p className="mt-2 text-sm text-muted">Cancellation does not issue a refund or automatically restock inventory.</p> : null}
+      {canCancel ? <p className="mt-2 text-sm text-muted">Cancellation does not refund a Stripe charge. Refunds are a separate payment action.</p> : null}
     </section>
   );
 }

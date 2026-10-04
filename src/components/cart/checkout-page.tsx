@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { SmartBackButton } from "@/src/components/navigation/smart-back-button";
 import { useCart } from "@/src/lib/cart/cart-context";
 import { useRouter } from "next/navigation";
-import { placeCheckoutOrder } from "@/src/lib/checkout/actions";
 import { validateCheckout, type CheckoutReceipt } from "@/src/lib/checkout/checkout-validation";
 import { readCheckoutAttempt, storeCheckoutAttempt, forgetCheckoutAttempt, type CheckoutAttempt } from "@/src/lib/checkout/checkout-session";
 import { STORE_CLOSED_MESSAGE } from "@/src/lib/store/constants";
@@ -13,17 +12,15 @@ import { CheckoutProgress } from "@/src/components/checkout/checkout-progress";
 import { CheckoutShippingMethods } from "@/src/components/checkout/checkout-shipping-methods";
 import { CheckoutOrderSummary } from "@/src/components/checkout/checkout-order-summary";
 import { useFulfillmentMethod } from "@/src/lib/fulfillment/use-fulfillment-method";
-import { PaymentMethodCards, type CheckoutPaymentProvider } from "@/src/components/checkout/payment-method-cards";
-import { SquareCardFields } from "@/src/components/checkout/square-card-fields";
-import { PaypalCheckoutButtons } from "@/src/components/checkout/paypal-checkout-buttons";
+import { PaymentMethodCards } from "@/src/components/checkout/payment-method-cards";
+import { StripeCheckoutForm } from "@/src/components/checkout/stripe-checkout-form";
 import { OrderConfirmationExperience } from "@/src/components/checkout/order-confirmation-experience";
 import { getCheckoutDeliveryOptions } from "@/src/lib/delivery/actions";
 import type { DeliveryOption } from "@/src/lib/delivery/types";
 import { taxDisplayLabel, type TaxSettings } from "@/src/lib/tax/totals";
 import { viewOrderHref } from "@/src/lib/checkout/view-order-href";
-import { capturePaypalPayment, markPaypalCancelled, payWithSquare, startPaypalPayment } from "@/src/lib/payments/actions";
+import { prepareStripePayment } from "@/src/lib/payments/stripe-actions";
 import type { PublicPaymentConfig } from "@/src/lib/payments/readiness";
-import type { PaymentEnvironment } from "@/src/lib/payments/public";
 import type { StoreOrigin } from "@/src/lib/delivery/origin";
 import { PickupLocationBlock } from "@/src/components/store/pickup-location-block";
 
@@ -46,17 +43,10 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
   const [quoteBusy, setQuoteBusy] = useState(false);
   const [attempt, setAttempt] = useState<CheckoutAttempt | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentProvider | null>(
-    payments.square.ready ? "square" : payments.paypal.ready ? "paypal" : null,
-  );
-  const tokenizeRef = useRef<(() => Promise<string>) | null>(null);
-  const submitting = useRef(false);
-  const [, startTransition] = useTransition();
-  const router = useRouter();
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [publishableKey, setPublishableKey] = useState<string | null>(null);
   const recovered = useRef(false);
-  const setTokenize = useCallback((tokenize: () => Promise<string>) => {
-    tokenizeRef.current = tokenize;
-  }, []);
+  const router = useRouter();
 
   useEffect(() => {
     if (!isLoaded || !confirmation?.receipt || recovered.current) return;
@@ -70,7 +60,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const saved = readCheckoutAttempt();
-      if (saved?.receipt?.payment_status === "paid" || (saved?.receipt?.payment_status === "pending" && saved.receipt.confirmation_code && !saved.receipt.payment_provider)) {
+      if (saved?.receipt?.payment_status === "paid") {
         setConfirmation(saved);
         setEmailSent(saved.receipt.email_sent === true);
       } else if (saved) {
@@ -128,14 +118,17 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
     try { storeCheckoutAttempt(next); } catch { /* Pending key remains available for recovery. */ }
   }
 
-  async function ensureOrder(current: CheckoutAttempt): Promise<{ ok: true; attempt: CheckoutAttempt; receipt: CheckoutReceipt } | { ok: false; error: string; retrySame?: boolean }> {
-    if (current.receipt?.order_id) return { ok: true, attempt: current, receipt: current.receipt };
-    const result = await placeCheckoutOrder(current.request);
-    if (!result.success) return { ok: false, error: result.error, retrySame: result.retrySame };
-    const completed = { ...current, receipt: result.receipt };
-    persist(completed);
-    setAttempt(completed);
-    return { ok: true, attempt: completed, receipt: result.receipt };
+  function buildCandidate() {
+    return {
+      items: items.map(({ productId, quantity }) => ({ product_id: productId, quantity })),
+      customerName: contact.customerName,
+      customerEmail: contact.customerEmail,
+      customerPhone: contact.customerPhone,
+      address: { address_line_1: address.addressLine1, address_line_2: address.addressLine2, city: address.city, state: address.state, postal_code: address.postalCode, country: address.country },
+      fulfillmentMethod,
+      deliveryOptionId: deliveryOptionId || (fulfillmentMethod === "local_pickup" ? "pickup" : "store"),
+      idempotencyKey: attempt?.request.idempotencyKey ?? crypto.randomUUID(),
+    };
   }
 
   function showConfirmed(next: CheckoutAttempt, sent: boolean) {
@@ -147,113 +140,35 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
     router.refresh();
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (submitting.current || confirmation || !sessionReady) return;
-    if (!payments.enabled) { /* Unpaid Place Order is allowed when Square/PayPal are not configured. */ }
-    else if (!paymentMethod) { setError("Choose Square or PayPal."); return; }
-    const candidate = attempt?.request ?? {
-      items: items.map(({ productId, quantity }) => ({ product_id: productId, quantity })),
-      customerName: contact.customerName, customerEmail: contact.customerEmail, customerPhone: contact.customerPhone,
-      address: { address_line_1: address.addressLine1, address_line_2: address.addressLine2, city: address.city, state: address.state, postal_code: address.postalCode, country: address.country },
-      fulfillmentMethod,
-      deliveryOptionId: deliveryOptionId || (fulfillmentMethod === "local_pickup" ? "pickup" : "store"),
-      idempotencyKey: crypto.randomUUID(),
-    };
+  async function startStripe(expectedTotal: number | null) {
+    const candidate = buildCandidate();
     const validated = validateCheckout(candidate);
-    if (validated.error) { setError(validated.error); return; }
+    if (validated.error) { setError(validated.error); return false; }
     const pending: CheckoutAttempt = attempt ?? {
       request: validated.request!, items: items.map(({ productId, name, quantity }) => ({ productId, name, quantity })), createdAt: Date.now(),
     };
     try { storeCheckoutAttempt(pending); }
-    catch { setError("Enable browser session storage before placing an order so retries can be recovered safely."); return; }
-    submitting.current = true;
+    catch { setError("Enable browser session storage before placing an order so retries can be recovered safely."); return false; }
+    setAttempt(pending);
     setIsSubmitting(true);
-    setError("");
-    setAttempt(pending);
-    startTransition(async () => {
-      try {
-        if (!payments.enabled) {
-          const created = await ensureOrder(pending);
-          if (!created.ok) {
-            setError(created.error);
-            if (!created.retrySame) { forgetCheckoutAttempt(); setAttempt(null); }
-            return;
-          }
-          showConfirmed(created.attempt, created.receipt.email_sent === true);
-          return;
-        }
-        if (paymentMethod === "square") {
-          const token = tokenizeRef.current ? await tokenizeRef.current() : "";
-          if (!token) { setError("Enter your card details to pay securely with Square."); return; }
-          const created = await ensureOrder(pending);
-          if (!created.ok) {
-            setError(created.error);
-            if (!created.retrySame) { forgetCheckoutAttempt(); setAttempt(null); }
-            return;
-          }
-          const paid = await payWithSquare({ idempotencyKey: created.attempt.request.idempotencyKey, sourceId: token });
-          if (!paid.success) {
-            setError(paid.error);
-            if (paid.pending && paid.receipt) {
-              const processing = withReceipt(created.attempt, paid.receipt);
-              persist(processing);
-              setConfirmation(processing);
-            }
-            return;
-          }
-          showConfirmed(withReceipt(created.attempt, { ...paid.receipt, email_sent: paid.emailSent }), paid.emailSent);
-          return;
-        }
-        setError("Use the PayPal button to pay securely.");
-      } catch {
-        setError("The connection was interrupted. Your cart is safe. Retry the pending order; it will use the same checkout key.");
-      } finally {
-        submitting.current = false;
-        setIsSubmitting(false);
-      }
-    });
-  }
-
-  async function paypalCreateOrder() {
-    const candidate = attempt?.request ?? {
-      items: items.map(({ productId, quantity }) => ({ product_id: productId, quantity })),
-      customerName: contact.customerName, customerEmail: contact.customerEmail, customerPhone: contact.customerPhone,
-      address: { address_line_1: address.addressLine1, address_line_2: address.addressLine2, city: address.city, state: address.state, postal_code: address.postalCode, country: address.country },
-      fulfillmentMethod,
-      deliveryOptionId: deliveryOptionId || (fulfillmentMethod === "local_pickup" ? "pickup" : "store"),
-      idempotencyKey: crypto.randomUUID(),
-    };
-    const validated = validateCheckout(candidate);
-    if (validated.error) throw new Error(validated.error);
-    const pending: CheckoutAttempt = attempt ?? {
-      request: validated.request!, items: items.map(({ productId, name, quantity }) => ({ productId, name, quantity })), createdAt: Date.now(),
-    };
-    storeCheckoutAttempt(pending);
-    setAttempt(pending);
-    const created = await ensureOrder(pending);
-    if (!created.ok) throw new Error(created.error);
-    const started = await startPaypalPayment({ idempotencyKey: created.attempt.request.idempotencyKey });
-    if (!started.success) throw new Error(started.error);
-    if ("paypalOrderId" in started) return started.paypalOrderId;
-    showConfirmed(withReceipt(created.attempt, started.receipt), started.emailSent);
-    throw new Error("This order is already paid.");
-  }
-
-  async function paypalApprove(paypalOrderId: string) {
-    if (!attempt?.request.idempotencyKey && !confirmation) return;
-    const key = (attempt ?? confirmation)!.request.idempotencyKey;
-    const paid = await capturePaypalPayment({ idempotencyKey: key, paypalOrderId });
-    if (!paid.success) {
-      setError(paid.error);
-      if (paid.pending && paid.receipt && attempt) {
-        const processing = withReceipt(attempt, paid.receipt);
-        persist(processing);
-        setConfirmation(processing);
-      }
-      return;
+    const prepared = await prepareStripePayment({ checkout: pending.request, expectedTotal });
+    setIsSubmitting(false);
+    if (!prepared.success) {
+      setError(prepared.error);
+      if (prepared.totalsChanged && prepared.total != null) setQuoteSubtotal(prepared.subtotal ?? null);
+      return false;
     }
-    showConfirmed(withReceipt((attempt ?? confirmation)!, { ...paid.receipt, email_sent: paid.emailSent }), paid.emailSent);
+    const next = withReceipt(pending, prepared.receipt);
+    persist(next);
+    setAttempt(next);
+    setClientSecret(prepared.clientSecret);
+    setPublishableKey(prepared.publishableKey);
+    if (prepared.subtotal != null) setQuoteSubtotal(prepared.subtotal);
+    return true;
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
   }
 
   if (!isLoaded || !sessionReady) {
@@ -288,8 +203,6 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
     return <main className="mx-auto max-w-2xl px-5 py-20 text-center"><h1 className="text-3xl font-semibold text-forest-green">Your cart is empty</h1><p className="mt-4 text-muted">Add products before checking out.</p><Link className="mt-8 inline-flex rounded-lg bg-forest-green px-6 py-3 text-white" href="/shop">Browse the shop</Link></main>;
   }
 
-  const squarePublic = payments.square.public;
-  const paypalPublic = payments.paypal.public;
   const selectedOption = options.find((option) => option.id === deliveryOptionId) ?? null;
   const breakdown = selectedOption ? breakdowns[selectedOption.id] : undefined;
   const summaryItems = attempt?.items ?? items;
@@ -317,17 +230,14 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
       setError("Complete your delivery address, city, and country.");
       return;
     }
-    setError("");
-    setCheckoutStep("payment");
-  }
-
-  function goReview() {
-    if (payments.enabled && !paymentMethod) {
-      setError("Choose Square or PayPal.");
+    if (!payments.enabled) {
+      setError(payments.message);
+      setCheckoutStep("payment");
       return;
     }
     setError("");
-    setCheckoutStep("review");
+    setCheckoutStep("payment");
+    void startStripe(displayTotal);
   }
 
   return (
@@ -340,15 +250,11 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
           <CheckoutProgress step={checkoutStep} />
         </div>
         <p className="mt-4 max-w-lg leading-7 text-muted">
-          {storeOpen
-            ? payments.enabled
-              ? payments.message
-              : "Online payment is not available yet. The store will contact you regarding payment."
-            : STORE_CLOSED_MESSAGE}
+          {storeOpen ? payments.message : STORE_CLOSED_MESSAGE}
         </p>
         {attempt && <div role="status" className="mt-6 space-y-2 rounded-xl border border-gold/40 bg-white p-4 text-sm break-words"><p>A previous order request is awaiting confirmation. Retry it below before starting another order. Your original items and details will be used.</p><p>{attempt.request.customerName} &middot; {attempt.request.customerEmail}</p><p>{attempt.request.fulfillmentMethod === "delivery" ? [attempt.request.address.address_line_1, attempt.request.address.city, attempt.request.address.country].filter(Boolean).join(", ") : "Local pickup"}</p></div>}
         <form aria-describedby={error ? "checkout-error" : undefined} className="mt-8 space-y-7" onSubmit={handleSubmit}>
-          <fieldset className={checkoutStep === "account" ? "space-y-4" : "hidden"} disabled={isSubmitting || Boolean(attempt)}>
+          <fieldset className={checkoutStep === "account" ? "space-y-4" : "hidden"} disabled={isSubmitting}>
             <legend className="font-semibold text-forest-green">Your details</legend>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field hint="We'll send your receipt and pickup/delivery updates here." label="Email address" name="customerEmail" onChange={(value) => setContact((current) => ({ ...current, customerEmail: value }))} type="email" value={contact.customerEmail} />
@@ -358,7 +264,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
             <button className="min-h-12 w-full rounded-xl bg-forest-green px-4 text-sm font-semibold text-white" onClick={goShipping} type="button">Continue to Shipping →</button>
           </fieldset>
 
-          <fieldset className={checkoutStep === "shipping" ? "min-w-0 space-y-6" : "hidden"} disabled={isSubmitting || Boolean(attempt)}>
+          <fieldset className={checkoutStep === "shipping" ? "min-w-0 space-y-6" : "hidden"} disabled={isSubmitting}>
             {selectedOption?.fulfillmentMethod === "delivery" || !selectedOption ? (
               <div className="space-y-4">
                 <h2 className="font-semibold text-forest-green">Delivery address</h2>
@@ -408,70 +314,43 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
             <button className="text-sm font-semibold text-forest-green underline" onClick={() => setCheckoutStep("account")} type="button">Back to account</button>
           </fieldset>
 
-          <fieldset className={checkoutStep === "payment" ? "space-y-4" : "hidden"}>
+          <fieldset className={checkoutStep === "payment" || checkoutStep === "review" ? "min-w-0 space-y-4" : "hidden"}>
             <legend className="font-semibold text-forest-green">Payment</legend>
-            <PaymentMethodCards
-              paypalReady={payments.paypal.ready}
-              squareReady={payments.square.ready}
-              value={paymentMethod}
-              onChange={setPaymentMethod}
-            />
+            <PaymentMethodCards stripeReady={payments.stripe.ready} />
+            {payments.stripe.mode === "test" ? (
+              <p className="rounded-xl border border-[#b8964c]/40 bg-white px-4 py-3 text-sm text-[#7c5d1a]">Stripe TEST MODE. No live charges.</p>
+            ) : null}
             {!payments.enabled ? (
-              <p className="rounded-xl border border-forest-green/10 bg-white/70 px-4 py-3 text-sm text-muted">
-                Online payment is not available yet. The store will contact you regarding payment.
+              <p className="rounded-xl border border-red-900/15 bg-white px-4 py-3 text-sm text-red-900">
+                {payments.message}
               </p>
             ) : null}
-            {payments.enabled && paymentMethod === "square" && squarePublic?.applicationId && squarePublic.locationId && squarePublic.environment ? (
-              <SquareCardFields
-                applicationId={squarePublic.applicationId}
-                environment={squarePublic.environment as PaymentEnvironment}
-                locationId={squarePublic.locationId}
-                onReady={setTokenize}
-              />
-            ) : null}
-            {payments.enabled && paymentMethod === "paypal" && paypalPublic?.clientId && paypalPublic.environment ? (
-              <PaypalCheckoutButtons
-                clientId={paypalPublic.clientId}
-                createOrder={paypalCreateOrder}
-                environment={paypalPublic.environment as PaymentEnvironment}
-                onApprove={paypalApprove}
-                onCancel={async () => {
-                  if (attempt?.request.idempotencyKey) await markPaypalCancelled({ idempotencyKey: attempt.request.idempotencyKey });
-                  setError("PayPal checkout was cancelled.");
-                }}
-                onError={() => setError("Payment couldn't be completed. Please try again.")}
-              />
-            ) : null}
-            {!(payments.enabled && paymentMethod === "paypal") ? (
-              <button className="min-h-12 w-full rounded-xl bg-forest-green px-4 text-sm font-semibold text-white" onClick={goReview} type="button">Continue to Review →</button>
-            ) : null}
-            <button className="text-sm font-semibold text-forest-green underline" onClick={() => setCheckoutStep("shipping")} type="button">Back to shipping</button>
-          </fieldset>
-
-          <fieldset className={checkoutStep === "review" ? "space-y-4" : "hidden"}>
-            {selectedOption?.provider === "pickup" ? (
-              <PickupLocationBlock className="rounded-xl border border-forest-green/10 bg-white px-4 py-3" location={livePickupOrigin} />
-            ) : null}
             <CheckoutOrderSummary
-              continueDisabled={!storeOpen || isSubmitting || (!attempt && items.length === 0) || (payments.enabled && paymentMethod !== "square")}
-              continueLabel={
-                isSubmitting
-                  ? payments.enabled ? "Paying securely..." : "Placing order..."
-                  : payments.enabled
-                    ? attempt ? "Retry payment" : "Pay securely with Square"
-                    : attempt ? "Retry order" : "Place Order"
-              }
-              continueType="submit"
+              continueLabel="Total due"
               items={summaryItems}
               provider={selectedOption?.provider}
               shipping={displayShipping}
+              showContinue={false}
               subtotal={displaySubtotal}
               tax={displayTax}
               taxLabel={taxLabel}
               taxMode={taxSettings?.tax_mode}
               total={displayTotal}
             />
-            <button className="text-sm font-semibold text-forest-green underline" onClick={() => setCheckoutStep("payment")} type="button">Back to payment</button>
+            {clientSecret && publishableKey && attempt ? (
+              <StripeCheckoutForm
+                amountLabel={displayTotal != null ? `$${displayTotal.toFixed(2)}` : ""}
+                clientSecret={clientSecret}
+                disabled={!storeOpen || isSubmitting}
+                idempotencyKey={attempt.request.idempotencyKey}
+                publishableKey={publishableKey}
+                onError={setError}
+                onPaid={(receipt) => showConfirmed(withReceipt(attempt, receipt), receipt.email_sent === true)}
+              />
+            ) : (
+              <p className="text-sm text-muted">{isSubmitting ? "Preparing secure payment…" : payments.enabled ? "Preparing Stripe…" : "Stripe Payment Element cannot load until the missing server configuration is added."}</p>
+            )}
+            <button className="text-sm font-semibold text-forest-green underline" onClick={() => setCheckoutStep("shipping")} type="button">Back to shipping</button>
           </fieldset>
 
           {error ? (

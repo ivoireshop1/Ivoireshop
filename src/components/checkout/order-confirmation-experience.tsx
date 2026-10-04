@@ -75,7 +75,7 @@ export function OrderConfirmationExperience({
         <div className="flex justify-between gap-4"><dt className="shrink-0">Shipping / Delivery</dt><dd className="text-right">${Number(receipt.shipping_cost ?? 0).toFixed(2)}</dd></div>
         <div className="flex justify-between gap-4"><dt className="shrink-0">Tax</dt><dd className="text-right">${Number(receipt.tax_amount ?? 0).toFixed(2)}</dd></div>
         <div className="flex justify-between gap-4"><dt className="shrink-0">Payment status</dt><dd className="min-w-0 text-right text-forest-green">{paymentStatusLabel(receipt.payment_status ?? "pending", receipt.payment_provider)}</dd></div>
-        <div className="flex justify-between gap-4"><dt className="shrink-0">Payment method</dt><dd className="min-w-0 text-right text-forest-green">{paymentProviderLabel(receipt.payment_provider, receipt.payment_method)}</dd></div>
+        <div className="flex justify-between gap-4"><dt className="shrink-0">Payment method</dt><dd className="min-w-0 text-right text-forest-green">{receipt.payment_provider === "stripe" || receipt.payment_method === "card" ? "Card" : paymentProviderLabel(receipt.payment_provider, receipt.payment_method)}</dd></div>
         <div className="flex justify-between gap-4"><dt className="shrink-0">Total</dt><dd className="text-right font-semibold text-forest-green">${Number(receipt.total).toFixed(2)}</dd></div>
       </dl>
       {pickup ? <PickupLocationBlock className="mt-4 rounded-2xl border border-black/10 bg-white/70 p-5" location={pickupLocation} /> : null}

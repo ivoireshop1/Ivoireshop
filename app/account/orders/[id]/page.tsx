@@ -7,6 +7,7 @@ import { CopyConfirmationButton } from "@/src/components/checkout/copy-confirmat
 import { markOrderNotificationsSeen } from "@/src/lib/notifications/queries";
 import { PickupLocationBlock, pickupLocationForOrder } from "@/src/components/store/pickup-location-block";
 import { OrderMoneyBreakdown } from "@/src/components/orders/order-money-breakdown";
+import { paymentStatusLabel } from "@/src/lib/orders/status";
 import { ShipmentTrackingPanel } from "@/src/components/orders/shipment-tracking-panel";
 import { OrderLine } from "@/src/components/orders/order-line";
 import { LiveOrderTimeline } from "@/src/components/orders/live-order-timeline";
@@ -79,6 +80,14 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
             total={order.total}
           />
         </dl>
+        <div className="mt-4 rounded-xl bg-[#f7f3ee] p-4 text-sm">
+          <p className="font-semibold text-forest-green">Payment</p>
+          <p className="mt-1">{order.payment_status === "paid" || order.payment_status === "partially_refunded" ? "Paid with card" : paymentStatusLabel(order.payment_status, order.payment_provider)}</p>
+          <p className="mt-1 font-semibold">Total ${Number(order.total).toFixed(2)}</p>
+          {order.payment_status === "refunded" || order.payment_status === "partially_refunded" ? (
+            <p className="mt-1">Amount refunded: ${Number(order.refunded_amount ?? 0).toFixed(2)}</p>
+          ) : null}
+        </div>
         <ShipmentTrackingPanel order={order} />
         {order.fulfillment_method === "local_pickup" ? (
           <div className="mt-6">

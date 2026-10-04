@@ -32,12 +32,14 @@ export function fulfillmentKindLabel(fulfillment?: string | null, provider?: str
 export function paymentHeaderLabel(status?: string | null, provider?: string | null) {
   if (status === "paid") return "Paid";
   if (status === "refunded") return "Refunded";
+  if (status === "partially_refunded") return "Partially Refunded";
+  if (status === "failed") return "Failed";
   if (status === "pending" && provider && provider !== "not_collected") return "Payment Pending";
   return "Unpaid";
 }
 
 export function paidAmountDisplay(status?: string | null, total?: number | string | null) {
-  if (status === "paid") return Number(total ?? 0);
+  if (status === "paid" || status === "partially_refunded" || status === "refunded") return Number(total ?? 0);
   return null;
 }
 

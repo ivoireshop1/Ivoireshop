@@ -90,7 +90,8 @@ export function toneForEvent(eventType: string): IvoireTone | null {
   if (eventType === "order_confirmed" || eventType === "new_order") return "accepted";
   if (eventType === "preparing" || eventType === "customer_message" || eventType === "new_review") return "preparing";
   if (eventType === "ready_for_pickup" || eventType === "ready_for_delivery" || eventType === "shipped" || eventType === "out_for_delivery" || eventType === "tracking_added" || eventType === "tracking_updated" || eventType === "shipping_attention" || eventType === "announcement") return "ready";
-  if (eventType === "completed") return "success";
+  if (eventType === "completed" || eventType === "payment_received" || eventType === "paid_order") return "success";
+  if (eventType === "payment_failed" || eventType === "refund_processed" || eventType === "payment_refunded") return "preparing";
   return null;
 }
 

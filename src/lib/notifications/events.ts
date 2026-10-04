@@ -12,6 +12,7 @@ export const notificationEvents = [
   "payment_pending",
   "payment_received",
   "payment_failed",
+  "payment_refunded",
 ] as const;
 
 export type NotificationEvent = (typeof notificationEvents)[number];
@@ -31,6 +32,7 @@ export function notificationEventFromPaymentStatus(status: string): Notification
   if (status === "pending") return "payment_pending";
   if (status === "paid") return "payment_received";
   if (status === "failed") return "payment_failed";
+  if (status === "refunded" || status === "partially_refunded") return "payment_refunded";
   return null;
 }
 

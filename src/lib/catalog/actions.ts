@@ -549,10 +549,13 @@ export async function updateOrderStatus(_prev: OrderStatusActionState | null, fo
   }
 
   const { data: current, error: readError } = await supabase.from("orders")
-    .select("status, fulfillment_method, fulfillment_provider").eq("id", id).maybeSingle();
+    .select("status, fulfillment_method, fulfillment_provider, payment_status, payment_provider").eq("id", id).maybeSingle();
   if (readError || !current || textValue(formData, "expected_status") !== current.status
       || !nextOrderStatuses(current.status, current.fulfillment_method, current.fulfillment_provider).includes(status)) {
     return { error: "Refresh the order and choose the next allowed action." };
+  }
+  if (current.payment_provider === "stripe" && current.payment_status !== "paid" && current.payment_status !== "partially_refunded" && status !== "cancelled") {
+    return { error: "Collect Stripe payment before fulfillment." };
   }
   const { data: changed, error } = await supabase.from("orders").update({ status })
     .eq("id", id).eq("status", current.status).select("id").maybeSingle();

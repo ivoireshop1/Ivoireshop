@@ -32,7 +32,8 @@ export function AdminOrderControlHeader({
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const next = nextOrderStatuses(status, order.fulfillment_method, order.fulfillment_provider).filter((value) => value !== "cancelled");
-  const primary = next[0];
+  const unpaid = order.payment_provider === "stripe" && order.payment_status !== "paid" && order.payment_status !== "partially_refunded";
+  const primary = unpaid ? undefined : next[0];
 
   function run(nextStatus: string) {
     if (busy) return;
@@ -76,7 +77,9 @@ export function AdminOrderControlHeader({
         <div><dt className="text-[11px] uppercase tracking-[0.16em] text-[#6b6b6b]">Payment</dt><dd className="mt-1 text-sm text-[#173f35]">{paymentHeaderLabel(order.payment_status, order.payment_provider)}</dd></div>
         <div><dt className="text-[11px] uppercase tracking-[0.16em] text-[#6b6b6b]">Total</dt><dd className="mt-1 text-sm font-semibold tabular-nums text-[#173f35]">${Number(order.total).toFixed(2)}</dd></div>
       </dl>
-      {primary ? (
+      {unpaid ? (
+        <p className="mt-5 text-sm font-semibold text-[#7c5d1a]">Collect Stripe payment before fulfillment.</p>
+      ) : primary ? (
         <button
           className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#173f35] px-5 text-base font-semibold text-white sm:w-auto"
           disabled={busy}
