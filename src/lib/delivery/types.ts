@@ -9,6 +9,8 @@ export type DeliveryOption = {
   mode?: "manual" | "api";
   zone?: "domestic" | "international";
   rateMode?: "store_rate" | "manual_quote" | "live_api";
+  usedFallback?: boolean;
+  billableWeightLb?: number;
 };
 
 export function sanitizeProviderError(raw: string) {

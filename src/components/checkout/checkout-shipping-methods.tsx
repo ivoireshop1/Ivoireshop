@@ -10,12 +10,14 @@ export function CheckoutShippingMethods({
   onChange,
   busy,
   pickupOrigin,
+  message,
 }: {
   options: DeliveryOption[];
   value: string;
   onChange: (option: DeliveryOption) => void;
   busy?: boolean;
   pickupOrigin?: StoreOrigin | null;
+  message?: string | null;
 }) {
   const pickupLines = formatOriginLines(pickupOrigin ?? undefined);
   return (
@@ -66,6 +68,7 @@ export function CheckoutShippingMethods({
             </label>
           );
         })}
+        {message && !busy ? <p className="text-sm text-[#7c5d1a]">{message}</p> : null}
         {!options.length && !busy ? <p className="text-sm text-muted">No shipping methods are available yet. Complete your address if you need carrier shipping.</p> : null}
         {busy ? <p className="text-sm text-muted">Updating shipping options...</p> : null}
       </div>
