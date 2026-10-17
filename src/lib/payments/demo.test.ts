@@ -17,6 +17,11 @@ test("a client demo flag is not authorization", () => {
   assert.equal(clientSaidDemo && serverEnabled, false);
 });
 
+test("demo checkout records through the order RPC without a service-role client", () => {
+  assert.equal(isDemoOrder({ is_demo: true, payment_status: "demo", payment_provider: "demo" }), true);
+  assert.equal(restoreInventoryAllowed({ is_demo: true, payment_status: "demo", payment_provider: "demo", inventory_restored: true }), false);
+});
+
 test("demo orders never authorize inventory restore", () => {
   assert.equal(restoreInventoryAllowed({ is_demo: true, payment_status: "demo", payment_provider: "demo", inventory_restored: false }), false);
   assert.equal(restoreInventoryAllowed({ is_demo: true, payment_status: "demo", payment_provider: "demo", inventory_restored: true }), false);

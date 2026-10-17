@@ -46,7 +46,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
   const [sessionReady, setSessionReady] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [publishableKey, setPublishableKey] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"demo" | "stripe" | "">("");
+  const [paymentMethod, setPaymentMethod] = useState<"demo" | "stripe" | "">(demoEnabled ? "demo" : "");
   const recovered = useRef(false);
   const router = useRouter();
 
@@ -254,7 +254,12 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
     }
     setError("");
     setCheckoutStep("payment");
-    if (demoEnabled) return;
+    if (demoEnabled) {
+      setPaymentMethod("demo");
+      setClientSecret(null);
+      setPublishableKey(null);
+      return;
+    }
     if (!payments.stripe.canCollect) {
       setError(payments.message);
       return;
@@ -273,7 +278,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
           <CheckoutProgress step={checkoutStep} />
         </div>
         <p className="mt-4 max-w-lg leading-7 text-muted">
-          {storeOpen ? (demoEnabled ? "Choose Demo Payment or Stripe. Demo checkout does not collect a card or charge a customer." : payments.message) : STORE_CLOSED_MESSAGE}
+          {storeOpen ? (demoEnabled ? "Demonstration checkout. No card is collected and no real payment is charged." : payments.message) : STORE_CLOSED_MESSAGE}
         </p>
         {attempt && <div role="status" className="mt-6 space-y-2 rounded-xl border border-gold/40 bg-white p-4 text-sm break-words"><p>A previous order request is awaiting confirmation. Retry it below before starting another order. Your original items and details will be used.</p><p>{attempt.request.customerName} &middot; {attempt.request.customerEmail}</p><p>{attempt.request.fulfillmentMethod === "delivery" ? [attempt.request.address.address_line_1, attempt.request.address.city, attempt.request.address.country].filter(Boolean).join(", ") : "Local pickup"}</p></div>}
         <form aria-describedby={error ? "checkout-error" : undefined} className="mt-8 space-y-7" onSubmit={handleSubmit}>
@@ -340,24 +345,26 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
 
           <fieldset className={checkoutStep === "payment" || checkoutStep === "review" ? "min-w-0 space-y-4" : "hidden"}>
             <legend className="font-semibold text-forest-green">Payment</legend>
-            <PaymentMethodCards
-              demoEnabled={demoEnabled}
-              method={paymentMethod}
-              stripeReady={payments.stripe.canCollect}
-              onChange={(next) => {
-                setPaymentMethod(next);
-                setError("");
-                if (next === "stripe") void startStripe(displayTotal);
-                else {
-                  setClientSecret(null);
-                  setPublishableKey(null);
-                }
-              }}
-            />
-            {payments.stripe.mode === "test" && paymentMethod === "stripe" ? (
+            {demoEnabled ? null : (
+              <PaymentMethodCards
+                demoEnabled={demoEnabled}
+                method={paymentMethod}
+                stripeReady={payments.stripe.canCollect}
+                onChange={(next) => {
+                  setPaymentMethod(next);
+                  setError("");
+                  if (next === "stripe") void startStripe(displayTotal);
+                  else {
+                    setClientSecret(null);
+                    setPublishableKey(null);
+                  }
+                }}
+              />
+            )}
+            {demoEnabled || paymentMethod !== "stripe" ? null : payments.stripe.mode === "test" ? (
               <p className="rounded-xl border border-[#b8964c]/40 bg-white px-4 py-3 text-sm text-[#7c5d1a]">Stripe TEST MODE. No live charges.</p>
             ) : null}
-            {paymentMethod === "stripe" && !payments.stripe.canCollect ? (
+            {!demoEnabled && paymentMethod === "stripe" && !payments.stripe.canCollect ? (
               <p className="rounded-xl border border-red-900/15 bg-white px-4 py-3 text-sm text-red-900">
                 {payments.message}
               </p>
@@ -388,7 +395,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
                 </button>
               </div>
             ) : null}
-            {paymentMethod === "stripe" && clientSecret && publishableKey && attempt ? (
+            {demoEnabled ? null : paymentMethod === "stripe" && clientSecret && publishableKey && attempt ? (
               <StripeCheckoutForm
                 amountLabel={displayTotal != null ? `$${displayTotal.toFixed(2)}` : ""}
                 clientSecret={clientSecret}
@@ -401,7 +408,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
             ) : paymentMethod === "stripe" ? (
               <p className="text-sm text-muted">{isSubmitting ? "Preparing secure payment…" : payments.stripe.canCollect ? "Preparing Stripe…" : "Stripe Payment Element cannot load until the missing server configuration is added."}</p>
             ) : paymentMethod ? null : (
-              <p className="text-sm text-muted">{demoEnabled ? "Select Demo Payment or Stripe Card Payment." : "Select a payment method."}</p>
+              <p className="text-sm text-muted">Select a payment method.</p>
             )}
             <button className="text-sm font-semibold text-forest-green underline" onClick={() => setCheckoutStep("shipping")} type="button">Back to shipping</button>
           </fieldset>
