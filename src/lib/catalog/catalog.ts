@@ -4,6 +4,7 @@ import type { CatalogCategory, Product } from "@/src/types/catalog";
 import { canonicalSortIndex } from "@/src/lib/catalog/canonical-categories";
 import { publicStockLabel } from "@/src/lib/catalog/inventory";
 import { toOneRelation } from "@/src/lib/catalog/relation-utils";
+import { PRODUCT_SHOP_EMBEDS } from "@/src/lib/catalog/product-embeds";
 
 type ProductRow = {
   id: string;
@@ -21,6 +22,7 @@ type ProductRow = {
   stock_quantity: number | null;
   track_inventory?: boolean | null;
   categories: { name: string; slug?: string } | { name: string; slug?: string }[] | null;
+  subcategory?: { name: string | null; slug?: string | null } | { name: string | null; slug?: string | null }[] | null;
   product_images?: { image_url: string; position: number }[] | null;
 };
 
@@ -40,6 +42,8 @@ function mapProduct(row: ProductRow): Product {
     compareAtPrice: row.compare_at_price === null ? undefined : Number(row.compare_at_price),
     category,
     categorySlug,
+    subcategory: toOneRelation(row.subcategory)?.name || undefined,
+    subcategorySlug: toOneRelation(row.subcategory)?.slug || undefined,
     image: image ?? "",
     weight: publicStockLabel(row.track_inventory, row.stock_quantity),
     stockQuantity: row.stock_quantity,
@@ -106,7 +110,7 @@ export const getProducts = cache(async (): Promise<Product[]> => {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, slug, description, short_description, price, compare_at_price, category_id, is_active, is_featured, is_new_arrival, is_coming_soon, stock_quantity, track_inventory, categories(name, slug), product_images(image_url, position)")
+      .select(`id, name, slug, description, short_description, price, compare_at_price, category_id, is_active, is_featured, is_new_arrival, is_coming_soon, stock_quantity, track_inventory, ${PRODUCT_SHOP_EMBEDS}, product_images(image_url, position)`)
       .eq("is_active", true)
       .order("created_at", { ascending: false });
     if (error) {
@@ -121,7 +125,7 @@ export async function getProductBySlug(slug: string): Promise<Product | undefine
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, slug, description, short_description, price, compare_at_price, category_id, is_active, is_featured, is_new_arrival, is_coming_soon, stock_quantity, track_inventory, categories(name, slug), product_images(image_url, position)")
+      .select(`id, name, slug, description, short_description, price, compare_at_price, category_id, is_active, is_featured, is_new_arrival, is_coming_soon, stock_quantity, track_inventory, ${PRODUCT_SHOP_EMBEDS}, product_images(image_url, position)`)
       .eq("slug", slug)
       .maybeSingle();
     if (error) {
@@ -149,7 +153,7 @@ export async function getComingSoonProducts(limit = 4): Promise<Product[]> {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, slug, description, short_description, price, compare_at_price, category_id, is_active, is_featured, is_new_arrival, is_coming_soon, stock_quantity, track_inventory, categories(name, slug), product_images(image_url, position)")
+      .select(`id, name, slug, description, short_description, price, compare_at_price, category_id, is_active, is_featured, is_new_arrival, is_coming_soon, stock_quantity, track_inventory, ${PRODUCT_SHOP_EMBEDS}, product_images(image_url, position)`)
       .eq("is_coming_soon", true)
       .eq("is_active", false)
       .order("updated_at", { ascending: false })

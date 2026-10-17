@@ -15,7 +15,7 @@ export default async function AdminCatalogPrintPage({
   const { supabase } = await requireAdmin();
   const { data, error } = await supabase
     .from("products")
-    .select("name, sku, price, is_active, stock_quantity, track_inventory, ship_weight_lb, categories(name)")
+    .select("name, sku, price, is_active, stock_quantity, track_inventory, ship_weight_lb, categories:categories!products_category_id_fkey(name)")
     .order("name");
   if (error) return <AdminLoadFailure message="Unable to load catalog print data." title="Print" />;
   const products = (data ?? []).filter((product) => {
