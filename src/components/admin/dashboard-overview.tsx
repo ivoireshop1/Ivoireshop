@@ -210,7 +210,10 @@ export function DashboardOverview({ initial }: { initial: AdminDashboardData }) 
               </div>
               <div>
                 <p className="text-sm text-[#6b6b6b]">Orders</p>
-                <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.todayOrderCount}</p>
+                <p className="mt-2 text-2xl font-semibold text-[#173f35]">{dashboard.todayAllOrderCount}</p>
+                <p className="mt-1 text-xs text-[#6b6b6b]">
+                  {dashboard.todayOrderCount} paid · {dashboard.todayDemoOrderCount} demo
+                </p>
               </div>
               <div>
                 <p className="text-sm text-[#6b6b6b]">AOV</p>
@@ -277,6 +280,7 @@ export function DashboardOverview({ initial }: { initial: AdminDashboardData }) 
                 <Link href={`/admin/orders/${order.id}`} key={order.id} className="grid grid-cols-[1.2fr_1fr_0.65fr_0.75fr_0.8fr] gap-3 border-b border-[#173f35]/10 px-4 py-3 text-sm last:border-b-0 hover:bg-[#f9f7f3]">
                   <span className="font-medium text-[#173f35]">
                     {order.orderNumber}
+                    {order.isDemo ? <span className="ml-2 rounded-full bg-[#7c5d1a] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">DEMO</span> : null}
                     <span className="mt-1 block text-xs font-normal text-[#6b6b6b]">{formatStoreCompact(order.createdAt)}</span>
                   </span>
                   <span className="text-[#6b6b6b]">{order.customerName}</span>

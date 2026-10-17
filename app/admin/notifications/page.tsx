@@ -1,12 +1,14 @@
 import { pageMetadata } from "@/src/lib/page-metadata";
 import { requireAdmin } from "@/src/lib/auth/guards";
+import { AdminNotificationSoundsToggle } from "@/src/components/admin/admin-notification-sounds-toggle";
 import Link from "next/link";
 import { formatStoreDateTime } from "@/src/lib/store/timezone";
 
 export const metadata = pageMetadata("Admin notifications", "Operational notification history.", "/admin/notifications", false);
 
 export default async function AdminNotificationsPage() {
-  const { supabase } = await requireAdmin();
+  const { supabase, user } = await requireAdmin();
+  const { data: profile } = await supabase.from("profiles").select("admin_notification_sounds, admin_notification_volume").eq("id", user.id).maybeSingle();
   const { data: rows } = await supabase
     .from("admin_notifications")
     .select("id, event_type, title, message, order_id, target_path, created_at, read_at")
@@ -18,6 +20,7 @@ export default async function AdminNotificationsPage() {
       <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#b8964c]">Operations</p>
       <h1 className="text-3xl font-semibold text-[#173f35]">Notifications</h1>
       <p className="text-sm text-[#6b6b6b]">History stays after refresh. Open a record from the bell or the links below.</p>
+      <AdminNotificationSoundsToggle enabled={profile?.admin_notification_sounds !== false} volume={profile?.admin_notification_volume ?? 80} />
       <ul className="space-y-3">
         {(rows ?? []).length ? (rows ?? []).map((row) => (
           <li className="rounded-2xl border border-[#173f35]/10 bg-white p-4" key={row.id}>

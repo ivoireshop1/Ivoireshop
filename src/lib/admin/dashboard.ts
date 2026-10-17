@@ -7,6 +7,7 @@ import { startOfStoreDayIso, storeGreetingAt, formatStoreShortDate } from "@/src
 import { dashboardFulfillmentCounts } from "@/src/lib/orders/ops";
 import { recordAdminIncident } from "@/src/lib/ops/incident";
 import { netPaidRevenue } from "@/src/lib/payments/totals";
+import { countDemoOrders, countPaidSalesOrders, isDemoOrder } from "@/src/lib/payments/demo";
 
 export type AdminDashboardMetric = {
   label: string;
@@ -32,6 +33,7 @@ export type AdminRecentOrder = {
   total: number;
   status: string;
   createdAt: string;
+  isDemo: boolean;
 };
 
 export type AdminBestSeller = {
@@ -76,7 +78,7 @@ export async function getAdminDashboardData() {
       supabase.from("products").select("id, name, stock_quantity, track_inventory, is_active, price, category_id, product_images(image_url)").order("stock_quantity", { ascending: true }),
       supabase
         .from("orders")
-        .select("id, order_number, customer_name, total, status, created_at")
+        .select("id, order_number, customer_name, total, status, payment_status, payment_provider, is_demo, created_at")
         .order("created_at", { ascending: false })
         .limit(5),
       supabase.from("order_items").select("order_id, product_id, product_name, quantity, product_price"),
@@ -174,7 +176,9 @@ export async function getAdminDashboardData() {
   const revenueToday = todayOrders
     .reduce((sum, order) => sum + netPaidRevenue(order), 0);
 
-  const orderCountToday = todayOrders.filter((order) => !order.is_demo && order.payment_provider !== "demo" && order.payment_status !== "demo").length;
+  const orderCountToday = countPaidSalesOrders(todayOrders);
+  const demoOrderCountToday = countDemoOrders(todayOrders);
+  const allOrderCountToday = todayOrders.length;
   const newCustomersToday = todayCustomers.length;
   const lowStockProducts = products.filter((product) => product.track_inventory !== false && Number(product.stock_quantity) > 0 && Number(product.stock_quantity) <= 5);
   const outOfStockProducts = products.filter((product) => product.track_inventory !== false && Number(product.stock_quantity) <= 0);
@@ -226,8 +230,10 @@ export async function getAdminDashboardData() {
 
   const revenueTrend = await getRevenueTrend(supabase, sevenDaysAgo.toISOString());
 
+  const demoOrderIds = new Set(allOrders.filter((order) => isDemoOrder(order)).map((order) => order.id));
   const bestSellerMap = new Map<string, AdminBestSeller>();
   orderItems.forEach((item) => {
+    if (demoOrderIds.has(item.order_id)) return;
     const productId = item.product_id ?? "unknown";
     const productName = item.product_name ?? "Unknown product";
     const qty = Number(item.quantity ?? 0);
@@ -265,6 +271,7 @@ export async function getAdminDashboardData() {
     total: Number(order.total ?? 0),
     status: order.status,
     createdAt: order.created_at,
+    isDemo: isDemoOrder(order),
   }));
 
   const described = describeStoreStatus(store);
@@ -314,6 +321,8 @@ export async function getAdminDashboardData() {
     outOfStockCount: outOfStockProducts.length,
     lowStockCount: lowStockProducts.length,
     todayOrderCount: orderCountToday,
+    todayDemoOrderCount: demoOrderCountToday,
+    todayAllOrderCount: allOrderCountToday,
     totalOrderCount: allOrders.length,
     pendingOrderCount: allOrders.filter((order) => ["pending", "confirmed", "processing"].includes(order.status)).length,
     todaysRevenue: revenueToday,

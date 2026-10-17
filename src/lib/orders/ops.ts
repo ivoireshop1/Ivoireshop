@@ -178,6 +178,8 @@ export type ChecklistItem = { id: string; label: string; done: boolean };
 export function fulfillmentChecklist(order: {
   status: string;
   payment_status?: string | null;
+  payment_provider?: string | null;
+  is_demo?: boolean | null;
   fulfillment_method?: string | null;
   fulfillment_provider?: string | null;
   tracking_number?: string | null;
@@ -185,9 +187,10 @@ export function fulfillmentChecklist(order: {
   const carrier = isCarrier(order.fulfillment_provider);
   const pickup = order.fulfillment_method === "local_pickup";
   const notified = Boolean(extra?.customerNotified);
+  const demo = order.is_demo === true || order.payment_provider === "demo" || order.payment_status === "demo";
   const items: ChecklistItem[] = [
     { id: "received", label: "Order received", done: true },
-    { id: "payment", label: "Payment confirmed", done: order.payment_status === "paid" },
+    { id: "payment", label: demo ? "Demo — no charge" : "Payment confirmed", done: demo || order.payment_status === "paid" },
     { id: "accepted", label: "Order accepted", done: statusReached(order.status, "confirmed") && order.status !== "pending" },
     { id: "preparing", label: "Preparing", done: statusReached(order.status, "processing") && order.status !== "pending" && order.status !== "confirmed" },
   ];

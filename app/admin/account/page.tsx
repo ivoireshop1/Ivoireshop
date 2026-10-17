@@ -8,14 +8,14 @@ export const metadata = pageMetadata("Admin account", "Admin account security.",
 
 export default async function AdminAccountPage() {
   const { supabase, user } = await requireAdmin();
-  const { data: profile } = await supabase.from("profiles").select("admin_notification_sounds").eq("id", user.id).maybeSingle();
+  const { data: profile } = await supabase.from("profiles").select("admin_notification_sounds, admin_notification_volume").eq("id", user.id).maybeSingle();
   return (
     <div className="max-w-xl space-y-4">
       <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#b8964c]">Account</p>
       <h1 className="text-3xl font-semibold text-[#173f35]">Security</h1>
       <p className="text-sm text-[#6b6b6b]">Change the password for this signed-in administrator. This uses your existing Ivoire Shop login.</p>
       <ChangePasswordForm />
-      <AdminNotificationSoundsToggle enabled={profile?.admin_notification_sounds !== false} />
+      <AdminNotificationSoundsToggle enabled={profile?.admin_notification_sounds !== false} volume={profile?.admin_notification_volume ?? 80} />
       <section className="space-y-3">
         <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#b8964c]">Diagnostics</p>
         <h2 className="text-xl font-semibold text-[#173f35]">Realtime diagnostics</h2>

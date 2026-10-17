@@ -1,6 +1,12 @@
 "use client";
 
-export type IvoireTone = "accepted" | "preparing" | "ready" | "success" | "welcome";
+import {
+  DEFAULT_NOTIFICATION_VOLUME_PERCENT,
+  percentToElementVolume,
+  readStoredVolumePercent,
+} from "./volume.ts";
+
+export type IvoireTone = "accepted" | "preparing" | "ready" | "success" | "welcome" | "new_order";
 
 const STORAGE_KEY = "ivoire-played-notifications";
 const UNLOCK_SRC = "/api/ivoire-sound/unlock";
@@ -11,6 +17,7 @@ export const ivoireCueSrc: Record<IvoireTone, string> = {
   ready: "/api/ivoire-sound/ready",
   success: "/api/ivoire-sound/success",
   welcome: "/api/ivoire-sound/welcome",
+  new_order: "/api/ivoire-sound/new_order",
 };
 
 export type PlayResult = { ok: true } | { ok: false; reason: string };
@@ -27,6 +34,28 @@ let unlocked = false;
 let unlocking: Promise<PlayResult> | null = null;
 let audioChain: Promise<unknown> = Promise.resolve();
 let lastPlay: LastPlayDiagnostic | null = null;
+let playbackVolume = percentToElementVolume(DEFAULT_NOTIFICATION_VOLUME_PERCENT);
+let playbackAudience: "admin" | "customer" = "customer";
+
+export function setIvoirePlaybackAudience(audience: "admin" | "customer") {
+  playbackAudience = audience;
+  playbackVolume = percentToElementVolume(readStoredVolumePercent(audience));
+}
+
+export function setIvoirePlaybackVolumePercent(percent: number, audience: "admin" | "customer" = playbackAudience) {
+  playbackAudience = audience;
+  playbackVolume = percentToElementVolume(percent);
+}
+
+export function getIvoirePlaybackVolume() {
+  return playbackVolume;
+}
+
+function cueVolume(override?: number) {
+  const next = override ?? playbackVolume;
+  if (!Number.isFinite(next)) return percentToElementVolume(DEFAULT_NOTIFICATION_VOLUME_PERCENT);
+  return Math.max(0, Math.min(1, next));
+}
 
 function recordPlay(cue: string, result: LastPlayDiagnostic["result"], reason?: string) {
   lastPlay = { at: new Date().toISOString(), cue, result, reason };
@@ -87,7 +116,8 @@ export function markPlayedNotification(id: string) {
 }
 
 export function toneForEvent(eventType: string): IvoireTone | null {
-  if (eventType === "order_confirmed" || eventType === "new_order") return "accepted";
+  if (eventType === "new_order") return "new_order";
+  if (eventType === "order_confirmed") return "accepted";
   if (eventType === "preparing" || eventType === "customer_message" || eventType === "new_review") return "preparing";
   if (eventType === "ready_for_pickup" || eventType === "ready_for_delivery" || eventType === "shipped" || eventType === "out_for_delivery" || eventType === "tracking_added" || eventType === "tracking_updated" || eventType === "shipping_attention" || eventType === "announcement") return "ready";
   if (eventType === "completed" || eventType === "payment_received" || eventType === "paid_order") return "success";
@@ -106,7 +136,7 @@ function reasonFromError(error: unknown) {
   return "play_failed";
 }
 
-export async function playIvoireCue(kind: IvoireTone, volume = 0.72): Promise<PlayResult> {
+export async function playIvoireCue(kind: IvoireTone, volume?: number): Promise<PlayResult> {
   return runExclusive(async () => {
     if (typeof window === "undefined") return { ok: false, reason: "server" };
     const el = audioElement();
@@ -114,7 +144,7 @@ export async function playIvoireCue(kind: IvoireTone, volume = 0.72): Promise<Pl
     try {
       if (!el.src.endsWith(src)) el.src = src;
       el.muted = false;
-      el.volume = volume;
+      el.volume = cueVolume(volume);
       el.currentTime = 0;
       const play = el.play();
       if (play) await play;
@@ -148,7 +178,7 @@ export async function unlockIvoireAudio(): Promise<PlayResult> {
       el.pause();
       el.currentTime = 0;
       el.muted = false;
-      el.volume = 0.72;
+      el.volume = cueVolume();
       unlocked = true;
       logAudio("unlock_resolved");
       return { ok: true } as const;
@@ -200,7 +230,7 @@ export async function playNotificationEvent(eventType: string, notificationId: s
       /* ignore */
     }
   }
-  const result = await playIvoireCue(tone);
+  const result = await playIvoireCue(tone, cueVolume());
   if (!result.ok) {
     try {
       localStorage.removeItem(`ivoire-sound-claim:${notificationId}`);

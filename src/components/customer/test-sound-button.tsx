@@ -14,7 +14,7 @@ export function TestSoundButton({
 
   async function onPlay() {
     setState("playing");
-    const result = await playIvoireSound(cue);
+    const result = await playIvoireSound(cue); // uses the same configured playback volume as live alerts
     setState(result.ok ? "played" : "blocked");
   }
 
