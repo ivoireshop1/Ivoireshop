@@ -41,7 +41,8 @@ export async function placeCheckoutOrder(input: unknown, options?: { demo?: bool
     let shipping = breakdown?.shipping ?? selected.amount;
     let tax = breakdown?.tax ?? 0;
     const admin = createAdminClient();
-    if ((shipping > 0 || tax > 0) && !admin) {
+    const demo = options?.demo === true;
+    if ((shipping > 0 || tax > 0) && !admin && !demo) {
       return { success: false, error: "Shipping and tax totals are not fully configured yet. Choose pickup or contact the store.", retrySame: false };
     }
     const origin = originFromSettings(store);
@@ -54,12 +55,25 @@ export async function placeCheckoutOrder(input: unknown, options?: { demo?: bool
       p_shipping_address: request.fulfillmentMethod === "delivery" ? request.address : { fulfillment_method: "local_pickup", pickup_location: pickupLocation },
       p_fulfillment_method: request.fulfillmentMethod,
       p_idempotency_key: request.idempotencyKey,
-      p_is_demo: options?.demo === true,
+      p_is_demo: demo,
     });
     if (error) return checkoutFailure(error.code, error.message);
     const row = Array.isArray(data) ? data[0] : null;
     if (!row?.order_id || !row.order_number || !row.status || !Number.isFinite(Number(row.total)) || Number(row.total) < 0) return checkoutFailure();
-    if (admin) {
+    if (demo) {
+      const applied = await supabase.rpc("apply_demo_order_charges", {
+        p_order_id: row.order_id,
+        p_shipping: shipping,
+        p_tax: tax,
+        p_fulfillment_provider: selected.provider,
+        p_fulfillment_service: selected.serviceCode || selected.label,
+        p_delivery_snapshot: optionToSnapshot(selected, pickupLocation),
+        p_tax_snapshot: taxSnapshotFromSettings(quotes.tax, tax, breakdown?.taxLines ?? []),
+      });
+      if (applied.error) return checkoutFailure(applied.error.code, applied.error.message);
+      const appliedTotal = Array.isArray(applied.data) ? Number(applied.data[0]?.total) : Number((applied.data as { total?: number } | null)?.total);
+      if (Number.isFinite(appliedTotal)) row.total = appliedTotal;
+    } else if (admin) {
       const { data: current } = await admin
         .from("orders")
         .select("subtotal, shipping_cost, tax_amount, total, fulfillment_provider, tax_snapshot, payment_status")

@@ -50,24 +50,24 @@ export async function placeDemoOrder(input: { checkout: unknown; expectedTotal?:
   void input.demo;
   const enabled = await readDemoPaymentEnabled();
   if (!enabled) return { success: false as const, error: "Demo payment is turned off." };
-  const admin = createAdminClient();
-  if (!admin) return { success: false as const, error: "Demo checkout cannot run until server order recording is configured." };
   const validated = validateCheckout(input.checkout);
   if (validated.error || !validated.request) return { success: false as const, error: validated.error || "Invalid checkout request." };
 
   const placed = await placeCheckoutOrder(validated.request, { demo: true, suppressEmail: true });
   if (!placed.success) return { success: false as const, error: placed.error };
 
-  const { data: order } = await admin
-    .from("orders")
-    .select("id, total, payment_status, payment_provider, provider_payment_id, is_demo, user_id, inventory_restored")
-    .eq("id", placed.receipt.order_id)
-    .maybeSingle();
-  if (!order) return { success: false as const, error: "The demo order could not be loaded." };
+  const order = {
+    id: placed.receipt.order_id,
+    total: placed.receipt.total,
+    payment_status: placed.receipt.payment_status,
+    payment_provider: placed.receipt.payment_provider,
+    is_demo: placed.receipt.is_demo === true,
+    inventory_restored: true,
+  };
   if (order.payment_status === "paid" || order.payment_status === "partially_refunded" || order.payment_status === "refunded") {
     return { success: false as const, error: "This order is already paid." };
   }
-  if (order.payment_provider === "stripe" || (order.provider_payment_id && String(order.provider_payment_id).startsWith("pi_"))) {
+  if (order.payment_provider === "stripe") {
     return { success: false as const, error: "This checkout was started with Stripe. Complete card payment or start a new checkout." };
   }
   if (input.expectedTotal != null && !clientQuotedTotalMatches(usdToCents(order.total), input.expectedTotal)) {
@@ -84,26 +84,29 @@ export async function placeDemoOrder(input: { checkout: unknown; expectedTotal?:
 
   const supabase = await createClient();
   try {
-    await recordCheckoutNotifications(supabase, order.id, "demo", false, Boolean(placed.receipt.account_order || order.user_id));
+    await recordCheckoutNotifications(supabase, order.id, "demo", false, Boolean(placed.receipt.account_order));
   } catch {
     /* In-app notifications are best-effort. */
   }
-  await admin
-    .from("customer_notifications")
-    .update({
-      title: "TEST order received",
-      message: "This is a demonstration order. No real payment was collected.",
-    })
-    .eq("order_id", order.id)
-    .eq("event_type", "order_confirmed");
-  await admin
-    .from("admin_notifications")
-    .update({
-      title: "DEMO order received",
-      body: "Demonstration order. No real payment was collected.",
-    })
-    .eq("order_id", order.id)
-    .eq("event_type", "new_order");
+  const admin = createAdminClient();
+  if (admin) {
+    await admin
+      .from("customer_notifications")
+      .update({
+        title: "TEST order received",
+        message: "This is a demonstration order. No real payment was collected.",
+      })
+      .eq("order_id", order.id)
+      .eq("event_type", "order_confirmed");
+    await admin
+      .from("admin_notifications")
+      .update({
+        title: "DEMO order received",
+        message: "Demonstration order. No real payment was collected.",
+      })
+      .eq("order_id", order.id)
+      .eq("event_type", "new_order");
+  }
 
   for (const path of ["/", "/shop", "/admin", "/admin/orders", "/admin/payments", "/account"]) revalidatePath(path);
   revalidatePath(`/admin/orders/${order.id}`);
