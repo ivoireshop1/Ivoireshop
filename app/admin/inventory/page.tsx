@@ -9,7 +9,7 @@ export default async function AdminInventoryPage({ searchParams }: { searchParam
   const { supabase } = await requireAdmin();
   const { data: products, error } = await supabase
     .from("products")
-    .select("id, name, sku, stock_quantity, track_inventory, is_active, categories(name)")
+    .select("id, name, sku, stock_quantity, track_inventory, is_active, categories:categories!products_category_id_fkey(name)")
     .order("stock_quantity", { ascending: true });
 
   if (error) return <AdminLoadFailure message="Unable to load inventory." title="Inventory" />;

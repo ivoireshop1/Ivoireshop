@@ -7,6 +7,7 @@ import { SmartBackButton } from "@/src/components/navigation/smart-back-button";
 import { createClient } from "@/src/lib/supabase/server";
 import { buildProductPath } from "@/src/lib/navigation/smart-navigation";
 import { toOneRelation } from "@/src/lib/catalog/relation-utils";
+import { PRODUCT_CATEGORY_NAME_EMBED } from "@/src/lib/catalog/product-embeds";
 import { publicStockLabel } from "@/src/lib/catalog/inventory";
 import { ProductStorefrontDetail } from "@/src/components/product/product-storefront-detail";
 
@@ -14,7 +15,7 @@ const loadProduct = cache(async (slug: string) => {
   const supabase = await createClient();
   const { data: productRow, error } = await supabase
     .from("products")
-    .select("id, name, slug, description, short_description, price, compare_at_price, stock_quantity, track_inventory, is_active, is_featured, is_new_arrival, is_coming_soon, category_id, categories(name), product_images(image_url, position)")
+    .select(`id, name, slug, description, short_description, price, compare_at_price, stock_quantity, track_inventory, is_active, is_featured, is_new_arrival, is_coming_soon, category_id, ${PRODUCT_CATEGORY_NAME_EMBED}, product_images(image_url, position)`)
     .eq("slug", slug)
     .maybeSingle();
 
@@ -66,7 +67,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const [{ data: relatedRows }, { data: reviewSummary }, { data: reviews }, { data: { user } }] = await Promise.all([
     supabase
     .from("products")
-    .select("id, name, slug, price, compare_at_price, description, short_description, is_featured, stock_quantity, track_inventory, categories(name), product_images(image_url, position)")
+    .select(`id, name, slug, price, compare_at_price, description, short_description, is_featured, stock_quantity, track_inventory, ${PRODUCT_CATEGORY_NAME_EMBED}, product_images(image_url, position)`)
     .eq("is_active", true)
     .neq("id", product.id)
     .eq("category_id", productRow.category_id)

@@ -16,6 +16,7 @@ const ALIASES: Record<string, string> = {
   groceries: "foods",
   "ivoire-market": "ivoire-market",
   "ivoiremarket": "ivoire-market",
+  other: "ivoire-market",
 };
 
 function normalizeKey(value: string) {

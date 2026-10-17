@@ -15,6 +15,8 @@ test("roots and children stay nested under top-level categories", () => {
 
 test("shop defaults to all products and can filter by subcategory", () => {
   assert.equal(shopMatchesCategory({ selected: "All", categorySlug: "foods", subcategorySlug: "sauces" }), true);
+  assert.equal(shopMatchesCategory({ selected: "All Products", categorySlug: "foods", subcategorySlug: "sauces" }), true);
   assert.equal(shopMatchesCategory({ selected: "sauces", categorySlug: "foods", subcategorySlug: "sauces" }), true);
+  assert.equal(shopMatchesCategory({ selected: "foods", categorySlug: "foods", subcategorySlug: "sauces" }), true);
   assert.equal(shopMatchesCategory({ selected: "cosmetics", categorySlug: "foods", subcategorySlug: "sauces" }), false);
 });

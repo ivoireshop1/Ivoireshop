@@ -12,7 +12,7 @@ export default async function AdminProductPreviewPage({ params }: { params: Prom
   const { supabase } = await requireAdmin();
   const { data: productRow, error } = await supabase
     .from("products")
-    .select("id, name, slug, description, short_description, price, compare_at_price, stock_quantity, track_inventory, is_active, is_featured, is_new_arrival, is_coming_soon, category_id, categories(name), product_images(image_url, position)")
+    .select("id, name, slug, description, short_description, price, compare_at_price, stock_quantity, track_inventory, is_active, is_featured, is_new_arrival, is_coming_soon, category_id, categories:categories!products_category_id_fkey(name), product_images(image_url, position)")
     .eq("id", id)
     .maybeSingle();
 

@@ -12,6 +12,7 @@ import { createClient } from "@/src/lib/supabase/browser";
 import { toOneRelation } from "@/src/lib/catalog/relation-utils";
 import { shopCategoryQueryMatches, CANONICAL_CATEGORIES } from "@/src/lib/catalog/canonical-categories";
 import { shopMatchesCategory } from "@/src/lib/catalog/category-tree";
+import { PRODUCT_SHOP_EMBEDS } from "@/src/lib/catalog/product-embeds";
 import type { Product } from "@/src/types/catalog";
 
 type ShopExperienceProps = {
@@ -52,23 +53,13 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "", ne
     const loadProducts = async () => {
       try {
       const supabase = createClient();
-      const baseSelect = "id, name, slug, description, short_description, price, compare_at_price, is_featured, is_new_arrival, stock_quantity, track_inventory, categories(name, slug), product_images(image_url, position)";
       const queried = await supabase
         .from("products")
-        .select(`${baseSelect}, subcategory:categories!products_subcategory_id_fkey(name, slug)`)
+        .select(`id, name, slug, description, short_description, price, compare_at_price, is_featured, is_new_arrival, stock_quantity, track_inventory, ${PRODUCT_SHOP_EMBEDS}, product_images(image_url, position)`)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
-      let data = queried.data as ProductRow[] | null;
-      let error = queried.error;
-      if (error) {
-        const fallback = await supabase
-          .from("products")
-          .select(baseSelect)
-          .eq("is_active", true)
-          .order("created_at", { ascending: false });
-        data = fallback.data as ProductRow[] | null;
-        error = fallback.error;
-      }
+      const data = queried.data as ProductRow[] | null;
+      const error = queried.error;
 
       if (error || !data) {
         if (error?.code) console.error("Shop catalog query failed", error.code);
@@ -117,7 +108,7 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "", ne
         categorySlug: product.categorySlug,
         subcategorySlug: product.subcategorySlug,
       }) || shopCategoryQueryMatches(category, { name: product.category, slug: product.categorySlug });
-    const text = `${product.name} ${product.category}`.toLowerCase();
+    const text = `${product.name} ${product.category} ${product.subcategory ?? ""}`.toLowerCase();
     const matchesArrival = !arrivalOnly || (product.isNew && product.price > 0);
     return matchesCategory && matchesArrival && text.includes(query.toLowerCase().trim());
   }), [arrivalOnly, category, products, query]);

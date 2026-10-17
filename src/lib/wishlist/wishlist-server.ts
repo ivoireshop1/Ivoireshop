@@ -56,7 +56,7 @@ export async function getWishlistProductsForUser(supabase: SupabaseClient, userI
   if (productIds.length) {
     const { data: products, error: productError } = await supabase
       .from("products")
-      .select("id, name, slug, description, short_description, price, compare_at_price, is_featured, stock_quantity, track_inventory, categories(name), product_images(image_url, position)")
+      .select("id, name, slug, description, short_description, price, compare_at_price, is_featured, stock_quantity, track_inventory, categories:categories!products_category_id_fkey(name), product_images(image_url, position)")
       .in("id", productIds);
     if (productError) throw new Error("Unable to load your wishlist.");
     for (const product of products ?? []) {
