@@ -34,8 +34,9 @@ export function OrderConfirmationExperience({
   pickupLocation?: StoreOrigin | PickupLocationSnapshot | null;
 }) {
   const pickup = fulfillmentMethod === "local_pickup";
-  const processing = isProcessing(receipt);
-  const confirmed = !processing && receipt.payment_status !== "failed" && receipt.payment_status !== "cancelled";
+  const demo = receipt.is_demo === true || receipt.payment_status === "demo" || receipt.payment_provider === "demo";
+  const processing = isProcessing(receipt) && !demo;
+  const confirmed = demo || (!processing && receipt.payment_status !== "failed" && receipt.payment_status !== "cancelled");
   const code = receipt.confirmation_code ?? receipt.order_number;
   const masked = receipt.customer_email ? maskEmail(receipt.customer_email) : "";
 
@@ -45,7 +46,7 @@ export function OrderConfirmationExperience({
         <span aria-hidden="true" className="text-4xl">{confirmed ? "✓" : "•"}</span>
       </div>
       <p className="mt-6 text-center text-xs font-semibold uppercase tracking-[0.22em] text-gold">
-        {confirmed ? "Order confirmed" : processing ? "Payment is processing" : "Order update"}
+        {demo ? "Demo order" : confirmed ? "Order confirmed" : processing ? "Payment is processing" : "Order update"}
       </p>
       <h1 className="mt-3 text-center text-4xl font-semibold text-forest-green">
         {confirmed ? `You're all set, ${firstName(receipt.customer_name)}!` : processing ? "We're confirming your payment" : "Your order is saved"}
@@ -59,7 +60,9 @@ export function OrderConfirmationExperience({
           </div>
         ) : null}
       </div>
-      {confirmed ? (
+      {demo ? (
+        <p className="mt-6 text-center text-sm leading-7 text-muted">This is a demonstration. No real payment was collected. Save your order number to view the order.</p>
+      ) : confirmed ? (
         <p className="mt-6 text-center text-sm leading-7 text-muted">
           {emailSent && masked
             ? `We sent your order details to ${masked}.`

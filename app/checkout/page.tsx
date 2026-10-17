@@ -20,7 +20,7 @@ export default async function CheckoutRoute() {
   const pickupOrigin = originIsComplete(origin) ? origin : null;
   return (
     <Suspense fallback={<main className="mx-auto w-full max-w-4xl px-5 py-16">Loading checkout...</main>}>
-      <CheckoutPage payments={payments} pickupOrigin={pickupOrigin} storeOpen={storeOpen} />
+      <CheckoutPage demoEnabled={store?.demo_payment_enabled === true} payments={payments} pickupOrigin={pickupOrigin} storeOpen={storeOpen} />
     </Suspense>
   );
 }

@@ -6,7 +6,7 @@ import type { AdminOrderView } from "@/src/lib/orders/buckets";
 import { startOfStoreDayIso } from "@/src/lib/store/timezone";
 import Link from "next/link";
 
-const paymentFilters = ["pending", "paid", "failed", "cancelled", "refunded"] as const;
+const paymentFilters = ["pending", "paid", "failed", "cancelled", "refunded", "demo"] as const;
 const fulfillmentFilters = ["local_pickup", "delivery"] as const;
 const views: { id: AdminOrderView; label: string }[] = [
   { id: "new", label: "New Orders" },
@@ -26,7 +26,7 @@ export default async function AdminOrdersPage({
   const { supabase } = await requireAdmin();
   let query = supabase
     .from("orders")
-    .select("id, order_number, confirmation_code, customer_name, customer_email, customer_phone, total, status, payment_status, payment_provider, fulfillment_method, fulfillment_provider, fulfillment_service, tracking_number, created_at, order_items(product_name, quantity, image_url, products(product_images(image_url, position)))")
+    .select("id, order_number, confirmation_code, customer_name, customer_email, customer_phone, total, status, payment_status, payment_provider, is_demo, fulfillment_method, fulfillment_provider, fulfillment_service, tracking_number, created_at, order_items(product_name, quantity, image_url, products(product_images(image_url, position)))")
     .order("created_at", { ascending: false });
   if ((orderStatuses as readonly string[]).includes(status)) query = query.eq("status", status);
   else if (view === "new") query = query.eq("status", "pending");

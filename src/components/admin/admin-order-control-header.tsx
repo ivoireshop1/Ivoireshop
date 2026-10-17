@@ -21,6 +21,7 @@ export function AdminOrderControlHeader({
     fulfillment_provider?: string | null;
     payment_status: string;
     payment_provider?: string | null;
+    is_demo?: boolean | null;
     tracking_number?: string | null;
     total: number | string;
   };
@@ -66,9 +67,14 @@ export function AdminOrderControlHeader({
           <p className="text-[11px] uppercase tracking-[0.2em] text-[#b8964c]">Order</p>
           <h1 className="mt-1 break-words text-3xl font-semibold text-[#173f35]">{order.order_number}</h1>
         </div>
-        <span className="rounded-full bg-[#173f35] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-          {orderStatusLabel(status, order.fulfillment_method, order.fulfillment_provider)}
-        </span>
+        <div className="flex flex-wrap gap-2">
+          {order.is_demo || order.payment_provider === "demo" || order.payment_status === "demo" ? (
+            <span className="rounded-full bg-[#7c5d1a] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">DEMO</span>
+          ) : null}
+          <span className="rounded-full bg-[#173f35] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+            {orderStatusLabel(status, order.fulfillment_method, order.fulfillment_provider)}
+          </span>
+        </div>
       </div>
       <dl className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div><dt className="text-[11px] uppercase tracking-[0.16em] text-[#6b6b6b]">Placed</dt><dd className="mt-1 text-sm text-[#173f35]">{formatStoreDateTime(order.created_at)}</dd></div>

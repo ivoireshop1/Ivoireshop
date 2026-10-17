@@ -5,9 +5,10 @@ import { preparePaidOrderConfirmation, type PaidConfirmationOrder } from "@/src/
 import { sendTransactionalEmail } from "@/src/lib/email/send";
 import { recordPaymentNotification } from "@/src/lib/notifications/record";
 import { usdToCents } from "./money";
+import { isDemoOrder } from "./demo";
 
-export type PaymentLifecycleStatus = "pending" | "paid" | "failed" | "cancelled" | "refunded" | "partially_refunded";
-export type PaymentProvider = "square" | "paypal" | "stripe";
+export type PaymentLifecycleStatus = "pending" | "paid" | "failed" | "cancelled" | "refunded" | "partially_refunded" | "demo";
+export type PaymentProvider = "square" | "paypal" | "stripe" | "demo";
 
 export type RecordedOrder = {
   id: string;
@@ -30,11 +31,12 @@ export type RecordedOrder = {
   amount_paid?: number | string | null;
   refunded_amount?: number | string | null;
   payment_currency?: string | null;
+  is_demo?: boolean | null;
   shipping_address?: PaidConfirmationOrder["shipping_address"];
 };
 
 const ORDER_COLUMNS =
-  "id, order_number, confirmation_code, guest_access_token, payment_status, payment_method, payment_provider, provider_order_id, provider_payment_id, fulfillment_method, customer_email, customer_name, total, status, email_sent_at, shipping_address, created_at, paid_at, amount_paid, refunded_amount, payment_currency";
+  "id, order_number, confirmation_code, guest_access_token, payment_status, payment_method, payment_provider, provider_order_id, provider_payment_id, fulfillment_method, customer_email, customer_name, total, status, email_sent_at, shipping_address, created_at, paid_at, amount_paid, refunded_amount, payment_currency, is_demo";
 
 export function requireAdminClient() {
   const client = createAdminClient();
@@ -85,6 +87,7 @@ export async function applyVerifiedPayment(input: {
   const supabase = requireAdminClient();
   const existing = await loadOrderById(input.orderId);
   if (!existing) throw new Error("Order not found.");
+  if (isDemoOrder(existing)) throw new Error("Demo orders cannot be recorded as Stripe payments.");
 
   if (input.eventId) {
     const event = await recordPaymentEvent({
@@ -165,6 +168,7 @@ export async function applyVerifiedRefund(input: {
   const supabase = requireAdminClient();
   const existing = await loadOrderById(input.orderId);
   if (!existing) throw new Error("Order not found.");
+  if (isDemoOrder(existing)) throw new Error("Demo orders cannot be refunded in Stripe.");
   const event = await recordPaymentEvent({
     provider: input.provider,
     providerEventId: input.eventId,
@@ -228,6 +232,7 @@ export async function storeProviderOrderId(orderId: string, provider: PaymentPro
 }
 
 export async function sendPaidConfirmation(order: RecordedOrder) {
+  if (isDemoOrder(order)) return false;
   try {
     const supabase = requireAdminClient();
     await supabase.from("orders").update({ email_attempted_at: new Date().toISOString() }).eq("id", order.id);

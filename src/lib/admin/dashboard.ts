@@ -66,7 +66,7 @@ export async function getAdminDashboardData() {
     await Promise.all([
       supabase
         .from("orders")
-        .select("id, order_number, customer_name, total, status, payment_status, refunded_amount, created_at")
+        .select("id, order_number, customer_name, total, status, payment_status, refunded_amount, is_demo, payment_provider, created_at")
         .gte("created_at", startOfToday)
         .order("created_at", { ascending: false }),
       supabase
@@ -80,7 +80,7 @@ export async function getAdminDashboardData() {
         .order("created_at", { ascending: false })
         .limit(5),
       supabase.from("order_items").select("order_id, product_id, product_name, quantity, product_price"),
-      supabase.from("orders").select("id, status, payment_status, total, refunded_amount, fulfillment_method, fulfillment_provider, tracking_number"),
+      supabase.from("orders").select("id, status, payment_status, total, refunded_amount, is_demo, payment_provider, fulfillment_method, fulfillment_provider, tracking_number"),
       supabase.from("product_reviews").select("id", { count: "exact", head: true }).eq("status", "pending"),
       getStoreStatus(),
       supabase.from("orders").select("id, status, fulfillment_provider, tracking_number"),
@@ -174,7 +174,7 @@ export async function getAdminDashboardData() {
   const revenueToday = todayOrders
     .reduce((sum, order) => sum + netPaidRevenue(order), 0);
 
-  const orderCountToday = todayOrders.length;
+  const orderCountToday = todayOrders.filter((order) => !order.is_demo && order.payment_provider !== "demo" && order.payment_status !== "demo").length;
   const newCustomersToday = todayCustomers.length;
   const lowStockProducts = products.filter((product) => product.track_inventory !== false && Number(product.stock_quantity) > 0 && Number(product.stock_quantity) <= 5);
   const outOfStockProducts = products.filter((product) => product.track_inventory !== false && Number(product.stock_quantity) <= 0);
@@ -337,7 +337,7 @@ export type AdminDashboardData = Awaited<ReturnType<typeof getAdminDashboardData
 async function getRevenueTrend(supabase: Awaited<ReturnType<typeof createClient>>, sinceIso: string) {
   const { data, error } = await supabase
     .from("orders")
-    .select("created_at, total, payment_status, refunded_amount")
+    .select("created_at, total, payment_status, refunded_amount, is_demo, payment_provider")
     .gte("created_at", sinceIso)
     .order("created_at", { ascending: true });
 

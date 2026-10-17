@@ -9,6 +9,8 @@ import { parseTaxMode, taxModeLabel } from "@/src/lib/tax/totals";
 import { getStripeConfig } from "@/src/lib/payments/stripe-config";
 import { formatStoreDateTime } from "@/src/lib/store/timezone";
 import { paymentStatusLabel } from "@/src/lib/orders/status";
+import { DemoPaymentSettingsForm } from "@/src/components/admin/demo-payment-settings-form";
+import { netPaidRevenue } from "@/src/lib/payments/totals";
 
 export default async function AdminPaymentsPage({
   searchParams,
@@ -20,13 +22,17 @@ export default async function AdminPaymentsPage({
   const payment = getPaymentReadiness();
   const stripe = getStripeConfig();
   const email = getEmailProviderStatus();
-  const [{ data: settings }, { data: health }, { data: recentPaid }, { data: recentFailed }, { data: recentRefunds }] = await Promise.all([
-    supabase.from("store_settings").select("tax_mode, tax_rate_percent, tax_applies_to_shipping, tax_name").eq("id", STORE_SETTINGS_ID).maybeSingle(),
+  const [{ data: settings }, { data: health }, { data: recentPaid }, { data: recentFailed }, { data: recentRefunds }, { count: demoOrderCount }, { data: paidForRevenue }] = await Promise.all([
+    supabase.from("store_settings").select("tax_mode, tax_rate_percent, tax_applies_to_shipping, tax_name, demo_payment_enabled").eq("id", STORE_SETTINGS_ID).maybeSingle(),
     supabase.from("payment_webhook_health").select("last_success_at, last_error_at, last_error_code, recent_failures").eq("provider", "stripe").maybeSingle(),
-    supabase.from("orders").select("id, order_number, customer_name, total, payment_status, created_at").eq("payment_provider", "stripe").eq("payment_status", "paid").order("paid_at", { ascending: false }).limit(5),
+    supabase.from("orders").select("id, order_number, customer_name, total, payment_status, created_at").eq("payment_provider", "stripe").eq("payment_status", "paid").eq("is_demo", false).order("paid_at", { ascending: false }).limit(5),
     supabase.from("orders").select("id, order_number, customer_name, total, payment_status, created_at").eq("payment_provider", "stripe").eq("payment_status", "failed").order("updated_at", { ascending: false }).limit(5),
-    supabase.from("orders").select("id, order_number, customer_name, total, refunded_amount, payment_status, created_at").in("payment_status", ["refunded", "partially_refunded"]).order("updated_at", { ascending: false }).limit(5),
+    supabase.from("orders").select("id, order_number, customer_name, total, refunded_amount, payment_status, created_at").in("payment_status", ["refunded", "partially_refunded"]).eq("is_demo", false).order("updated_at", { ascending: false }).limit(5),
+    supabase.from("orders").select("id", { count: "exact", head: true }).eq("is_demo", true),
+    supabase.from("orders").select("total, payment_status, refunded_amount, is_demo, payment_provider").eq("payment_status", "paid").limit(5000),
   ]);
+  const realRevenue = (paidForRevenue ?? []).reduce((sum, order) => sum + netPaidRevenue(order), 0);
+  const stripeModeLabel = payment.stripe.canCollect ? (payment.stripe.mode === "live" ? "LIVE" : "TEST") : "Not Configured";
   const taxMode = parseTaxMode(settings?.tax_mode);
   return (
     <div className="space-y-6">
@@ -35,11 +41,24 @@ export default async function AdminPaymentsPage({
       {notices.error === "invalid_test_recipient" ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Enter a valid test recipient email.</p> : null}
       {notices.error === "test_email_failed" ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">The test email could not be sent.</p> : null}
       {notices.success === "test_email_sent" ? <p className="rounded-xl bg-[#173f35]/5 p-3 text-sm text-[#173f35]">Test email sent. This did not change any order or payment status.</p> : null}
+      <DemoPaymentSettingsForm
+        demoOrderCount={demoOrderCount ?? 0}
+        enabled={settings?.demo_payment_enabled === true}
+        production={process.env.VERCEL_ENV === "production"}
+        stripeLabel={stripeModeLabel}
+      />
+      <section className="rounded-2xl bg-white p-6">
+        <h2 className="text-xl font-semibold">Real versus test revenue</h2>
+        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+          <div><dt className="text-[#6b6b6b]">Real Stripe paid (net)</dt><dd className="font-semibold text-[#173f35]">${realRevenue.toFixed(2)}</dd></div>
+          <div><dt className="text-[#6b6b6b]">Demo / test orders</dt><dd className="font-semibold text-[#173f35]">{demoOrderCount ?? 0} recorded · $0.00 revenue</dd></div>
+        </dl>
+      </section>
       <section className="rounded-2xl bg-white p-6">
         <h2 className="text-xl font-semibold">Stripe</h2>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <div><dt className="text-[#6b6b6b]">Stripe</dt><dd className="font-semibold text-[#173f35]">{payment.stripe.canCollect ? "Configured" : "Not Configured"}</dd></div>
-          <div><dt className="text-[#6b6b6b]">Mode</dt><dd className="font-semibold text-[#173f35]">{payment.stripe.mode === "live" ? "LIVE" : payment.stripe.mode === "test" ? "TEST" : "—"}</dd></div>
+          <div><dt className="text-[#6b6b6b]">Mode</dt><dd className="font-semibold text-[#173f35]">{stripeModeLabel}</dd></div>
           <div><dt className="text-[#6b6b6b]">Publishable configuration</dt><dd className="font-semibold text-[#173f35]">{payment.stripe.publishable === "available" ? "Available" : "Missing"}</dd></div>
           <div><dt className="text-[#6b6b6b]">Server configuration</dt><dd className="font-semibold text-[#173f35]">{payment.stripe.server === "available" ? "Available" : "Missing"}</dd></div>
           <div><dt className="text-[#6b6b6b]">Webhook</dt><dd className="font-semibold text-[#173f35]">{!payment.stripe.webhook || payment.stripe.webhook === "missing" ? "Missing" : health?.last_error_at && (!health.last_success_at || health.last_error_at > health.last_success_at) ? "Error" : health?.last_success_at ? "Configured" : "Configured"}</dd></div>

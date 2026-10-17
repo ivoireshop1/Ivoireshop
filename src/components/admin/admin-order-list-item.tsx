@@ -21,6 +21,7 @@ export type AdminOrderListItemData = {
   status: string;
   payment_status: string;
   payment_provider: string | null;
+  is_demo?: boolean | null;
   fulfillment_method: string | null;
   fulfillment_provider?: string | null;
   fulfillment_service?: string | null;
@@ -86,6 +87,9 @@ export function AdminOrderListItem({ order }: { order: AdminOrderListItemData })
       <Field label="Order">
         <div className="flex flex-wrap items-center gap-2">
           <p className="break-words font-medium text-[#173f35] [overflow-wrap:anywhere]">{order.order_number}</p>
+          {order.is_demo || order.payment_provider === "demo" || order.payment_status === "demo" ? (
+            <span className="rounded-full bg-[#7c5d1a] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">DEMO</span>
+          ) : null}
           {isAdminNewOrder(order.status) ? (
             <span className="rounded-full bg-[#b8964c] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">NEW</span>
           ) : null}

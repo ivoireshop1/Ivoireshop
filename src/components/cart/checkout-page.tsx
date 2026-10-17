@@ -20,11 +20,12 @@ import type { DeliveryOption } from "@/src/lib/delivery/types";
 import { taxDisplayLabel, type TaxSettings } from "@/src/lib/tax/totals";
 import { viewOrderHref } from "@/src/lib/checkout/view-order-href";
 import { prepareStripePayment } from "@/src/lib/payments/stripe-actions";
+import { placeDemoOrder } from "@/src/lib/payments/demo-actions";
 import type { PublicPaymentConfig } from "@/src/lib/payments/readiness";
 import type { StoreOrigin } from "@/src/lib/delivery/origin";
 import { PickupLocationBlock } from "@/src/components/store/pickup-location-block";
 
-export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { storeOpen: boolean; payments: PublicPaymentConfig; pickupOrigin?: StoreOrigin | null }) {
+export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEnabled = false }: { storeOpen: boolean; payments: PublicPaymentConfig; pickupOrigin?: StoreOrigin | null; demoEnabled?: boolean }) {
   const { items, subtotal, isLoaded, completePurchase } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -45,6 +46,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
   const [sessionReady, setSessionReady] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [publishableKey, setPublishableKey] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"demo" | "stripe" | "">("");
   const recovered = useRef(false);
   const router = useRouter();
 
@@ -60,7 +62,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const saved = readCheckoutAttempt();
-      if (saved?.receipt?.payment_status === "paid") {
+      if (saved?.receipt?.payment_status === "paid" || saved?.receipt?.payment_status === "demo" || saved?.receipt?.is_demo) {
         setConfirmation(saved);
         setEmailSent(saved.receipt.email_sent === true);
       } else if (saved) {
@@ -212,6 +214,26 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
   const displayTotal = attempt?.receipt?.total ?? breakdown?.total ?? null;
   const taxLabel = taxSettings ? taxDisplayLabel(taxSettings) : "Tax";
 
+  async function submitDemoOrder(expectedTotal: number | null) {
+    const candidate = buildCandidate();
+    const validated = validateCheckout(candidate);
+    if (validated.error) { setError(validated.error); return; }
+    const pending: CheckoutAttempt = attempt ?? {
+      request: validated.request!, items: items.map(({ productId, name, quantity }) => ({ productId, name, quantity })), createdAt: Date.now(),
+    };
+    try { storeCheckoutAttempt(pending); }
+    catch { setError("Enable browser session storage before placing an order so retries can be recovered safely."); return; }
+    setAttempt(pending);
+    setIsSubmitting(true);
+    const placed = await placeDemoOrder({ checkout: pending.request, expectedTotal });
+    setIsSubmitting(false);
+    if (!placed.success) {
+      setError(placed.error);
+      return;
+    }
+    showConfirmed(withReceipt(pending, placed.receipt), false);
+  }
+
   function goShipping() {
     if (!contact.customerName || !contact.customerEmail || !contact.customerPhone) {
       setError("Enter a valid name, email address, and phone number.");
@@ -230,13 +252,14 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
       setError("Complete your delivery address, city, and country.");
       return;
     }
-    if (!payments.enabled) {
-      setError(payments.message);
-      setCheckoutStep("payment");
-      return;
-    }
     setError("");
     setCheckoutStep("payment");
+    if (demoEnabled) return;
+    if (!payments.stripe.canCollect) {
+      setError(payments.message);
+      return;
+    }
+    setPaymentMethod("stripe");
     void startStripe(displayTotal);
   }
 
@@ -250,7 +273,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
           <CheckoutProgress step={checkoutStep} />
         </div>
         <p className="mt-4 max-w-lg leading-7 text-muted">
-          {storeOpen ? payments.message : STORE_CLOSED_MESSAGE}
+          {storeOpen ? (demoEnabled ? "Choose Demo Payment or Stripe. Demo checkout does not collect a card or charge a customer." : payments.message) : STORE_CLOSED_MESSAGE}
         </p>
         {attempt && <div role="status" className="mt-6 space-y-2 rounded-xl border border-gold/40 bg-white p-4 text-sm break-words"><p>A previous order request is awaiting confirmation. Retry it below before starting another order. Your original items and details will be used.</p><p>{attempt.request.customerName} &middot; {attempt.request.customerEmail}</p><p>{attempt.request.fulfillmentMethod === "delivery" ? [attempt.request.address.address_line_1, attempt.request.address.city, attempt.request.address.country].filter(Boolean).join(", ") : "Local pickup"}</p></div>}
         <form aria-describedby={error ? "checkout-error" : undefined} className="mt-8 space-y-7" onSubmit={handleSubmit}>
@@ -316,11 +339,24 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
 
           <fieldset className={checkoutStep === "payment" || checkoutStep === "review" ? "min-w-0 space-y-4" : "hidden"}>
             <legend className="font-semibold text-forest-green">Payment</legend>
-            <PaymentMethodCards stripeReady={payments.stripe.ready} />
-            {payments.stripe.mode === "test" ? (
+            <PaymentMethodCards
+              demoEnabled={demoEnabled}
+              method={paymentMethod}
+              stripeReady={payments.stripe.canCollect}
+              onChange={(next) => {
+                setPaymentMethod(next);
+                setError("");
+                if (next === "stripe") void startStripe(displayTotal);
+                else {
+                  setClientSecret(null);
+                  setPublishableKey(null);
+                }
+              }}
+            />
+            {payments.stripe.mode === "test" && paymentMethod === "stripe" ? (
               <p className="rounded-xl border border-[#b8964c]/40 bg-white px-4 py-3 text-sm text-[#7c5d1a]">Stripe TEST MODE. No live charges.</p>
             ) : null}
-            {!payments.enabled ? (
+            {paymentMethod === "stripe" && !payments.stripe.canCollect ? (
               <p className="rounded-xl border border-red-900/15 bg-white px-4 py-3 text-sm text-red-900">
                 {payments.message}
               </p>
@@ -337,7 +373,20 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
               taxMode={taxSettings?.tax_mode}
               total={displayTotal}
             />
-            {clientSecret && publishableKey && attempt ? (
+            {paymentMethod === "demo" ? (
+              <div className="space-y-3">
+                <p className="rounded-xl border border-[#b8964c]/40 bg-white px-4 py-3 text-sm text-[#7c5d1a]">This is a demonstration. No real payment will be collected.</p>
+                <button
+                  className="min-h-12 w-full rounded-xl bg-forest-green px-4 text-sm font-semibold text-white disabled:opacity-60"
+                  disabled={!storeOpen || isSubmitting}
+                  onClick={() => void submitDemoOrder(displayTotal)}
+                  type="button"
+                >
+                  {isSubmitting ? "Placing demo order…" : "Place Demo Order"}
+                </button>
+              </div>
+            ) : null}
+            {paymentMethod === "stripe" && clientSecret && publishableKey && attempt ? (
               <StripeCheckoutForm
                 amountLabel={displayTotal != null ? `$${displayTotal.toFixed(2)}` : ""}
                 clientSecret={clientSecret}
@@ -347,8 +396,10 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null }: { sto
                 onError={setError}
                 onPaid={(receipt) => showConfirmed(withReceipt(attempt, receipt), receipt.email_sent === true)}
               />
-            ) : (
-              <p className="text-sm text-muted">{isSubmitting ? "Preparing secure payment…" : payments.enabled ? "Preparing Stripe…" : "Stripe Payment Element cannot load until the missing server configuration is added."}</p>
+            ) : paymentMethod === "stripe" ? (
+              <p className="text-sm text-muted">{isSubmitting ? "Preparing secure payment…" : payments.stripe.canCollect ? "Preparing Stripe…" : "Stripe Payment Element cannot load until the missing server configuration is added."}</p>
+            ) : paymentMethod ? null : (
+              <p className="text-sm text-muted">{demoEnabled ? "Select Demo Payment or Stripe Card Payment." : "Select a payment method."}</p>
             )}
             <button className="text-sm font-semibold text-forest-green underline" onClick={() => setCheckoutStep("shipping")} type="button">Back to shipping</button>
           </fieldset>

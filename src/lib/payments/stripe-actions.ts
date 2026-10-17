@@ -90,10 +90,13 @@ export async function prepareStripePayment(input: {
   if (!admin) return { success: false, error: "Payments cannot be recorded." };
   const { data: order } = await admin
     .from("orders")
-    .select("id, total, payment_status, provider_payment_id, customer_email")
+    .select("id, total, payment_status, provider_payment_id, customer_email, is_demo, payment_provider")
     .eq("id", placed.receipt.order_id)
     .maybeSingle();
   if (!order) return { success: false, error: "The order could not be loaded for payment." };
+  if (order.is_demo || order.payment_provider === "demo" || order.payment_status === "demo") {
+    return { success: false, error: "This is a demonstration order. Start a new checkout to pay with Stripe." };
+  }
   if (order.payment_status === "paid") {
     return { success: false, error: "This order is already paid." };
   }
@@ -200,6 +203,7 @@ export async function refundStripeOrder(orderId: string, confirm: string) {
   if (!uuid.test(orderId)) return { error: "Invalid order." };
   const order = await loadOrderById(orderId);
   if (!order) return { error: "Order not found." };
+  if (order.is_demo || order.payment_provider === "demo" || order.payment_status === "demo") return { error: "Demo orders cannot be refunded in Stripe." };
   if (order.payment_provider !== "stripe" || !order.provider_payment_id) return { error: "This order was not paid with Stripe." };
   if (order.payment_status !== "paid" && order.payment_status !== "partially_refunded") return { error: "This order is not refundable." };
   const paidCents = usdToCents(order.amount_paid && Number(order.amount_paid) > 0 ? order.amount_paid : order.total);

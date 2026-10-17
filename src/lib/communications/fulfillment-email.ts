@@ -13,11 +13,14 @@ export async function notifyFulfillmentEmail(
   try {
     const { data: order, error } = await supabase
       .from("orders")
-      .select("order_number, confirmation_code, customer_email, customer_name, payment_status, payment_method, payment_provider, fulfillment_method, subtotal, shipping_cost, discount_amount, total, created_at, shipping_address, order_items(product_name, product_price, quantity)")
+      .select("order_number, confirmation_code, customer_email, customer_name, payment_status, payment_method, payment_provider, is_demo, fulfillment_method, subtotal, shipping_cost, discount_amount, total, created_at, shipping_address, order_items(product_name, product_price, quantity)")
       .eq("id", orderId)
       .maybeSingle();
     if (error || !order?.confirmation_code) {
       console.error("[order-email] fulfillment skipped", { reason: error ? "read_failed" : "missing_code" });
+      return false;
+    }
+    if (order.is_demo || order.payment_provider === "demo" || order.payment_status === "demo") {
       return false;
     }
     const payload: ConfirmationOrder = {

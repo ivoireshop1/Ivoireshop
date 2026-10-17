@@ -207,7 +207,7 @@ export async function saveOrderShipment(_prev: ShipmentActionState | null, formD
   if (!id) return { error: "Order is missing." };
   const { data: order, error: readError } = await supabase
     .from("orders")
-    .select("id, status, fulfillment_method, fulfillment_provider, tracking_number, shipped_at")
+    .select("id, status, fulfillment_method, fulfillment_provider, tracking_number, shipped_at, is_demo, payment_provider, payment_status")
     .eq("id", id)
     .maybeSingle();
   if (readError || !order) return { error: "That order could not be found." };
@@ -233,7 +233,8 @@ export async function saveOrderShipment(_prev: ShipmentActionState | null, formD
     ? order.shipped_at
     : parseShipmentDate(String(formData.get("shipped_at") ?? ""));
   const patch: Record<string, unknown> = { tracking_number: checked.tracking };
-  if (postage != null) patch.postage_cost = postage;
+  const demo = order.is_demo || order.payment_provider === "demo" || order.payment_status === "demo";
+  if (postage != null && !demo) patch.postage_cost = postage;
   if (!alreadyShipped) {
     patch.status = "shipped";
     patch.shipped_at = shippedAt;
@@ -249,7 +250,7 @@ export async function saveOrderShipment(_prev: ShipmentActionState | null, formD
     occurred_at: shippedAt,
   });
   if (!alreadyShipped) {
-    const emailSent = await notifyFulfillmentEmail(supabase, id, "shipped");
+    const emailSent = demo ? false : await notifyFulfillmentEmail(supabase, id, "shipped");
     await recordFulfillmentNotification(supabase, id, "shipped", Boolean(emailSent), order.fulfillment_provider);
   } else if (!hadTracking) {
     await recordCustomerNotification(supabase, id, "tracking_added");

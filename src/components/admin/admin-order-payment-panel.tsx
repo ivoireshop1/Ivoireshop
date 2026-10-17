@@ -29,6 +29,7 @@ export function AdminOrderPaymentPanel({
     discount_amount?: number | string;
     tax_amount?: number | string;
     total: number | string;
+    is_demo?: boolean | null;
   };
 }) {
   const [confirm, setConfirm] = useState("");
@@ -61,6 +62,9 @@ export function AdminOrderPaymentPanel({
   return (
     <section className="rounded-2xl bg-white p-5">
       <h2 className="font-semibold text-[#173f35]">Payment</h2>
+      {order.is_demo || order.payment_provider === "demo" || order.payment_status === "demo" ? (
+        <p className="mt-3 rounded-xl bg-[#f3efe9] p-3 text-sm text-[#7c5d1a]">DEMO / TEST order. No real charge. Excluded from paid revenue and Stripe refunds.</p>
+      ) : null}
       <p className="mt-3 text-sm font-semibold text-[#173f35]">{paymentHeaderLabel(order.payment_status, order.payment_provider)}</p>
       <p className="mt-1 text-sm text-[#6b6b6b]">Payment Provider: {paymentProviderLabel(order.payment_provider, order.payment_method)}</p>
       <p className="mt-1 text-sm text-[#6b6b6b]">Status: {paymentStatusLabel(order.payment_status, order.payment_provider)}</p>

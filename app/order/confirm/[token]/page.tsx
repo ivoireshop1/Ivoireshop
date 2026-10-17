@@ -56,6 +56,7 @@ export default async function GuestOrderConfirmationPage({ params }: { params: P
             customer_name: String(order.customer_name),
             payment_method: order.payment_method,
             payment_provider: order.payment_provider,
+            is_demo: order.payment_provider === "demo" || order.payment_status === "demo",
           }}
           viewHref={viewOrderHref({
             orderId,

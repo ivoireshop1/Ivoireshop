@@ -70,7 +70,8 @@ export function refundStatus(amountPaidCents: number, refundedCents: number) {
   return "partially_refunded" as const;
 }
 
-export function netPaidRevenue(order: { payment_status?: string | null; total?: number | string | null; refunded_amount?: number | string | null }) {
+export function netPaidRevenue(order: { payment_status?: string | null; total?: number | string | null; refunded_amount?: number | string | null; is_demo?: boolean | null; payment_provider?: string | null }) {
+  if (order.is_demo || order.payment_provider === "demo" || order.payment_status === "demo") return 0;
   if (order.payment_status !== "paid" && order.payment_status !== "partially_refunded") return 0;
   const netCents = Math.max(0, safeUsdToCents(order.total) - safeUsdToCents(order.refunded_amount));
   return moneyFromCents(netCents);
