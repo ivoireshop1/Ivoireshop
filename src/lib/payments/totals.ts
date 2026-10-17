@@ -1,4 +1,4 @@
-import { computeOrderTotalCents, computeTaxCents, moneyFromCents, safeUsdToCents, type TaxSettings } from "../tax/totals.ts";
+import { computeOrderTotalCents, computeTaxLines, moneyFromCents, safeUsdToCents, type TaxLine, type TaxSettings } from "../tax/totals.ts";
 
 export type QuoteCents = {
   subtotalCents: number;
@@ -8,6 +8,7 @@ export type QuoteCents = {
   subtotal: number;
   shipping: number;
   tax: number;
+  taxLines: TaxLine[];
   total: number;
 };
 
@@ -18,12 +19,13 @@ export function quoteFromAuthoritativeParts(input: {
 }): QuoteCents {
   const subtotalCents = input.unitPrices.reduce((sum, row) => sum + safeUsdToCents(row.price) * row.quantity, 0);
   const shippingCents = safeUsdToCents(input.shippingAmount);
-  const taxCents = computeTaxCents({
+  const taxLines = computeTaxLines({
     subtotalCents,
     discountCents: 0,
     shippingCents,
     tax: input.tax,
   });
+  const taxCents = taxLines.reduce((sum, line) => sum + line.cents, 0);
   const totalCents = computeOrderTotalCents({
     subtotalCents,
     discountCents: 0,
@@ -38,6 +40,7 @@ export function quoteFromAuthoritativeParts(input: {
     subtotal: moneyFromCents(subtotalCents),
     shipping: moneyFromCents(shippingCents),
     tax: moneyFromCents(taxCents),
+    taxLines,
     total: moneyFromCents(totalCents),
   };
 }

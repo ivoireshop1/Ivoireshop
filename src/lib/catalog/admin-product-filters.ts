@@ -27,7 +27,7 @@ export function matchesAdminReviewFilter(filter: string, product: AdminProductFi
   if (filter === "inventory") {
     return isInventoryTracked(product.trackInventory) && missing.includes("Inventory");
   }
-  if (filter === "draft") return !product.isActive;
+  if (filter === "draft" || filter === "inactive") return !product.isActive;
   if (filter === "coming_soon") return Boolean(product.isComingSoon);
   return true;
 }

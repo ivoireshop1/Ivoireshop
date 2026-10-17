@@ -7,6 +7,7 @@ export function fulfillmentDisplay(order: {
   const provider = (order.fulfillment_provider ?? "").toLowerCase();
   const service = order.fulfillment_service?.trim();
   if (provider === "doordash") return service ? `Local Delivery · DoorDash · ${service}` : "Local Delivery · DoorDash";
+  if (provider === "ivoire") return "Shipping · Ivoire Shop (store-calculated)";
   if (provider === "ups") return "Shipping · UPS — Manual Shipping";
   if (provider === "usps") return "Shipping · USPS — Manual Shipping";
   if (provider === "store") return "Delivery · Arranged by Ivoire Shop";
@@ -30,6 +31,9 @@ export function shippingMethodCopy(option: {
   if (option.provider === "doordash") {
     return { title: "Local Delivery", subtitle: "Delivered by DoorDash", price };
   }
+  if (option.provider === "ivoire") {
+    return { title: "Ivoire Shop Shipping", subtitle: option.estimate || "Store-calculated shipping charge. This is not a live UPS or USPS quote.", price };
+  }
   if (option.provider === "usps") {
     return { title: "USPS Shipping", subtitle: option.estimate || (option.rateMode === "manual_quote" ? "Ivoire Shop shipping charge" : "Estimated shipping"), price };
   }
@@ -41,6 +45,7 @@ export function shippingMethodCopy(option: {
 
 export function shippingSummaryLabel(provider?: string | null) {
   const value = (provider ?? "").toLowerCase();
+  if (value === "ivoire") return "Shipping (store-calculated)";
   if (value === "usps") return "Shipping (USPS)";
   if (value === "ups") return "Shipping (UPS)";
   if (value === "pickup") return "Shipping (Pickup)";

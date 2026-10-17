@@ -24,6 +24,7 @@ export function statusReached(current: string, target: string) {
 export function fulfillmentKindLabel(fulfillment?: string | null, provider?: string | null) {
   if (fulfillment === "local_pickup") return "Store Pickup";
   const value = (provider ?? "").toLowerCase();
+  if (value === "ivoire") return "Ivoire Shop Shipping";
   if (value === "ups") return "UPS";
   if (value === "usps") return "USPS";
   return "Local Delivery";

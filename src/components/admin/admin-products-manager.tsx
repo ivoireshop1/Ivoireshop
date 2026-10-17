@@ -18,13 +18,16 @@ import {
   isBulkActivateEligible,
 } from "@/src/lib/catalog/catalog-reset";
 import { formatPriceDisplay, parsePriceInput } from "@/src/lib/catalog/pricing-input";
+import { GlobalModifyPanel } from "@/src/components/admin/global-modify-panel";
 
 export function AdminProductsManager({
   products,
+  categories = [],
   deleteAction,
   duplicateAction,
 }: {
   products: AdminProductRowData[];
+  categories?: Array<{ id: string; name: string; parent_id?: string | null }>;
   deleteAction: (formData: FormData) => void | Promise<void>;
   duplicateAction: (formData: FormData) => void | Promise<void>;
 }) {
@@ -179,6 +182,15 @@ export function AdminProductsManager({
                 Activate eligible ({eligibleCount})
               </button>
             </div>
+            <GlobalModifyPanel
+              categories={categories}
+              products={products}
+              selectedIds={selected}
+              onSaved={() => {
+                setSelected(clearSelection());
+                router.refresh();
+              }}
+            />
           </div>
         </div>
       ) : null}

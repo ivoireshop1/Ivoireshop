@@ -7,6 +7,7 @@ import { DeliveryOriginForm } from "@/src/components/admin/delivery-origin-form"
 import { ManualShippingForm } from "@/src/components/admin/manual-shipping-form";
 import { formatCharge, parseRateMode, rateModeLabel } from "@/src/lib/delivery/manual";
 import { TaxSettingsForm } from "@/src/components/admin/tax-settings-form";
+import { IvoireShippingForm } from "@/src/components/admin/ivoire-shipping-form";
 import { parseTaxMode, taxModeLabel } from "@/src/lib/tax/totals";
 import Link from "next/link";
 
@@ -36,7 +37,7 @@ export default async function AdminDeliveryPage() {
         <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#b8964c]">Fulfillment</p>
         <h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Delivery Center</h1>
         <p className="mt-2 max-w-2xl text-sm text-[#6b6b6b]">
-          UPS and USPS run in Manual Mode. Admin sets the Ivoire Shop shipping charge, then enters the real tracking number after posting the package. DoorDash remains API-based when credentials exist.
+          Ivoire Shop shipping is store-calculated from your rate rules. UPS and USPS remain available as labeled store charges when enabled. Live carrier APIs are not used. DoorDash remains API-based when credentials exist.
         </p>
       </div>
 
@@ -89,8 +90,17 @@ export default async function AdminDeliveryPage() {
         </button>
       </form>
 
+      <IvoireShippingForm settings={settings as Record<string, unknown> | null} />
       <TaxSettingsForm
         appliesToShipping={Boolean(settings?.tax_applies_to_shipping)}
+        tax1Enabled={Boolean(settings?.tax_1_enabled ?? settings?.tax_mode === "manual_rate")}
+        tax1Name={settings?.tax_1_name ?? settings?.tax_name}
+        tax1Rate={settings?.tax_1_rate_percent ?? settings?.tax_rate_percent}
+        tax1Shipping={Boolean(settings?.tax_1_applies_to_shipping ?? settings?.tax_applies_to_shipping)}
+        tax2Enabled={Boolean(settings?.tax_2_enabled)}
+        tax2Name={settings?.tax_2_name}
+        tax2Rate={settings?.tax_2_rate_percent}
+        tax2Shipping={Boolean(settings?.tax_2_applies_to_shipping)}
         taxMode={settings?.tax_mode}
         taxName={settings?.tax_name}
         taxRate={settings?.tax_rate_percent}

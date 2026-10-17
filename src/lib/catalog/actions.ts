@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { canonicalSlugForName, isAssignableCategory, isCanonicalSlug } from "@/src/lib/catalog/canonical-categories";
+import { isRootCategory } from "@/src/lib/catalog/category-tree";
 import { isPersistentImageUrl, productImagesObjectPath } from "@/src/lib/catalog/image-url";
 import { resolvePersistedSku } from "@/src/lib/catalog/sku";
 import { uniqueProductSlug } from "@/src/lib/catalog/product-slug";
@@ -62,7 +63,8 @@ export async function createCategory(formData: FormData) {
     redirect("/admin/categories?error=category_required");
   }
 
-  if (canonicalSlugForName(name, slug)) {
+  const parentId = textValue(formData, "parent_id") || null;
+  if (!parentId && canonicalSlugForName(name, slug)) {
     redirect("/admin/categories?error=canonical_duplicate");
   }
 
@@ -71,12 +73,22 @@ export async function createCategory(formData: FormData) {
     redirect("/admin/categories?error=category_image_invalid");
   }
 
+  if (parentId) {
+    const { data: parent } = await supabase.from("categories").select("id, parent_id").eq("id", parentId).maybeSingle();
+    if (!parent || parent.parent_id) {
+      redirect("/admin/categories?error=category_parent_invalid");
+    }
+  }
+
+  const sortOrder = Number(textValue(formData, "sort_order") || "0");
   const { error } = await supabase.from("categories").insert({
     name,
     slug,
     description: textValue(formData, "description") || null,
     image_url: imageUrl,
     is_active: formData.get("is_active") === "on",
+    parent_id: parentId,
+    sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
   });
 
   if (error) {
@@ -102,7 +114,7 @@ export async function updateCategory(_prev: CategorySaveState, formData: FormDat
     return { ok: false, message: "Enter a category name." };
   }
 
-  const { data: existing } = await supabase.from("categories").select("slug, image_url").eq("id", id).maybeSingle();
+  const { data: existing } = await supabase.from("categories").select("slug, image_url, parent_id").eq("id", id).maybeSingle();
   if (!existing?.slug) {
     return { ok: false, message: "The category could not be saved. Check the values and try again." };
   }
@@ -124,6 +136,8 @@ export async function updateCategory(_prev: CategorySaveState, formData: FormDat
   }
 
   const keepActive = isCanonicalSlug(existing.slug) || formData.get("is_active") === "on";
+  const parentId = isCanonicalSlug(existing.slug) ? null : textValue(formData, "parent_id") || existing.parent_id || null;
+  const sortOrder = Number(textValue(formData, "sort_order") || "0");
   const { error } = await supabase
     .from("categories")
     .update({
@@ -132,6 +146,8 @@ export async function updateCategory(_prev: CategorySaveState, formData: FormDat
       description: textValue(formData, "description") || null,
       image_url: imageUrl,
       is_active: keepActive,
+      parent_id: parentId,
+      sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
     })
     .eq("id", id);
 
@@ -166,17 +182,17 @@ export async function deleteCategory(formData: FormData) {
     redirect("/admin/categories?error=canonical_locked");
   }
 
-  const { data: productUsage, error: usageError } = await supabase
-    .from("products")
-    .select("id")
-    .eq("category_id", id)
-    .limit(1);
+  const [{ data: productUsage, error: usageError }, { data: childUsage }, { data: subUsage }] = await Promise.all([
+    supabase.from("products").select("id").eq("category_id", id).limit(1),
+    supabase.from("categories").select("id").eq("parent_id", id).limit(1),
+    supabase.from("products").select("id").eq("subcategory_id", id).limit(1),
+  ]);
 
   if (usageError) {
     redirect("/admin/categories?error=category_delete_failed");
   }
 
-  if (productUsage && productUsage.length > 0) {
+  if ((productUsage && productUsage.length > 0) || (childUsage && childUsage.length > 0) || (subUsage && subUsage.length > 0)) {
     redirect("/admin/categories?error=category_in_use");
   }
 
@@ -240,7 +256,7 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
   const isFeatured = formData.get("is_featured") === "on";
   const isNewArrival = formData.get("is_new_arrival") === "on";
   const isComingSoon = formData.get("is_coming_soon") === "on";
-  const isDraft = formData.get("save_as_draft") === "true";
+  const isDraft = formData.get("save_as_draft") === "true" || formData.get("save_as_inactive") === "true";
 
   if (
     !name ||
@@ -253,9 +269,10 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
     return saveError("product_required");
   }
 
+  const subcategoryId = textValue(formData, "subcategory_id") || null;
   const { data: categoryRow } = await supabase
     .from("categories")
-    .select("id, slug, is_active")
+    .select("id, slug, is_active, parent_id")
     .eq("id", categoryId)
     .maybeSingle();
   let currentCategoryId: string | null = null;
@@ -265,8 +282,12 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
     currentCategoryId = existing?.category_id ?? null;
     existingSku = existing?.sku ?? null;
   }
-  if (!categoryRow || !isAssignableCategory(categoryRow, currentCategoryId)) {
+  if (!categoryRow || !isAssignableCategory(categoryRow, currentCategoryId) || (categoryRow.parent_id && !isRootCategory(categoryRow))) {
     return saveError("missing_category");
+  }
+  if (subcategoryId) {
+    const { data: sub } = await supabase.from("categories").select("id, parent_id").eq("id", subcategoryId).maybeSingle();
+    if (!sub || sub.parent_id !== categoryId) return saveError("missing_category");
   }
 
   const imagesJsonRaw = textValue(formData, "images_json");
@@ -335,6 +356,7 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
     name,
     slug: uniqueSlug,
     category_id: categoryId,
+    subcategory_id: subcategoryId || null,
     description,
     short_description: textValue(formData, "short_description") || null,
     price,

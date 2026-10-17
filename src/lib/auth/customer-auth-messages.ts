@@ -57,7 +57,12 @@ export function customerAuthPageCopy(code: string | null | undefined) {
       };
     case "already_confirmed":
       return {
-        body: "This email is already confirmed. Sign in to continue to your account.",
+        body: "Your email is confirmed. Sign in to open your account.",
+        resend: false,
+      };
+    case "verified":
+      return {
+        body: "Your email is confirmed. Sign in to continue to your account.",
         resend: false,
       };
     case "invalid":

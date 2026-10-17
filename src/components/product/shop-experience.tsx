@@ -11,6 +11,7 @@ import { MerchProductRail } from "@/src/components/storefront/merch-product-rail
 import { createClient } from "@/src/lib/supabase/browser";
 import { toOneRelation } from "@/src/lib/catalog/relation-utils";
 import { shopCategoryQueryMatches, CANONICAL_CATEGORIES } from "@/src/lib/catalog/canonical-categories";
+import { shopMatchesCategory } from "@/src/lib/catalog/category-tree";
 import type { Product } from "@/src/types/catalog";
 
 type ShopExperienceProps = {
@@ -18,7 +19,7 @@ type ShopExperienceProps = {
   initialSearch?: string;
   newArrivals?: Product[];
   comingSoon?: Product[];
-  shopCategories?: Array<{ name: string; slug: string }>;
+  shopCategories?: Array<{ id?: string; name: string; slug: string; parentId?: string | null }>;
 };
 
 type ProductRow = {
@@ -34,6 +35,7 @@ type ProductRow = {
   stock_quantity: number | null;
   track_inventory?: boolean | null;
   categories?: { name: string | null; slug?: string | null } | Array<{ name: string | null; slug?: string | null }> | null;
+  subcategory?: { name: string | null; slug?: string | null } | Array<{ name: string | null; slug?: string | null }> | null;
   product_images?: Array<{ image_url: string; position: number }> | null;
 };
 
@@ -50,11 +52,23 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "", ne
     const loadProducts = async () => {
       try {
       const supabase = createClient();
-      const { data, error } = await supabase
+      const baseSelect = "id, name, slug, description, short_description, price, compare_at_price, is_featured, is_new_arrival, stock_quantity, track_inventory, categories(name, slug), product_images(image_url, position)";
+      const queried = await supabase
         .from("products")
-        .select("id, name, slug, description, short_description, price, compare_at_price, is_featured, is_new_arrival, stock_quantity, track_inventory, categories(name, slug), product_images(image_url, position)")
+        .select(`${baseSelect}, subcategory:categories!products_subcategory_id_fkey(name, slug)`)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
+      let data = queried.data as ProductRow[] | null;
+      let error = queried.error;
+      if (error) {
+        const fallback = await supabase
+          .from("products")
+          .select(baseSelect)
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
+        data = fallback.data as ProductRow[] | null;
+        error = fallback.error;
+      }
 
       if (error || !data) {
         if (error?.code) console.error("Shop catalog query failed", error.code);
@@ -72,6 +86,8 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "", ne
         compareAtPrice: row.compare_at_price === null ? undefined : Number(row.compare_at_price),
         category: toOneRelation(row.categories)?.name || "Uncategorized",
         categorySlug: toOneRelation(row.categories)?.slug || undefined,
+        subcategory: toOneRelation(row.subcategory)?.name || undefined,
+        subcategorySlug: toOneRelation(row.subcategory)?.slug || undefined,
         image: row.product_images?.slice().sort((a: { position: number }, b: { position: number }) => a.position - b.position)[0]?.image_url ?? "",
         weight: row.stock_quantity !== null ? `${row.stock_quantity} in stock` : "",
         stockQuantity: row.stock_quantity,
@@ -95,7 +111,12 @@ export function ShopExperience({ initialCategory = "All", initialSearch = "", ne
   );
   const arrivalOnly = searchParams.get("arrival") === "new";
   const normalizedProducts = useMemo(() => products.filter((product) => {
-    const matchesCategory = shopCategoryQueryMatches(category, { name: product.category, slug: product.categorySlug });
+    const matchesCategory =
+      shopMatchesCategory({
+        selected: category,
+        categorySlug: product.categorySlug,
+        subcategorySlug: product.subcategorySlug,
+      }) || shopCategoryQueryMatches(category, { name: product.category, slug: product.categorySlug });
     const text = `${product.name} ${product.category}`.toLowerCase();
     const matchesArrival = !arrivalOnly || (product.isNew && product.price > 0);
     return matchesCategory && matchesArrival && text.includes(query.toLowerCase().trim());

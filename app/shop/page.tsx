@@ -12,7 +12,7 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
   return (
     <>
       <SiteHeader />
-      <ShopExperience comingSoon={comingSoon} initialCategory={params.category || "All"} initialSearch={params.search || ""} newArrivals={newArrivals} shopCategories={shopCategories.map((category) => ({ name: category.name, slug: category.slug }))} />
+      <ShopExperience comingSoon={comingSoon} initialCategory={params.category || "All"} initialSearch={params.search || ""} newArrivals={newArrivals} shopCategories={shopCategories.map((category) => ({ id: category.id, name: category.name, slug: category.slug, parentId: category.parentId }))} />
       <Footer />
     </>
   );

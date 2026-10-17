@@ -17,7 +17,7 @@ import { StripeCheckoutForm } from "@/src/components/checkout/stripe-checkout-fo
 import { OrderConfirmationExperience } from "@/src/components/checkout/order-confirmation-experience";
 import { getCheckoutDeliveryOptions } from "@/src/lib/delivery/actions";
 import type { DeliveryOption } from "@/src/lib/delivery/types";
-import { taxDisplayLabel, type TaxSettings } from "@/src/lib/tax/totals";
+import { taxDisplayLabel, type TaxLine, type TaxSettings } from "@/src/lib/tax/totals";
 import { viewOrderHref } from "@/src/lib/checkout/view-order-href";
 import { prepareStripePayment } from "@/src/lib/payments/stripe-actions";
 import { placeDemoOrder } from "@/src/lib/payments/demo-actions";
@@ -37,7 +37,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
   const [contact, setContact] = useState({ customerName: "", customerEmail: "", customerPhone: "" });
   const [address, setAddress] = useState({ addressLine1: "", addressLine2: "", city: "", state: "", postalCode: "", country: "US" });
   const [options, setOptions] = useState<DeliveryOption[]>([]);
-  const [breakdowns, setBreakdowns] = useState<Record<string, { shipping: number; tax: number; total: number }>>({});
+  const [breakdowns, setBreakdowns] = useState<Record<string, { shipping: number; tax: number; total: number; taxLines?: TaxLine[] }>>({});
   const [quoteSubtotal, setQuoteSubtotal] = useState<number | null>(null);
   const [taxSettings, setTaxSettings] = useState<TaxSettings | null>(null);
   const [livePickupOrigin, setLivePickupOrigin] = useState<StoreOrigin | null>(pickupOrigin);
@@ -330,6 +330,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
               subtotal={displaySubtotal}
               tax={displayTax}
               taxLabel={taxLabel}
+              taxLines={breakdown?.taxLines}
               taxMode={taxSettings?.tax_mode}
               total={displayTotal}
               onContinue={goPayment}
@@ -370,6 +371,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
               subtotal={displaySubtotal}
               tax={displayTax}
               taxLabel={taxLabel}
+              taxLines={breakdown?.taxLines}
               taxMode={taxSettings?.tax_mode}
               total={displayTotal}
             />

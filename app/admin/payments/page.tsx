@@ -23,7 +23,7 @@ export default async function AdminPaymentsPage({
   const stripe = getStripeConfig();
   const email = getEmailProviderStatus();
   const [{ data: settings }, { data: health }, { data: recentPaid }, { data: recentFailed }, { data: recentRefunds }, { count: demoOrderCount }, { data: paidForRevenue }] = await Promise.all([
-    supabase.from("store_settings").select("tax_mode, tax_rate_percent, tax_applies_to_shipping, tax_name, demo_payment_enabled").eq("id", STORE_SETTINGS_ID).maybeSingle(),
+    supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle(),
     supabase.from("payment_webhook_health").select("last_success_at, last_error_at, last_error_code, recent_failures").eq("provider", "stripe").maybeSingle(),
     supabase.from("orders").select("id, order_number, customer_name, total, payment_status, created_at").eq("payment_provider", "stripe").eq("payment_status", "paid").eq("is_demo", false).order("paid_at", { ascending: false }).limit(5),
     supabase.from("orders").select("id, order_number, customer_name, total, payment_status, created_at").eq("payment_provider", "stripe").eq("payment_status", "failed").order("updated_at", { ascending: false }).limit(5),
@@ -83,6 +83,14 @@ export default async function AdminPaymentsPage({
       </section>
       <TaxSettingsForm
         appliesToShipping={Boolean(settings?.tax_applies_to_shipping)}
+        tax1Enabled={Boolean(settings?.tax_1_enabled ?? settings?.tax_mode === "manual_rate")}
+        tax1Name={settings?.tax_1_name ?? settings?.tax_name}
+        tax1Rate={settings?.tax_1_rate_percent ?? settings?.tax_rate_percent}
+        tax1Shipping={Boolean(settings?.tax_1_applies_to_shipping ?? settings?.tax_applies_to_shipping)}
+        tax2Enabled={Boolean(settings?.tax_2_enabled)}
+        tax2Name={settings?.tax_2_name}
+        tax2Rate={settings?.tax_2_rate_percent}
+        tax2Shipping={Boolean(settings?.tax_2_applies_to_shipping)}
         taxMode={settings?.tax_mode}
         taxName={settings?.tax_name}
         taxRate={settings?.tax_rate_percent}

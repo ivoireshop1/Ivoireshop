@@ -75,7 +75,14 @@ export function getPublicSiteUrl() {
 
 export function getAuthCallbackUrl(nextPath: string) {
   const next = nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/account";
-  return `${getPublicSiteUrl()}/auth/callback?next=${encodeURIComponent(next)}`;
+  // Confirmation emails must never target a protected Vercel deployment URL.
+  // Preview and production both send customers to the public storefront.
+  const vercelEnv = process.env.VERCEL_ENV ?? "";
+  const origin =
+    vercelEnv === "production" || vercelEnv === "preview"
+      ? CANONICAL_PRODUCTION_ORIGIN
+      : getPublicSiteUrl();
+  return `${origin}/auth/callback?next=${encodeURIComponent(next)}`;
 }
 
 export const siteConfig = {

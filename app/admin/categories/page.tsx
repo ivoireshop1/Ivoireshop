@@ -12,8 +12,8 @@ export default async function AdminCategoriesPage({
   const params = await searchParams;
   const { supabase } = await requireAdmin();
   const [{ data: categories, error }, { data: productRows }] = await Promise.all([
-    supabase.from("categories").select("id, name, slug, description, image_url, is_active").order("name"),
-    supabase.from("products").select("category_id, is_active"),
+    supabase.from("categories").select("id, name, slug, description, image_url, is_active, parent_id, sort_order").order("sort_order").order("name"),
+    supabase.from("products").select("category_id, subcategory_id, is_active"),
   ]);
 
   if (error) return <AdminLoadFailure message="Unable to load categories." title="Categories" />;
@@ -21,9 +21,11 @@ export default async function AdminCategoriesPage({
   const totals = new Map<string, number>();
   const actives = new Map<string, number>();
   (productRows ?? []).forEach((product) => {
-    const key = product.category_id ?? "";
-    totals.set(key, (totals.get(key) ?? 0) + 1);
-    if (product.is_active) actives.set(key, (actives.get(key) ?? 0) + 1);
+    const keys = [product.category_id, product.subcategory_id].filter(Boolean) as string[];
+    keys.forEach((key) => {
+      totals.set(key, (totals.get(key) ?? 0) + 1);
+      if (product.is_active) actives.set(key, (actives.get(key) ?? 0) + 1);
+    });
   });
 
   const rows = categories ?? [];
@@ -36,7 +38,7 @@ export default async function AdminCategoriesPage({
         <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#b8964c]">Organization</p>
         <h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Categories</h1>
         <p className="mt-2 max-w-2xl text-sm text-[#6b6b6b]">
-          Storefront shoppers see active categories. Counts include every product assigned to the category, including drafts.
+          Storefront shoppers see active categories and can filter by subcategory. Counts include every assigned product, including inactive listings.
         </p>
       </div>
 
@@ -48,6 +50,8 @@ export default async function AdminCategoriesPage({
               ? "Cosmetics, Foods, and Ivoire Market already exist. Do not create a duplicate."
               : params.error === "canonical_locked"
                 ? "Primary storefront categories cannot be deleted or deactivated."
+                : params.error === "category_parent_invalid"
+                  ? "Subcategories can only sit under Cosmetics, Foods, Ivoire Market, or another top-level category."
                 : params.error === "category_duplicate"
                   ? "A category with that slug already exists."
                   : "The category could not be saved. Check the values and try again."}
@@ -59,7 +63,10 @@ export default async function AdminCategoriesPage({
         </p>
       )}
 
-      <CategoryCreateForm action={createCategory} />
+      <CategoryCreateForm
+        action={createCategory}
+        parents={rows.filter((category) => !category.parent_id).map((category) => ({ id: category.id, name: category.name }))}
+      />
 
       <section className="space-y-4">
         <h2 className="text-lg font-semibold text-[#173f35]">Active categories</h2>
@@ -72,6 +79,7 @@ export default async function AdminCategoriesPage({
             deleteAction={deleteCategory}
             isCanonical={isCanonicalSlug(category.slug)}
             key={category.id}
+            parents={rows.filter((row) => !row.parent_id && row.id !== category.id).map((row) => ({ id: row.id, name: row.name }))}
             totalCount={totals.get(category.id) ?? 0}
             updateAction={updateCategory}
           />
@@ -91,6 +99,7 @@ export default async function AdminCategoriesPage({
               deactivateAction={deactivateCategory}
               deleteAction={deleteCategory}
               isCanonical={isCanonicalSlug(category.slug)}
+              parents={rows.filter((row) => !row.parent_id && row.id !== category.id).map((row) => ({ id: row.id, name: row.name }))}
               totalCount={totals.get(category.id) ?? 0}
               updateAction={updateCategory}
             />

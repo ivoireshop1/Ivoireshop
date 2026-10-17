@@ -31,10 +31,10 @@ export default async function AdminProductsPage({
   const reviewFilter = params.review ?? "all";
 
   const [{ data: categories, error: categoriesError }, { data: products, error: productsError }] = await Promise.all([
-    supabase.from("categories").select("id, name, slug, is_active").order("name"),
+    supabase.from("categories").select("id, name, slug, is_active, parent_id").order("name"),
     supabase
       .from("products")
-      .select("id, name, slug, price, stock_quantity, track_inventory, is_active, is_featured, is_coming_soon, needs_pricing, needs_category_review, created_at, category_id, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in, product_images(image_url, position)")
+      .select("id, name, slug, price, stock_quantity, track_inventory, is_active, is_featured, is_coming_soon, needs_pricing, needs_category_review, created_at, category_id, subcategory_id, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in, product_images(image_url, position)")
       .order("created_at", { ascending: false }),
   ]);
 
@@ -60,11 +60,11 @@ export default async function AdminProductsPage({
     const nameMatches = !searchQuery || product.name.toLowerCase().includes(searchQuery.toLowerCase());
     const categoryName = categoryNameFromId(product.category_id, categoryRecords);
     const categoryMatches = matchesAdminCategoryFilter(categoryFilter, { categoryId: product.category_id }, categoryRecords);
-    const productStatus = product.is_active ? "Active" : "Draft";
+    const productStatus = product.is_active ? "Active" : "Inactive";
     const statusMatches =
       statusFilter === "all" ||
       (statusFilter === "active" && productStatus === "Active") ||
-      (statusFilter === "draft" && productStatus === "Draft");
+      ((statusFilter === "draft" || statusFilter === "inactive") && productStatus === "Inactive");
     const inventoryMatches =
       inventoryFilter === "all" ||
       (inventoryFilter === "needs_pricing" && (product.needs_pricing || product.price === null)) ||
@@ -106,6 +106,8 @@ export default async function AdminProductsPage({
       slug: product.slug,
       createdAt: product.created_at,
       categoryName,
+      categoryId: product.category_id,
+      subcategoryId: (product as { subcategory_id?: string | null }).subcategory_id ?? null,
       imageUrl,
       price: product.price,
       stockQuantity: product.stock_quantity,
@@ -163,7 +165,7 @@ export default async function AdminProductsPage({
       </nav>
 
       <p className="flex flex-wrap gap-x-3 gap-y-2 text-sm">
-        <Link className="font-semibold text-[#173f35] underline underline-offset-4" href={adminProductsHref({ ...hrefState, category: categoryFilter, status: "draft", review: "all" })}>Draft</Link>
+        <Link className="font-semibold text-[#173f35] underline underline-offset-4" href={adminProductsHref({ ...hrefState, category: categoryFilter, status: "inactive", review: "all" })}>Inactive</Link>
         <Link className="font-semibold text-[#173f35] underline underline-offset-4" href={adminProductsHref({ ...hrefState, category: categoryFilter, status: "active", review: "all" })}>Active</Link>
         <Link className="font-semibold text-[#173f35] underline underline-offset-4" href={adminProductsHref({ ...hrefState, category: categoryFilter, inventory: "needs_pricing", review: "all" })}>Needs Price</Link>
         <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products?review=needs-review">Needs review</Link>
@@ -215,7 +217,7 @@ export default async function AdminProductsPage({
             <select className="w-full rounded-xl border border-[#173f35]/15 bg-[#f9f7f3] px-3 py-2.5 text-[#173f35] outline-none transition focus:border-[#173f35]/35" defaultValue={statusFilter} name="status">
               <option value="all">All Products</option>
               <option value="active">Active</option>
-              <option value="draft">Draft</option>
+              <option value="inactive">Inactive</option>
             </select>
           </label>
 
@@ -259,7 +261,12 @@ export default async function AdminProductsPage({
       </section>
 
       <section className="overflow-x-hidden rounded-[28px] border border-[#173f35]/10 bg-white p-4 shadow-[0_12px_32px_rgba(23,63,53,0.04)]">
-        <AdminProductsManager deleteAction={deleteProduct} duplicateAction={duplicateProduct} products={rows} />
+        <AdminProductsManager
+          categories={categoryRecords}
+          deleteAction={deleteProduct}
+          duplicateAction={duplicateProduct}
+          products={rows}
+        />
       </section>
     </div>
   );

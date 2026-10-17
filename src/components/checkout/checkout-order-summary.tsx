@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import type { CartItem } from "@/src/types/cart";
 import { shippingSummaryLabel } from "@/src/lib/delivery/labels";
-import type { TaxMode } from "@/src/lib/tax/totals";
+import type { TaxLine, TaxMode } from "@/src/lib/tax/totals";
 
 type SummaryItem = Pick<CartItem, "productId" | "name" | "quantity"> & Partial<Pick<CartItem, "price" | "image">>;
 
@@ -15,6 +15,7 @@ export function CheckoutOrderSummary({
   tax,
   total,
   taxLabel,
+  taxLines,
   taxMode,
   provider,
   continueLabel,
@@ -29,6 +30,7 @@ export function CheckoutOrderSummary({
   tax: number | null;
   total: number | null;
   taxLabel: string;
+  taxLines?: TaxLine[];
   taxMode?: TaxMode | null;
   provider?: string | null;
   continueLabel: string;
@@ -57,7 +59,9 @@ export function CheckoutOrderSummary({
         <dl className="min-w-0 flex-1 space-y-2 text-sm">
           <MoneyRow label="Subtotal" value={money(subtotal)} />
           <MoneyRow label={shippingSummaryLabel(provider)} value={money(shipping)} />
-          <MoneyRow label={taxLabel} value={money(tax)} />
+          {taxLines?.length
+            ? taxLines.map((line) => <MoneyRow key={line.key} label={line.name} value={money(line.amount)} />)
+            : <MoneyRow label={taxLabel} value={money(tax)} />}
           <MoneyRow emphasize label="Total" value={money(total)} />
         </dl>
       </div>
