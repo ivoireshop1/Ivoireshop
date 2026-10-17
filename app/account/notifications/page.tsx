@@ -19,9 +19,11 @@ export default async function CustomerNotificationsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   let soundsEnabled = true;
+  let customerVolume = 80;
   if (user) {
-    const { data: profile } = await supabase.from("profiles").select("notification_sounds").eq("id", user.id).maybeSingle();
+    const { data: profile } = await supabase.from("profiles").select("notification_sounds, notification_volume").eq("id", user.id).maybeSingle();
     soundsEnabled = profile?.notification_sounds !== false;
+    customerVolume = profile?.notification_volume ?? 80;
   }
 
   return (
@@ -46,7 +48,7 @@ export default async function CustomerNotificationsPage() {
             </form>
           ) : null}
         </div>
-        <NotificationSoundsToggle enabled={soundsEnabled} />
+        <NotificationSoundsToggle enabled={soundsEnabled} volume={customerVolume} />
         <div className="mt-8 space-y-4">
           {result.items.length ? (
             result.items.map((item) => (

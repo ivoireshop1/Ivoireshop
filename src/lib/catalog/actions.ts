@@ -588,6 +588,13 @@ export async function updateOrderStatus(_prev: OrderStatusActionState | null, fo
   if (!(current.is_demo || current.payment_provider === "demo" || current.payment_status === "demo")) {
     void notifyFulfillmentEmail(supabase, id, status);
   }
+  revalidatePath("/admin");
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/notifications");
+  revalidatePath("/account");
+  revalidatePath("/account/notifications");
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath(`/account/orders/${id}`);
   console.info("[order-status]", {
     dbMs: afterDb - started,
     notifyMs: afterNotify - afterDb,

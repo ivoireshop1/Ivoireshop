@@ -38,19 +38,37 @@ export function LiveAdminOrderList({
     if (!dashboardTick) return;
     const client = createClient();
     let cancelled = false;
+    const apply = (data: AdminOrderListItemData[]) => {
+      if (cancelled) return;
+      setLiveOrders(
+        data.filter((order) => {
+          if (!matchesAdminOrderView(order.status, view)) return false;
+          if (search && !orderMatchesSearch(order, search)) return false;
+          return orderMatchesOpsFilters(order, { status, payment, fulfillment, carrier, date, shipping, attention });
+        }),
+      );
+    };
+    const selectWithImages =
+      "id, order_number, confirmation_code, customer_name, customer_email, customer_phone, total, status, payment_status, payment_provider, is_demo, fulfillment_method, fulfillment_provider, fulfillment_service, tracking_number, created_at, order_items(product_name, quantity, image_url, products(product_images(image_url, position)))";
+    const selectPlain =
+      "id, order_number, confirmation_code, customer_name, customer_email, customer_phone, total, status, payment_status, payment_provider, is_demo, fulfillment_method, fulfillment_provider, fulfillment_service, tracking_number, created_at, order_items(product_name, quantity, image_url)";
     void client
       .from("orders")
-      .select("id, order_number, confirmation_code, customer_name, customer_email, customer_phone, total, status, payment_status, payment_provider, is_demo, fulfillment_method, fulfillment_provider, fulfillment_service, tracking_number, created_at, order_items(product_name, quantity, image_url, products(product_images(image_url, position)))")
+      .select(selectWithImages)
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (cancelled || !data) return;
-        setLiveOrders(
-          data.filter((order) => {
-            if (!matchesAdminOrderView(order.status, view)) return false;
-            if (search && !orderMatchesSearch(order, search)) return false;
-            return orderMatchesOpsFilters(order, { status, payment, fulfillment, carrier, date, shipping, attention });
-          }),
-        );
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (!error && data) {
+          apply(data);
+          return;
+        }
+        void client
+          .from("orders")
+          .select(selectPlain)
+          .order("created_at", { ascending: false })
+          .then(({ data: fallback }) => {
+            if (fallback) apply(fallback);
+          });
       });
     return () => {
       cancelled = true;

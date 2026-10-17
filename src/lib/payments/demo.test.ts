@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { isDemoOrder, restoreInventoryAllowed } from "./demo.ts";
+import { countDemoOrders, countPaidSalesOrders, isDemoOrder, restoreInventoryAllowed } from "./demo.ts";
 import { netPaidRevenue, requiresStripePaymentBeforeFulfillment } from "./totals.ts";
+
+test("demo orders stay in operational counts but are excluded from paid sales", () => {
+  const orders = [
+    { is_demo: true, payment_status: "demo", payment_provider: "demo", status: "pending" },
+    { is_demo: false, payment_status: "paid", payment_provider: "stripe", status: "pending" },
+  ];
+  assert.equal(countPaidSalesOrders(orders), 1);
+  assert.equal(countDemoOrders(orders), 1);
+  assert.equal(orders.filter((order) => order.status === "pending").length, 2);
+});
 
 test("demo orders are not real paid Stripe revenue", () => {
   assert.equal(isDemoOrder({ is_demo: true, payment_status: "demo", payment_provider: "demo" }), true);

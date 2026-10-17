@@ -9,7 +9,15 @@ import {
   listenForCrossTabSoundClaims,
   markPlayedNotification,
   playNotificationEvent,
+  setIvoirePlaybackAudience,
+  setIvoirePlaybackVolumePercent,
 } from "@/src/lib/audio/ivoire-tones";
+import {
+  SOUND_SETTINGS_EVENT,
+  clampNotificationVolume,
+  readStoredVolumePercent,
+  writeStoredVolumePercent,
+} from "@/src/lib/audio/volume";
 import type { InboxItem } from "@/src/lib/notifications/inbox-item";
 import { mergeInboxItems } from "@/src/lib/notifications/merge";
 
@@ -212,6 +220,21 @@ export function LiveNotificationsProvider({
     return () => window.removeEventListener("pointerdown", sync, true);
   }, []);
   useEffect(() => listenForCrossTabSoundClaims((id) => markPlayedNotification(id)), []);
+  useEffect(() => {
+    const onSettings = (event: Event) => {
+      const detail = (event as CustomEvent<{ audience?: "admin" | "customer"; volume?: number; enabled?: boolean }>).detail;
+      if (!detail?.audience) return;
+      if ((roleRef.current === "admin") !== (detail.audience === "admin")) return;
+      writeStoredVolumePercent(detail.audience, detail.volume);
+      setIvoirePlaybackVolumePercent(clampNotificationVolume(detail.volume), detail.audience);
+      if (typeof detail.enabled === "boolean") {
+        setSoundsEnabled(detail.enabled);
+        soundsRef.current = detail.enabled;
+      }
+    };
+    window.addEventListener(SOUND_SETTINGS_EVENT, onSettings);
+    return () => window.removeEventListener(SOUND_SETTINGS_EVENT, onSettings);
+  }, []);
 
   useEffect(() => {
     const client = createClient();
@@ -316,11 +339,25 @@ export function LiveNotificationsProvider({
         jwtAttached = "no";
       }
       if (cancelled || thisRun !== runId) return;
-      const { data: profile } = await client
+      let profileQuery = await client
         .from("profiles")
-        .select("role, notification_sounds, admin_notification_sounds")
+        .select("role, notification_sounds, admin_notification_sounds, notification_volume, admin_notification_volume")
         .eq("id", session.user.id)
         .maybeSingle();
+      if (profileQuery.error) {
+        profileQuery = await client
+          .from("profiles")
+          .select("role, notification_sounds, admin_notification_sounds")
+          .eq("id", session.user.id)
+          .maybeSingle();
+      }
+      const profile = profileQuery.data as {
+        role?: string | null;
+        notification_sounds?: boolean | null;
+        admin_notification_sounds?: boolean | null;
+        notification_volume?: number | null;
+        admin_notification_volume?: number | null;
+      } | null;
       if (cancelled || thisRun !== runId) return;
       const nextRole = profile?.role === "admin" ? "admin" : "customer";
       setRole(nextRole);
@@ -328,6 +365,14 @@ export function LiveNotificationsProvider({
       const enabled = nextRole === "admin" ? profile?.admin_notification_sounds !== false : profile?.notification_sounds !== false;
       setSoundsEnabled(enabled);
       soundsRef.current = enabled;
+      const audience = nextRole === "admin" ? "admin" : "customer";
+      const stored = readStoredVolumePercent(audience);
+      const volume = clampNotificationVolume(
+        nextRole === "admin" ? (profile?.admin_notification_volume ?? stored) : (profile?.notification_volume ?? stored),
+      );
+      writeStoredVolumePercent(audience, volume);
+      setIvoirePlaybackAudience(audience);
+      setIvoirePlaybackVolumePercent(volume, audience);
       userIdRef.current = session.user.id;
       setConnection("reconnecting");
       await reconcile(nextRole, session.user.id);

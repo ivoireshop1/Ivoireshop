@@ -2,6 +2,14 @@ export function isDemoOrder(order: { is_demo?: boolean | null; payment_provider?
   return order.is_demo === true || order.payment_provider === "demo" || order.payment_status === "demo";
 }
 
+export function countPaidSalesOrders<T extends { is_demo?: boolean | null; payment_provider?: string | null; payment_status?: string | null }>(orders: T[]) {
+  return orders.filter((order) => !isDemoOrder(order)).length;
+}
+
+export function countDemoOrders<T extends { is_demo?: boolean | null; payment_provider?: string | null; payment_status?: string | null }>(orders: T[]) {
+  return orders.filter((order) => isDemoOrder(order)).length;
+}
+
 export function demoPaymentLabel() {
   return "Demo / Test";
 }

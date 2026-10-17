@@ -93,8 +93,8 @@ export async function placeDemoOrder(input: { checkout: unknown; expectedTotal?:
     await admin
       .from("customer_notifications")
       .update({
-        title: "TEST order received",
-        message: "This is a demonstration order. No real payment was collected.",
+        title: "DEMO · Order accepted 🎉",
+        message: "We've received your order and the Ivoire Shop team is getting started.\nThis is a demonstration. No real payment was collected.",
       })
       .eq("order_id", order.id)
       .eq("event_type", "order_confirmed");
@@ -108,7 +108,7 @@ export async function placeDemoOrder(input: { checkout: unknown; expectedTotal?:
       .eq("event_type", "new_order");
   }
 
-  for (const path of ["/", "/shop", "/admin", "/admin/orders", "/admin/payments", "/account"]) revalidatePath(path);
+  for (const path of ["/", "/shop", "/admin", "/admin/orders", "/admin/payments", "/admin/notifications", "/account", "/account/notifications"]) revalidatePath(path);
   revalidatePath(`/admin/orders/${order.id}`);
   revalidatePath(`/account/orders/${order.id}`);
 

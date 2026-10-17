@@ -100,4 +100,7 @@ test("checklist is derived from real status and payment", () => {
   const carrier = fulfillmentChecklist({ status: "ready_for_delivery", payment_status: "paid", fulfillment_provider: "ups" });
   assert.equal(carrier.find((item) => item.id === "tracking")?.done, false);
   assert.equal(carrier.find((item) => item.id === "shipped")?.done, false);
+  const demo = fulfillmentChecklist({ status: "pending", payment_status: "demo", payment_provider: "demo", is_demo: true, fulfillment_method: "local_pickup" });
+  assert.equal(demo.find((item) => item.id === "payment")?.done, true);
+  assert.equal(demo.find((item) => item.id === "payment")?.label, "Demo — no charge");
 });

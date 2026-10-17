@@ -33,7 +33,7 @@ export default async function AccountPage() {
   }
 
   const [{ data: profile }, { data: orders, error: ordersError }, { data: addresses }, prominent, wishlistPreview, recommended, categories] = await Promise.all([
-    supabase.from("profiles")      .select("full_name, welcome_completed_at, notification_sounds").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles")      .select("full_name, welcome_completed_at, notification_sounds, notification_volume").eq("id", user.id).maybeSingle(),
     supabase
       .from("orders")
       .select("id, order_number, confirmation_code, status, payment_status, payment_provider, is_demo, total, fulfillment_method, fulfillment_provider, tracking_number, created_at, order_items(product_name, quantity, image_url)").eq("user_id", user.id)
@@ -61,7 +61,7 @@ export default async function AccountPage() {
       <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-6 sm:py-10">
         <CustomerAccountNav />
         <CustomerHero firstName={heroName} />
-        <NotificationSoundsToggle enabled={profile?.notification_sounds !== false} />
+        <NotificationSoundsToggle enabled={profile?.notification_sounds !== false} volume={profile?.notification_volume ?? 80} />
         {prominent ? (
           <div className="mt-8">
             <CustomerAlertBanner item={prominent} />
