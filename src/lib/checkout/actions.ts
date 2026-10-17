@@ -11,6 +11,7 @@ import { originFromSettings, originIsComplete, pickupLocationSnapshot } from "@/
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { centsToUsdString, usdToCents } from "@/src/lib/payments/money";
 import { getStripeConfig } from "@/src/lib/payments/stripe-config";
+import { taxSnapshotFromSettings } from "@/src/lib/tax/totals";
 
 export async function placeCheckoutOrder(input: unknown, options?: { demo?: boolean; suppressEmail?: boolean }): Promise<CheckoutResponse> {
   const validated = validateCheckout(input);
@@ -78,15 +79,19 @@ export async function placeCheckoutOrder(input: unknown, options?: { demo?: bool
           fulfillment_service: selected.serviceCode || selected.label,
           shipping_mode: selected.mode || ((selected.provider === "ups" || selected.provider === "usps") ? "manual" : null),
           delivery_snapshot: optionToSnapshot(selected, pickupLocation),
-          tax_snapshot: {
-            mode: quotes.tax.tax_mode,
-            rate_percent: quotes.tax.tax_rate_percent,
-            applies_to_shipping: quotes.tax.tax_applies_to_shipping,
-            name: quotes.tax.tax_name,
-            amount: tax,
-            decided_at: new Date().toISOString(),
-          },
+          tax_snapshot: taxSnapshotFromSettings(quotes.tax, tax, breakdown?.taxLines ?? []),
         }).eq("id", row.order_id).neq("payment_status", "paid");
+        if (selected.provider === "ivoire") {
+          await admin.from("shipping_estimates").insert({
+            cart_fingerprint: `${request.idempotencyKey}`,
+            origin,
+            destination: request.address,
+            amount: shipping,
+            breakdown: optionToSnapshot(selected, pickupLocation),
+            source: "ivoire_engine",
+            order_id: row.order_id,
+          });
+        }
         row.total = total;
       } else if (current) {
         row.total = current.total;
@@ -120,6 +125,7 @@ export async function placeCheckoutOrder(input: unknown, options?: { demo?: bool
       subtotal: quotes.subtotal,
       shipping_cost: shipping,
       tax_amount: tax,
+      tax_lines: breakdown?.taxLines,
     };
     let emailSent = false;
     const stripeOnline = getStripeConfig().canCollect;

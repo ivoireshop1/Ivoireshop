@@ -32,6 +32,7 @@ type PrintOrder = {
   shipping_cost: number | string;
   discount_amount: number | string;
   tax_amount?: number | string;
+  tax_snapshot?: { lines?: Array<{ key?: string; name?: string; amount?: number }> } | null;
   postage_cost?: number | string | null;
   total: number | string;
   tracking_number?: string | null;
@@ -140,7 +141,11 @@ export function OrderPrintDocument({
       {kind === "packing-slip" ? (
         <dl className="mt-6 ml-auto max-w-xs space-y-1 text-sm">
           <div className="flex justify-between gap-6"><dt>Shipping collected</dt><dd>{money(order.shipping_cost)}</dd></div>
-          <div className="flex justify-between gap-6"><dt>Tax</dt><dd>{money(order.tax_amount)}</dd></div>
+          {(order.tax_snapshot?.lines?.length
+            ? order.tax_snapshot.lines.map((line) => (
+                <div className="flex justify-between gap-6" key={line.key || line.name}><dt>{line.name || "Tax"}</dt><dd>{money(line.amount)}</dd></div>
+              ))
+            : <div className="flex justify-between gap-6"><dt>Tax</dt><dd>{money(order.tax_amount)}</dd></div>)}
           <div className="flex justify-between gap-6 font-semibold"><dt>Total</dt><dd>{money(order.total)}</dd></div>
         </dl>
       ) : null}
@@ -150,7 +155,11 @@ export function OrderPrintDocument({
           <div className="flex justify-between gap-6"><dt>Subtotal</dt><dd>{money(order.subtotal)}</dd></div>
           {Number(order.discount_amount) > 0 ? <div className="flex justify-between gap-6"><dt>Discount</dt><dd>{money(order.discount_amount)}</dd></div> : null}
           <div className="flex justify-between gap-6"><dt>Delivery / shipping</dt><dd>{money(order.shipping_cost)}</dd></div>
-          <div className="flex justify-between gap-6"><dt>Tax</dt><dd>{money(order.tax_amount)}</dd></div>
+          {(order.tax_snapshot?.lines?.length
+            ? order.tax_snapshot.lines.map((line) => (
+                <div className="flex justify-between gap-6" key={line.key || line.name}><dt>{line.name || "Tax"}</dt><dd>{money(line.amount)}</dd></div>
+              ))
+            : <div className="flex justify-between gap-6"><dt>Tax</dt><dd>{money(order.tax_amount)}</dd></div>)}
           <div className="flex justify-between gap-6 font-semibold"><dt>Total</dt><dd>{money(order.total)}</dd></div>
         </dl>
       ) : null}

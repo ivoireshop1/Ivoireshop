@@ -21,13 +21,14 @@ export default async function EditProductPage({
   const { supabase } = await requireAdmin();
   const [{ data: product, error: productError }, { data: categories, error: categoryError }] = await Promise.all([
     supabase.from("products").select("*, product_images(image_url, position)").eq("id", id).maybeSingle(),
-    supabase.from("categories").select("id, name, slug, is_active").order("name"),
+    supabase.from("categories").select("id, name, slug, is_active, parent_id").order("name"),
   ]);
 
   if (productError || categoryError) return <AdminLoadFailure message="Unable to load product." title="Edit product" />;
   if (!product) redirect("/admin/products?error=product_missing");
 
-  const categoryOptions = categoriesForProductAssignment(categories ?? [], product.category_id);
+  const roots = categoriesForProductAssignment(categories ?? [], product.category_id);
+  const categoryOptions = [...roots, ...(categories ?? []).filter((category) => category.parent_id)];
   const viewHref = adminProductViewHref({ id: product.id, slug: product.slug, isActive: Boolean(product.is_active) });
 
   return (

@@ -59,11 +59,12 @@ export function isAssignableCategory(
   return category.is_active !== false;
 }
 
-export function categoriesForProductAssignment<T extends { id: string; name?: string; slug?: string; is_active?: boolean }>(
+export function categoriesForProductAssignment<T extends { id: string; name?: string; slug?: string; is_active?: boolean; parent_id?: string | null }>(
   categories: T[],
   currentId?: string | null,
 ) {
   return categories
+    .filter((category) => !category.parent_id)
     .filter((category) => isAssignableCategory(category, currentId))
     .sort((left, right) => {
       const byCanonical = canonicalSortIndex(left.name ?? "", left.slug) - canonicalSortIndex(right.name ?? "", right.slug);

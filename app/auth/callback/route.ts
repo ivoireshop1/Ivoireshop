@@ -53,12 +53,19 @@ export async function GET(request: NextRequest) {
   } else if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
-      return redirect(
-        sitePath(
-          request,
-          recovered ? RECOVERY_INVALID_PATH : "/auth/verify-failed",
-        ),
-      );
+      const {
+        data: { user: existing },
+      } = await supabase.auth.getUser();
+      if (existing && !recovered) {
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", existing.id).maybeSingle();
+        return redirect(sitePath(request, resolvePostLoginPath(profile?.role, next)));
+      }
+      if (recovered) {
+        return redirect(sitePath(request, RECOVERY_INVALID_PATH));
+      }
+      // Vercel SSO often consumes `code` before this route runs. The account
+      // is typically already confirmed; send the customer to sign in.
+      return redirect(sitePath(request, `/login?error=already_confirmed&next=${encodeURIComponent("/account")}`));
     }
   } else if (recovered) {
     // Supabase delivers recovery tokens in the URL fragment when the email link

@@ -10,13 +10,14 @@ import {
 } from "@/src/lib/catalog/product-slug";
 import { useState, useRef, type ChangeEvent, type FormEvent } from "react";
 
-export type CategoryOption = { id: string; name: string; slug?: string };
+export type CategoryOption = { id: string; name: string; slug?: string; parent_id?: string | null };
 
 export type ProductValues = {
   id?: string;
   name?: string;
   slug?: string;
   category_id?: string;
+  subcategory_id?: string | null;
   description?: string | null;
   short_description?: string | null;
   price?: number | string | null;
@@ -65,6 +66,7 @@ export function ProductForm({
     return !isImportedPlaceholderSlug(product.slug);
   });
   const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
+  const [subcategoryId, setSubcategoryId] = useState(product?.subcategory_id ?? "");
   const [description, setDescription] = useState(product?.description ?? "");
   const [shortDescription, setShortDescription] = useState(product?.short_description ?? "");
   const [sku, setSku] = useState(product?.sku ?? "");
@@ -298,7 +300,7 @@ export function ProductForm({
       }
     } else if (saveAsDraft) {
       if (!name.trim()) {
-        setValidationErrors(["Enter at least a product name to save a draft."]);
+        setValidationErrors(["Enter at least a product name to save as inactive."]);
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
@@ -314,6 +316,7 @@ export function ProductForm({
     formData.set("name", name.trim());
     formData.set("slug", slug.trim() || slugify(name));
     formData.set("category_id", categoryId);
+    formData.set("subcategory_id", subcategoryId);
     formData.set("description", description);
     formData.set("short_description", shortDescription);
     formData.set("sku", sku);
@@ -407,7 +410,7 @@ export function ProductForm({
                   {aiBusy ? "✨ Analyzing product..." : "✨ Fill with AI"}
                 </button>
                 <p className="text-xs text-[#6b6b6b]">
-                  AI may suggest name and description in English. Category, price, quantity, and listing status stay as you set them. Review before Save Draft or Activate.
+                  AI may suggest name and description in English. Category, price, quantity, and listing status stay as you set them. Review before Save Inactive or Activate.
                 </p>
                 {aiMessage ? (
                   <p aria-live="polite" className="text-sm text-[#173f35]">
@@ -461,20 +464,38 @@ export function ProductForm({
               Category <span className="text-red-600">*</span>
               <select
                 className="mt-2 w-full rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-[#173f35] outline-none transition focus:border-[#173f35]/35"
-                onChange={(e) => setCategoryId(e.target.value)}
+                onChange={(e) => {
+                  setCategoryId(e.target.value);
+                  setSubcategoryId("");
+                }}
                 required
                 value={categoryId}
               >
                 <option value="">Select a category</option>
-                {categories.map((cat) => (
+                {categories.filter((cat) => !cat.parent_id).map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}
                   </option>
                 ))}
               </select>
               <span className="mt-1 block text-xs text-[#6b6b6b]">
-                Required. Choose Foods, Cosmetics, or Ivoire Market. Fill with AI will not change this.
+                Required. Choose Foods, Cosmetics, Ivoire Market, or another top-level category. Fill with AI will not change this.
               </span>
+            </label>
+            <label className="block text-sm font-medium text-[#173f35]">
+              Subcategory
+              <select
+                className="mt-2 w-full rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-[#173f35] outline-none transition focus:border-[#173f35]/35"
+                onChange={(e) => setSubcategoryId(e.target.value)}
+                value={subcategoryId}
+              >
+                <option value="">None</option>
+                {categories.filter((cat) => cat.parent_id === categoryId).map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="block text-sm font-medium text-[#173f35]">
@@ -906,7 +927,7 @@ export function ProductForm({
               onClick={(e) => handleSubmit(e as unknown as FormEvent<HTMLFormElement>, "draft")}
               type="button"
             >
-              Save Draft
+              Save Inactive
             </button>
           </div>
         </div>

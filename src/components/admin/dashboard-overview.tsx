@@ -65,7 +65,7 @@ export function DashboardOverview({ initial }: { initial: AdminDashboardData }) 
           { label: "Needs pricing", value: dashboard.catalogStats.needsPricing },
           { label: "Needs inventory", value: dashboard.catalogStats.needsInventory },
           { label: "Needs image", value: dashboard.catalogStats.needsImage },
-          { label: "Draft / ready for review", value: dashboard.catalogStats.draft },
+          { label: "Inactive / ready for review", value: dashboard.catalogStats.draft },
           { label: "Ready to publish", value: dashboard.catalogStats.readyToPublish },
         ].map((item) => (
           <Link

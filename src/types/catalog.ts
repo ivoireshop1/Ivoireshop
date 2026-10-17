@@ -5,6 +5,8 @@ export type CatalogCategory = {
   description: string | null;
   imageUrl: string | null;
   isActive: boolean;
+  parentId?: string | null;
+  sortOrder?: number;
 };
 
 export type CatalogProduct = {
@@ -30,6 +32,8 @@ export interface Product {
   compareAtPrice?: number;
   category: string;
   categorySlug?: string;
+  subcategory?: string;
+  subcategorySlug?: string;
   image: string;
   weight: string;
   stockQuantity?: number | null;

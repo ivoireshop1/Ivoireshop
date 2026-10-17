@@ -12,7 +12,6 @@ import { sanitizeProviderError } from "./types";
 import { parseAdminMiles, parseAdminMoney, parseRateMode } from "./manual";
 import { recordAdminIncident } from "@/src/lib/ops/incident";
 import { isCarrierOrder, validateCarrierTracking } from "./tracking";
-import { parseTaxMode } from "@/src/lib/tax/totals";
 import { notifyFulfillmentEmail } from "@/src/lib/communications/fulfillment-email";
 import { recordCustomerNotification, recordFulfillmentNotification } from "@/src/lib/notifications/record";
 
@@ -173,21 +172,94 @@ export async function saveManualShipping(_prev: { error?: string; saved?: boolea
   return { saved: true };
 }
 
+function parseTaxRule(formData: FormData, prefix: "tax_1" | "tax_2") {
+  const enabled = formData.get(`${prefix}_enabled`) === "on";
+  const name = String(formData.get(`${prefix}_name`) ?? "").trim() || (prefix === "tax_1" ? "Tax 1" : "Tax 2");
+  const rateRaw = String(formData.get(`${prefix}_rate_percent`) ?? "").trim();
+  const rate = Number(rateRaw);
+  if (enabled && (!Number.isFinite(rate) || rate < 0 || rate > 100)) {
+    return { error: `Enter a ${name} rate between 0 and 100.` as const };
+  }
+  return {
+    enabled,
+    name,
+    rate: enabled ? rate : null,
+    shipping: formData.get(`${prefix}_applies_to_shipping`) === "on",
+  };
+}
+
 export async function saveTaxSettings(_prev: { error?: string; saved?: boolean } | null, formData: FormData) {
   const { supabase } = await requireAdmin();
-  const tax_mode = parseTaxMode(String(formData.get("tax_mode") ?? ""));
-  const rate = Number(formData.get("tax_rate_percent"));
-  if (tax_mode === "manual_rate" && (!Number.isFinite(rate) || rate < 0 || rate > 100)) {
-    return { error: "Enter a tax rate between 0 and 100." };
-  }
+  const tax1 = parseTaxRule(formData, "tax_1");
+  const tax2 = parseTaxRule(formData, "tax_2");
+  if ("error" in tax1 && tax1.error) return { error: tax1.error };
+  if ("error" in tax2 && tax2.error) return { error: tax2.error };
+  if (!("enabled" in tax1) || !("enabled" in tax2)) return { error: "Couldn’t save changes", saved: false };
+  const anyOn = tax1.enabled || tax2.enabled;
+  const primary = tax1.enabled ? tax1 : tax2.enabled ? tax2 : null;
   const saved = await persistStoreSettings(supabase, {
-    tax_mode,
-    tax_rate_percent: tax_mode === "manual_rate" ? rate : null,
-    tax_applies_to_shipping: formData.get("tax_applies_to_shipping") === "on",
-    tax_name: String(formData.get("tax_name") ?? "Tax").trim() || "Tax",
+    tax_1_enabled: tax1.enabled,
+    tax_1_name: tax1.name,
+    tax_1_rate_percent: tax1.rate,
+    tax_1_applies_to_shipping: tax1.shipping,
+    tax_2_enabled: tax2.enabled,
+    tax_2_name: tax2.name,
+    tax_2_rate_percent: tax2.rate,
+    tax_2_applies_to_shipping: tax2.shipping,
+    tax_mode: anyOn ? "manual_rate" : "no_tax",
+    tax_rate_percent: primary?.rate ?? null,
+    tax_applies_to_shipping: primary?.shipping ?? false,
+    tax_name: primary?.name ?? "Tax",
     updated_at: new Date().toISOString(),
   }, "tax_settings");
   if (!saved) return { error: "Couldn’t save changes", saved: false };
+  revalidateFulfillment();
+  return { saved: true };
+}
+
+export async function saveIvoireShippingSettings(_prev: { error?: string; saved?: boolean } | null, formData: FormData) {
+  const { supabase } = await requireAdmin();
+  const markup = Number(formData.get("ivoire_shipping_markup_percent"));
+  const fallback = Number(formData.get("ivoire_shipping_fallback_amount"));
+  const maxWeight = Number(formData.get("ivoire_shipping_max_weight_lb"));
+  if (formData.get("ivoire_shipping_markup_percent") && (!Number.isFinite(markup) || markup < 0 || markup > 200)) {
+    return { error: "Markup must be between 0 and 200%.", saved: false };
+  }
+  const saved = await persistStoreSettings(supabase, {
+    ivoire_shipping_enabled: formData.get("ivoire_shipping_enabled") === "on",
+    ivoire_shipping_markup_percent: Number.isFinite(markup) ? markup : 0,
+    ivoire_shipping_fallback_amount: Number.isFinite(fallback) ? fallback : null,
+    ivoire_shipping_max_weight_lb: Number.isFinite(maxWeight) ? maxWeight : null,
+    ivoire_shipping_config: {
+      dim_divisor: 166,
+      zones: [
+        {
+          id: "domestic",
+          name: "United States",
+          match: "domestic",
+          base_rate: Number(formData.get("zone_domestic_base") || 8.5),
+          per_lb: Number(formData.get("zone_domestic_per_lb") || 0.85),
+          surcharge: Number(formData.get("zone_domestic_surcharge") || 0),
+          min_weight_lb: 0,
+          max_weight_lb: Number(formData.get("zone_domestic_max") || 70),
+          is_active: formData.get("zone_domestic_enabled") === "on",
+        },
+        {
+          id: "international",
+          name: "International",
+          match: "international",
+          base_rate: Number(formData.get("zone_international_base") || 24),
+          per_lb: Number(formData.get("zone_international_per_lb") || 1.75),
+          surcharge: Number(formData.get("zone_international_surcharge") || 4),
+          min_weight_lb: 0,
+          max_weight_lb: Number(formData.get("zone_international_max") || 70),
+          is_active: formData.get("zone_international_enabled") === "on",
+        },
+      ],
+    },
+    updated_at: new Date().toISOString(),
+  }, "ivoire_shipping");
+  if (!saved) return { error: "Couldn’t save shipping rates. Schema may not be applied yet.", saved: false };
   revalidateFulfillment();
   return { saved: true };
 }

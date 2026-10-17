@@ -54,11 +54,32 @@ function mapProduct(row: ProductRow): Product {
 export async function getCategories(): Promise<CatalogCategory[]> {
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase
+    const queried = await supabase
       .from("categories")
-      .select("id, name, slug, description, image_url, is_active")
+      .select("id, name, slug, description, image_url, is_active, parent_id, sort_order")
       .eq("is_active", true)
+      .order("sort_order")
       .order("name");
+    let data = queried.data as Array<{
+      id: string;
+      name: string;
+      slug: string;
+      description: string | null;
+      image_url: string | null;
+      is_active: boolean;
+      parent_id?: string | null;
+      sort_order?: number | null;
+    }> | null;
+    let error = queried.error;
+    if (error) {
+      const fallback = await supabase
+        .from("categories")
+        .select("id, name, slug, description, image_url, is_active")
+        .eq("is_active", true)
+        .order("name");
+      data = fallback.data;
+      error = fallback.error;
+    }
     if (error) {
       console.error("Catalog categories query failed:", error.message);
       return [];
@@ -71,6 +92,8 @@ export async function getCategories(): Promise<CatalogCategory[]> {
         description: category.description,
         imageUrl: category.image_url,
         isActive: category.is_active,
+        parentId: (category as { parent_id?: string | null }).parent_id ?? null,
+        sortOrder: Number((category as { sort_order?: number | null }).sort_order ?? 0),
       }))
       .sort((a, b) => canonicalSortIndex(a.name, a.slug) - canonicalSortIndex(b.name, b.slug) || a.name.localeCompare(b.name));
   } catch (error) {

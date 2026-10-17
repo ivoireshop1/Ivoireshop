@@ -1,6 +1,6 @@
 export type DeliveryOption = {
   id: string;
-  provider: "pickup" | "store" | "doordash" | "ups" | "usps";
+  provider: "pickup" | "store" | "doordash" | "ups" | "usps" | "ivoire";
   fulfillmentMethod: "delivery" | "local_pickup";
   label: string;
   amount: number;

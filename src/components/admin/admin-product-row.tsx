@@ -22,6 +22,8 @@ export type AdminProductRowData = {
   slug: string;
   createdAt: string;
   categoryName: string;
+  categoryId?: string;
+  subcategoryId?: string | null;
   imageUrl: string | null;
   price: number | string | null;
   stockQuantity: number | string | null;
@@ -265,7 +267,7 @@ export function AdminProductRow({
           value={draftStatus}
         >
           <option value="active">Active</option>
-          <option value="hidden">Draft</option>
+          <option value="hidden">Inactive</option>
         </select>
         <SaveIndicator error={statusError} state={statusState} />
       </div>
@@ -289,7 +291,7 @@ export function AdminProductRow({
           onClick={() => void saveRow()}
           type="button"
         >
-          {pricingState === "saving" ? "Saving..." : draftStatus === "active" ? "Approve / Activate" : "Save Draft"}
+          {pricingState === "saving" ? "Saving..." : draftStatus === "active" ? "Approve / Activate" : "Save Inactive"}
         </button>
         <SaveIndicator error={pricingError} state={pricingState} />
         <div className="flex flex-wrap items-center gap-3">

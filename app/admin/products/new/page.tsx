@@ -11,11 +11,12 @@ export default async function NewProductPage({
 }) {
   const { supabase } = await requireAdmin();
   const params = await searchParams;
-  const { data: categories, error } = await supabase.from("categories").select("id, name, slug, is_active").eq("is_active", true).order("name");
+  const { data: categories, error } = await supabase.from("categories").select("id, name, slug, is_active, parent_id").eq("is_active", true).order("name");
 
   if (error) return <AdminLoadFailure message="Unable to load product categories." title="Add product" />;
 
-  const categoryOptions = categoriesForProductAssignment(categories ?? []);
+  const roots = categoriesForProductAssignment(categories ?? []);
+  const categoryOptions = [...roots, ...(categories ?? []).filter((category) => category.parent_id)];
 
   return (
     <>

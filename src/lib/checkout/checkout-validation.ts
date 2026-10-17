@@ -28,6 +28,7 @@ export type CheckoutReceipt = {
   subtotal?: number;
   shipping_cost?: number;
   tax_amount?: number;
+  tax_lines?: Array<{ key: string; name: string; amount: number }>;
   tracking_number?: string;
   shipped_at?: string;
   is_demo?: boolean;

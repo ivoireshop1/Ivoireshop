@@ -4,7 +4,8 @@ import { originFromSettings, originIsComplete, type PickupLocationSnapshot } fro
 import { quoteDoorDash } from "./providers/doordash";
 import { sanitizeProviderError, type DeliveryOption } from "./types";
 import { parseCharge, manualCarrierOptions } from "./manual";
-import { taxSettingsFromRow, computeTaxCents, computeOrderTotalCents, moneyFromCents, safeUsdToCents } from "@/src/lib/tax/totals";
+import { taxSettingsFromRow, computeTaxLines, computeOrderTotalCents, moneyFromCents, safeUsdToCents, type TaxLine } from "@/src/lib/tax/totals";
+import { estimateIvoireShipping, ivoireShippingConfigFromRow, STORE_SHIPPING_DISCLAIMER } from "@/src/lib/shipping/estimate";
 
 function logDelivery(provider: string, operation: string, success: boolean, message?: string) {
   console.info("[delivery]", {
@@ -61,18 +62,43 @@ export async function collectCheckoutOptions(input: {
   const quoteCountry = input.destination.country?.trim() || origin.country?.trim() || "US";
   options.push(...manualCarrierOptions(settings, quoteCountry, moneyFromCents(subtotalCents)));
 
-  const breakdowns: Record<string, { shipping: number; tax: number; total: number }> = {};
+  const destReadyForParcel = Boolean(input.destination.country?.trim());
+  if (destReadyForParcel) {
+    const ivoire = estimateIvoireShipping({
+      config: ivoireShippingConfigFromRow(settings as Record<string, unknown> | null),
+      packages: input.products,
+      destinationCountry: quoteCountry,
+    });
+    if (ivoire) {
+      options.push({
+        id: "ivoire:estimate",
+        provider: "ivoire",
+        fulfillmentMethod: "delivery",
+        label: "Ivoire Shop Shipping",
+        amount: ivoire.amount,
+        serviceCode: ivoire.zoneId || "ivoire-estimate",
+        estimate: STORE_SHIPPING_DISCLAIMER,
+        mode: "manual",
+        zone: ivoire.zoneName?.toLowerCase().includes("international") ? "international" : "domestic",
+        rateMode: "store_rate",
+      });
+    }
+  }
+
+  const breakdowns: Record<string, { shipping: number; tax: number; total: number; taxLines: TaxLine[] }> = {};
   for (const option of options) {
     const shippingCents = safeUsdToCents(option.amount);
-    const taxCents = computeTaxCents({
+    const taxLines = computeTaxLines({
       subtotalCents,
       discountCents: 0,
       shippingCents,
       tax,
     });
+    const taxCents = taxLines.reduce((sum, line) => sum + line.cents, 0);
     breakdowns[option.id] = {
       shipping: moneyFromCents(shippingCents),
       tax: moneyFromCents(taxCents),
+      taxLines,
       total: moneyFromCents(computeOrderTotalCents({ subtotalCents, discountCents: 0, shippingCents, taxCents })),
     };
   }
