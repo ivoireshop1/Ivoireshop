@@ -87,6 +87,7 @@ test("fulfillment and payment filters", () => {
   assert.equal(paymentHeaderLabel("paid"), "Paid");
   assert.equal(paymentHeaderLabel("pending"), "Unpaid");
   assert.equal(paymentHeaderLabel("pending", "square"), "Payment Pending");
+  assert.equal(paymentHeaderLabel("demo", "demo"), "Demo — no charge");
   assert.equal(fulfillmentKindLabel("local_pickup"), "Store Pickup");
   assert.equal(fulfillmentKindLabel("delivery", "usps"), "USPS");
 });

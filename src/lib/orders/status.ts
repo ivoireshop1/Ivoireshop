@@ -49,6 +49,7 @@ export function nextOrderActionLabel(status: string, fulfillment: string, provid
 }
 
 export function paymentStatusLabel(status: string, provider?: string | null) {
+  if (status === "demo" || provider === "demo") return "Demo — no charge";
   if (status === "paid") return "Paid";
   if (status === "failed") return "Failed";
   if (status === "cancelled") return "Payment cancelled";
@@ -59,6 +60,7 @@ export function paymentStatusLabel(status: string, provider?: string | null) {
 }
 
 export function paymentProviderLabel(provider?: string | null, method?: string | null) {
+  if (provider === "demo" || method === "demo") return "Demo Payment";
   if (provider === "stripe" || method === "card") return "Stripe";
   if (provider === "square" || method === "square") return "Square";
   if (provider === "paypal" || method === "paypal") return "PayPal";

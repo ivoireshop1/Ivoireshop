@@ -40,7 +40,7 @@ export function LiveAdminOrderList({
     let cancelled = false;
     void client
       .from("orders")
-      .select("id, order_number, confirmation_code, customer_name, customer_email, customer_phone, total, status, payment_status, payment_provider, fulfillment_method, fulfillment_provider, fulfillment_service, tracking_number, created_at, order_items(product_name, quantity, image_url, products(product_images(image_url, position)))")
+      .select("id, order_number, confirmation_code, customer_name, customer_email, customer_phone, total, status, payment_status, payment_provider, is_demo, fulfillment_method, fulfillment_provider, fulfillment_service, tracking_number, created_at, order_items(product_name, quantity, image_url, products(product_images(image_url, position)))")
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         if (cancelled || !data) return;

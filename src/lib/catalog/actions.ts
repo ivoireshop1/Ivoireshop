@@ -549,7 +549,7 @@ export async function updateOrderStatus(_prev: OrderStatusActionState | null, fo
   }
 
   const { data: current, error: readError } = await supabase.from("orders")
-    .select("status, fulfillment_method, fulfillment_provider, payment_status, payment_provider").eq("id", id).maybeSingle();
+    .select("status, fulfillment_method, fulfillment_provider, payment_status, payment_provider, is_demo").eq("id", id).maybeSingle();
   if (readError || !current || textValue(formData, "expected_status") !== current.status
       || !nextOrderStatuses(current.status, current.fulfillment_method, current.fulfillment_provider).includes(status)) {
     return { error: "Refresh the order and choose the next allowed action." };
@@ -563,7 +563,9 @@ export async function updateOrderStatus(_prev: OrderStatusActionState | null, fo
   const afterDb = Date.now();
   await recordFulfillmentNotification(supabase, id, status, false, current.fulfillment_provider);
   const afterNotify = Date.now();
-  void notifyFulfillmentEmail(supabase, id, status);
+  if (!(current.is_demo || current.payment_provider === "demo" || current.payment_status === "demo")) {
+    void notifyFulfillmentEmail(supabase, id, status);
+  }
   console.info("[order-status]", {
     dbMs: afterDb - started,
     notifyMs: afterNotify - afterDb,

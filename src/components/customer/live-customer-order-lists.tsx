@@ -20,7 +20,7 @@ export function LiveCustomerOrderLists({ orders }: { orders: CustomerOrderSummar
       rows.map((row) =>
         client
           .from("orders")
-          .select("id, order_number, confirmation_code, status, payment_status, total, fulfillment_method, fulfillment_provider, tracking_number, created_at")
+          .select("id, order_number, confirmation_code, status, payment_status, payment_provider, is_demo, total, fulfillment_method, fulfillment_provider, tracking_number, created_at")
           .eq("id", row.id)
           .maybeSingle(),
       ),

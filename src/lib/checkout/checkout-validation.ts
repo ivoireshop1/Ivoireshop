@@ -30,6 +30,7 @@ export type CheckoutReceipt = {
   tax_amount?: number;
   tracking_number?: string;
   shipped_at?: string;
+  is_demo?: boolean;
 };
 export type CheckoutResponse = { success: true; receipt: CheckoutReceipt } | { success: false; error: string; retrySame: boolean };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -71,7 +72,7 @@ export function checkoutFailure(code?: string, message?: string): CheckoutRespon
   if (code === "P0001" && message === "This checkout belongs to a different session.") {
     return { success: false, error: "This pending order was started with a different sign-in state. Return to that account (or sign out if you checked out as a guest), then retry it.", retrySame: true };
   }
-  const known = ["Your cart is empty.", "A valid name and email are required.", "A valid phone number is required.", "A shipping address is required.", "Your cart contains an invalid item.", "A product in your cart is no longer available.", "Some items are no longer available in the requested quantity.", "Ordering is temporarily unavailable. Please check back soon."];
+  const known = ["Your cart is empty.", "A valid name and email are required.", "A valid phone number is required.", "A shipping address is required.", "Your cart contains an invalid item.", "A product in your cart is no longer available.", "Some items are no longer available in the requested quantity.", "Ordering is temporarily unavailable. Please check back soon.", "Demo payment is turned off.", "This checkout was started with a different payment method."];
   if (code === "P0001" && message && known.includes(message)) return { success: false, error: message, retrySame: false };
   return { success: false, error: "We could not confirm your order. Your cart is safe. Retry this order to check its status without creating a duplicate.", retrySame: true };
 }

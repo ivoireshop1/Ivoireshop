@@ -59,6 +59,8 @@ test("payment status transitions and refund vs cancel", () => {
   assert.equal(netPaidRevenue({ payment_status: "paid", total: 41.16, refunded_amount: 0 }), 41.16);
   assert.equal(netPaidRevenue({ payment_status: "refunded", total: 41.16, refunded_amount: 41.16 }), 0);
   assert.equal(netPaidRevenue({ payment_status: "partially_refunded", total: 41.16, refunded_amount: 10 }), 31.16);
+  assert.equal(netPaidRevenue({ payment_status: "paid", total: 41.16, refunded_amount: 0, is_demo: true }), 0);
+  assert.equal(netPaidRevenue({ payment_status: "demo", total: 41.16, refunded_amount: 0, payment_provider: "demo" }), 0);
   assert.equal(receiptTotalsMatch({ total: 41.16 }, 4116), true);
 });
 

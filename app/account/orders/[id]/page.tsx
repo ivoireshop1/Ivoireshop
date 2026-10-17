@@ -82,7 +82,7 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
         </dl>
         <div className="mt-4 rounded-xl bg-[#f7f3ee] p-4 text-sm">
           <p className="font-semibold text-forest-green">Payment</p>
-          <p className="mt-1">{order.payment_status === "paid" || order.payment_status === "partially_refunded" ? "Paid with card" : paymentStatusLabel(order.payment_status, order.payment_provider)}</p>
+          <p className="mt-1">{order.is_demo || order.payment_status === "demo" ? "Demo — no charge" : order.payment_status === "paid" || order.payment_status === "partially_refunded" ? "Paid with card" : paymentStatusLabel(order.payment_status, order.payment_provider)}</p>
           <p className="mt-1 font-semibold">Total ${Number(order.total).toFixed(2)}</p>
           {order.payment_status === "refunded" || order.payment_status === "partially_refunded" ? (
             <p className="mt-1">Amount refunded: ${Number(order.refunded_amount ?? 0).toFixed(2)}</p>

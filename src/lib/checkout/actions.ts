@@ -12,7 +12,7 @@ import { createAdminClient } from "@/src/lib/supabase/admin";
 import { centsToUsdString, usdToCents } from "@/src/lib/payments/money";
 import { getStripeConfig } from "@/src/lib/payments/stripe-config";
 
-export async function placeCheckoutOrder(input: unknown): Promise<CheckoutResponse> {
+export async function placeCheckoutOrder(input: unknown, options?: { demo?: boolean; suppressEmail?: boolean }): Promise<CheckoutResponse> {
   const validated = validateCheckout(input);
   if (validated.error) return { success: false, error: validated.error, retrySame: false };
   const request = validated.request!;
@@ -53,6 +53,7 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
       p_shipping_address: request.fulfillmentMethod === "delivery" ? request.address : { fulfillment_method: "local_pickup", pickup_location: pickupLocation },
       p_fulfillment_method: request.fulfillmentMethod,
       p_idempotency_key: request.idempotencyKey,
+      p_is_demo: options?.demo === true,
     });
     if (error) return checkoutFailure(error.code, error.message);
     const row = Array.isArray(data) ? data[0] : null;
@@ -111,6 +112,7 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
       customer_name: row.customer_name ? String(row.customer_name) : undefined,
       payment_method: row.payment_method ? String(row.payment_method) : null,
       payment_provider: row.payment_provider ? String(row.payment_provider) : null,
+      is_demo: options?.demo === true || row.payment_provider === "demo" || row.payment_status === "demo",
       email_sent: false,
       account_order: Boolean(user),
       fulfillment_provider: selected.provider,
@@ -121,7 +123,8 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
     };
     let emailSent = false;
     const stripeOnline = getStripeConfig().canCollect;
-    if (!stripeOnline) {
+    const skipOutbound = Boolean(options?.demo || options?.suppressEmail);
+    if (!skipOutbound && !stripeOnline) {
       try {
         if (receipt.guest_access_token) {
           const confirmation = await supabase.rpc("get_checkout_confirmation", { p_access_token: receipt.guest_access_token });
@@ -134,7 +137,7 @@ export async function placeCheckoutOrder(input: unknown): Promise<CheckoutRespon
     }
     receipt.email_sent = emailSent;
     try {
-      if (!stripeOnline) await recordCheckoutNotifications(supabase, receipt.order_id, receipt.payment_status, emailSent, Boolean(user));
+      if (!skipOutbound && !stripeOnline) await recordCheckoutNotifications(supabase, receipt.order_id, receipt.payment_status, emailSent, Boolean(user));
     } catch {
       console.error("[order-notification] confirmation failed", { orderNumber: receipt.order_number });
     }

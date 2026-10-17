@@ -30,6 +30,7 @@ export function fulfillmentKindLabel(fulfillment?: string | null, provider?: str
 }
 
 export function paymentHeaderLabel(status?: string | null, provider?: string | null) {
+  if (status === "demo" || provider === "demo") return "Demo — no charge";
   if (status === "paid") return "Paid";
   if (status === "refunded") return "Refunded";
   if (status === "partially_refunded") return "Partially Refunded";

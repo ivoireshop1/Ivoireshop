@@ -13,6 +13,8 @@ export type CustomerOrderSummary = {
   confirmation_code?: string | null;
   status: string;
   payment_status: string;
+  payment_provider?: string | null;
+  is_demo?: boolean | null;
   total: number | string;
   fulfillment_method: string;
   fulfillment_provider?: string | null;
@@ -30,7 +32,9 @@ export function CustomerOrderCard({ order }: { order: CustomerOrderSummary }) {
 
   return (
     <article className="rounded-[24px] border border-forest-green/10 bg-[#f7f3ee] p-5 shadow-[0_12px_24px_rgba(23,63,53,0.05)]" id={`order-${order.id}`}>
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gold">Order</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gold">
+        {order.is_demo || order.payment_provider === "demo" || order.payment_status === "demo" ? "Demo order" : "Order"}
+      </p>
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xl font-semibold text-forest-green">{order.order_number}</p>
