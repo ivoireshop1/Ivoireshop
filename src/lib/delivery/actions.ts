@@ -5,7 +5,8 @@ import { requireAdmin } from "@/src/lib/auth/guards";
 import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
 import { createClient } from "@/src/lib/supabase/server";
 import { collectCheckoutOptions } from "./orchestrate";
-import { originFromSettings, originIsComplete } from "./origin";
+import { formatOriginLines, originFromSettings, originIsComplete } from "./origin";
+import { estimateIvoireShipping, ivoireShippingConfigFromRow } from "@/src/lib/shipping/estimate";
 import { doordashCredentials } from "./credentials";
 import { verifyDoorDash } from "./providers/doordash";
 import { sanitizeProviderError } from "./types";
@@ -217,21 +218,44 @@ export async function saveTaxSettings(_prev: { error?: string; saved?: boolean }
   return { saved: true };
 }
 
+function moneyField(formData: FormData, name: string) {
+  const parsed = parseAdminMoney(formData.get(name));
+  return parsed;
+}
+
 export async function saveIvoireShippingSettings(_prev: { error?: string; saved?: boolean } | null, formData: FormData) {
   const { supabase } = await requireAdmin();
   const markup = Number(formData.get("ivoire_shipping_markup_percent"));
-  const fallback = Number(formData.get("ivoire_shipping_fallback_amount"));
+  const fallback = moneyField(formData, "ivoire_shipping_fallback_amount");
   const maxWeight = Number(formData.get("ivoire_shipping_max_weight_lb"));
+  const handling = moneyField(formData, "ivoire_shipping_handling_fee");
+  const minCharge = moneyField(formData, "ivoire_shipping_min_charge");
+  const maxCharge = moneyField(formData, "ivoire_shipping_max_charge");
   if (formData.get("ivoire_shipping_markup_percent") && (!Number.isFinite(markup) || markup < 0 || markup > 200)) {
     return { error: "Markup must be between 0 and 200%.", saved: false };
+  }
+  if (!fallback.ok || !handling.ok || !minCharge.ok || !maxCharge.ok) {
+    return { error: "Enter valid dollar amounts for handling, fallback, and min/max charges.", saved: false };
   }
   const saved = await persistStoreSettings(supabase, {
     ivoire_shipping_enabled: formData.get("ivoire_shipping_enabled") === "on",
     ivoire_shipping_markup_percent: Number.isFinite(markup) ? markup : 0,
-    ivoire_shipping_fallback_amount: Number.isFinite(fallback) ? fallback : null,
-    ivoire_shipping_max_weight_lb: Number.isFinite(maxWeight) ? maxWeight : null,
+    ivoire_shipping_fallback_amount: fallback.amount,
+    ivoire_shipping_max_weight_lb: Number.isFinite(maxWeight) && maxWeight > 0 ? maxWeight : null,
     ivoire_shipping_config: {
-      dim_divisor: 166,
+      dim_divisor: Number(formData.get("ivoire_shipping_dim_divisor") || 166) || 166,
+      handling_fee: handling.amount ?? 0,
+      min_charge: minCharge.amount,
+      max_charge: maxCharge.amount,
+      require_us_zip: formData.get("ivoire_require_us_zip") === "on",
+      missing_info_policy: formData.get("ivoire_missing_info_policy") === "block" ? "block" : "fallback",
+      invalid_zip_policy: formData.get("ivoire_invalid_zip_policy") === "fallback" ? "fallback" : "block",
+      package_defaults: {
+        weight_lb: Number(formData.get("default_weight_lb") || 1) || 1,
+        length_in: Number(formData.get("default_length_in") || 10) || 10,
+        width_in: Number(formData.get("default_width_in") || 8) || 8,
+        height_in: Number(formData.get("default_height_in") || 6) || 6,
+      },
       zones: [
         {
           id: "domestic",
@@ -242,6 +266,7 @@ export async function saveIvoireShippingSettings(_prev: { error?: string; saved?
           surcharge: Number(formData.get("zone_domestic_surcharge") || 0),
           min_weight_lb: 0,
           max_weight_lb: Number(formData.get("zone_domestic_max") || 70),
+          zip_prefixes: String(formData.get("zone_domestic_zips") || ""),
           is_active: formData.get("zone_domestic_enabled") === "on",
         },
         {
@@ -253,6 +278,7 @@ export async function saveIvoireShippingSettings(_prev: { error?: string; saved?
           surcharge: Number(formData.get("zone_international_surcharge") || 4),
           min_weight_lb: 0,
           max_weight_lb: Number(formData.get("zone_international_max") || 70),
+          zip_prefixes: [],
           is_active: formData.get("zone_international_enabled") === "on",
         },
       ],
@@ -262,6 +288,44 @@ export async function saveIvoireShippingSettings(_prev: { error?: string; saved?
   if (!saved) return { error: "Couldn’t save shipping rates. Schema may not be applied yet.", saved: false };
   revalidateFulfillment();
   return { saved: true };
+}
+
+export type IvoirePreviewState = {
+  error?: string;
+  amount?: number;
+  explanation?: string;
+  usedFallback?: boolean;
+  usedDefaults?: boolean;
+  blocked?: boolean;
+  weight?: number;
+  zoneName?: string | null;
+};
+
+export async function previewIvoireShipping(_prev: IvoirePreviewState | null, formData: FormData): Promise<IvoirePreviewState> {
+  const { supabase } = await requireAdmin();
+  const { data: settings } = await supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle();
+  const origin = originFromSettings(settings);
+  const country = String(formData.get("preview_country") || "US");
+  const zip = String(formData.get("preview_zip") || "");
+  const qty = Math.max(1, Math.round(Number(formData.get("preview_qty") || 1)));
+  const weight = Number(formData.get("preview_weight") || 0);
+  const quote = estimateIvoireShipping({
+    config: ivoireShippingConfigFromRow(settings as Record<string, unknown> | null),
+    packages: [{ quantity: qty, ship_weight_lb: weight > 0 ? weight : null }],
+    destinationCountry: country,
+    destinationPostalCode: zip,
+    originLabel: originIsComplete(origin) ? formatOriginLines(origin).slice(0, 2).join(", ") : null,
+  });
+  if (!quote) return { error: "Ivoire Shop shipping is disabled or has no cart to quote." };
+  return {
+    amount: quote.amount,
+    explanation: quote.explanation,
+    usedFallback: quote.usedFallback,
+    usedDefaults: quote.usedDefaults,
+    blocked: quote.blocked === true,
+    weight: quote.billableWeightLb,
+    zoneName: quote.zoneName,
+  };
 }
 
 export type ShipmentActionState = {

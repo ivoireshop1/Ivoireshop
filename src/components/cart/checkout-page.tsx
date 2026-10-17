@@ -42,6 +42,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
   const [taxSettings, setTaxSettings] = useState<TaxSettings | null>(null);
   const [livePickupOrigin, setLivePickupOrigin] = useState<StoreOrigin | null>(pickupOrigin);
   const [quoteBusy, setQuoteBusy] = useState(false);
+  const [quoteMessage, setQuoteMessage] = useState("");
   const [attempt, setAttempt] = useState<CheckoutAttempt | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -92,6 +93,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
         setQuoteSubtotal(result.subtotal ?? null);
         setTaxSettings(result.tax ?? null);
         if (result.origin) setLivePickupOrigin(result.origin);
+        setQuoteMessage(result.message ?? "");
         setDeliveryOptionId((current) => {
           if (result.options.some((option) => option.id === current)) return current;
           const next = result.options[0];
@@ -318,6 +320,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
             )}
             <CheckoutShippingMethods
               busy={quoteBusy}
+              message={quoteMessage}
               options={options}
               pickupOrigin={livePickupOrigin}
               value={deliveryOptionId}

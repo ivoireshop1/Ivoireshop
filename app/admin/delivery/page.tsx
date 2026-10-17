@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
-import { originFromSettings } from "@/src/lib/delivery/origin";
+import { originFromSettings, originIsComplete } from "@/src/lib/delivery/origin";
 import { doordashCredentials } from "@/src/lib/delivery/credentials";
 import { checkDeliveryProviders, carrierOrderCounts } from "@/src/lib/delivery/actions";
 import { DeliveryOriginForm } from "@/src/components/admin/delivery-origin-form";
@@ -90,7 +90,7 @@ export default async function AdminDeliveryPage() {
         </button>
       </form>
 
-      <IvoireShippingForm settings={settings as Record<string, unknown> | null} />
+      <IvoireShippingForm originComplete={originIsComplete(origin)} settings={settings as Record<string, unknown> | null} />
       <TaxSettingsForm
         appliesToShipping={Boolean(settings?.tax_applies_to_shipping)}
         tax1Enabled={Boolean(settings?.tax_1_enabled ?? settings?.tax_mode === "manual_rate")}

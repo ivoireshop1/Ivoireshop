@@ -1,11 +1,12 @@
 import { createClient } from "@/src/lib/supabase/server";
 import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
-import { originFromSettings, originIsComplete, type PickupLocationSnapshot } from "./origin";
+import { formatOriginLines, originFromSettings, originIsComplete } from "./origin";
+import { optionToSnapshot } from "./snapshot";
 import { quoteDoorDash } from "./providers/doordash";
 import { sanitizeProviderError, type DeliveryOption } from "./types";
 import { parseCharge, manualCarrierOptions } from "./manual";
 import { taxSettingsFromRow, computeTaxLines, computeOrderTotalCents, moneyFromCents, safeUsdToCents, type TaxLine } from "@/src/lib/tax/totals";
-import { estimateIvoireShipping, ivoireShippingConfigFromRow, STORE_SHIPPING_DISCLAIMER } from "@/src/lib/shipping/estimate";
+import { estimateIvoireShipping, ivoireShippingConfigFromRow } from "@/src/lib/shipping/estimate";
 
 function logDelivery(provider: string, operation: string, success: boolean, message?: string) {
   console.info("[delivery]", {
@@ -63,13 +64,20 @@ export async function collectCheckoutOptions(input: {
   options.push(...manualCarrierOptions(settings, quoteCountry, moneyFromCents(subtotalCents)));
 
   const destReadyForParcel = Boolean(input.destination.country?.trim());
-  if (destReadyForParcel) {
+  const ivoireConfig = ivoireShippingConfigFromRow(settings as Record<string, unknown> | null);
+  let ivoireMessage: string | undefined;
+  if (destReadyForParcel && input.products.length) {
+    const originLabel = formatOriginLines(origin).slice(0, 2).join(", ");
     const ivoire = estimateIvoireShipping({
-      config: ivoireShippingConfigFromRow(settings as Record<string, unknown> | null),
+      config: ivoireConfig,
       packages: input.products,
       destinationCountry: quoteCountry,
+      destinationPostalCode: input.destination.postal_code,
+      originLabel: originLabel || null,
     });
-    if (ivoire) {
+    if (ivoire?.blocked) {
+      ivoireMessage = ivoire.blockReason;
+    } else if (ivoire) {
       options.push({
         id: "ivoire:estimate",
         provider: "ivoire",
@@ -77,10 +85,12 @@ export async function collectCheckoutOptions(input: {
         label: "Ivoire Shop Shipping",
         amount: ivoire.amount,
         serviceCode: ivoire.zoneId || "ivoire-estimate",
-        estimate: STORE_SHIPPING_DISCLAIMER,
+        estimate: ivoire.explanation,
         mode: "manual",
         zone: ivoire.zoneName?.toLowerCase().includes("international") ? "international" : "domestic",
         rateMode: "store_rate",
+        usedFallback: ivoire.usedFallback,
+        billableWeightLb: ivoire.billableWeightLb,
       });
     }
   }
@@ -110,7 +120,7 @@ export async function collectCheckoutOptions(input: {
       subtotal: moneyFromCents(subtotalCents),
       tax,
       origin: originIsComplete(origin) ? origin : null,
-      message: "No delivery methods are available right now. Please try pickup later or contact the store.",
+      message: ivoireMessage || "No delivery methods are available right now. Please try pickup later or contact the store.",
     };
   }
   return {
@@ -120,20 +130,10 @@ export async function collectCheckoutOptions(input: {
     tax,
     origin: originIsComplete(origin) ? origin : null,
     message: options.length
-      ? undefined
-      : "No delivery methods are available right now. Please try pickup later or contact the store.",
+      ? ivoireMessage
+      : ivoireMessage || "No delivery methods are available right now. Please try pickup later or contact the store.",
   };
 }
 
-export function optionToSnapshot(option: DeliveryOption, pickupLocation?: PickupLocationSnapshot | null) {
-  return {
-    provider: option.provider,
-    service: option.serviceCode || option.label,
-    amount: option.amount,
-    estimate: option.estimate || null,
-    mode: option.mode || (option.provider === "ups" || option.provider === "usps" ? "manual" : null),
-    zone: option.zone || null,
-    quoted_at: new Date().toISOString(),
-    ...(option.provider === "pickup" && pickupLocation ? { pickup_location: pickupLocation } : {}),
-  };
-}
+export { optionToSnapshot };
+
