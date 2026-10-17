@@ -26,6 +26,18 @@ test("stripe diagnostics never require a client-supplied amount and list missing
   const full = getStripeConfig();
   assert.equal(full.configured, true);
   assert.equal(full.missingNames.length, 0);
+  process.env[STRIPE_ENV_NAMES.secret] = "sk_live_example";
+  process.env[STRIPE_ENV_NAMES.publishable] = "pk_live_example";
+  delete process.env[STRIPE_ENV_NAMES.liveEnabled];
+  const liveLocked = getStripeConfig();
+  assert.equal(liveLocked.mode, "live");
+  assert.equal(liveLocked.liveBlocked, true);
+  assert.equal(liveLocked.canCollect, false);
+  process.env[STRIPE_ENV_NAMES.liveEnabled] = "true";
+  const liveOpen = getStripeConfig();
+  assert.equal(liveOpen.liveBlocked, false);
+  assert.equal(liveOpen.canCollect, true);
+  delete process.env[STRIPE_ENV_NAMES.liveEnabled];
   if (previous.secret) process.env[STRIPE_ENV_NAMES.secret] = previous.secret;
   else delete process.env[STRIPE_ENV_NAMES.secret];
   if (previous.publishable) process.env[STRIPE_ENV_NAMES.publishable] = previous.publishable;

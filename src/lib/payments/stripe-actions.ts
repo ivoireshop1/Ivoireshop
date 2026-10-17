@@ -60,6 +60,9 @@ export async function prepareStripePayment(input: {
   expectedTotal?: number | null;
 }): Promise<StripePrepareResult> {
   const stripe = getStripeConfig();
+  if (stripe.liveBlocked) {
+    return { success: false, error: "Live card payments are locked until the founder approves activation." };
+  }
   if (!stripe.canCollect || !stripe.public) {
     return {
       success: false,

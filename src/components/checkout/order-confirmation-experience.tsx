@@ -61,7 +61,7 @@ export function OrderConfirmationExperience({
         ) : null}
       </div>
       {demo ? (
-        <p className="mt-6 text-center text-sm leading-7 text-muted">This is a demonstration. No real payment was collected. Save your order number to view the order.</p>
+        <p className="mt-6 text-center text-sm leading-7 text-muted">Demo Payment — No real charge. This is a demonstration order. Save your order number to view it.</p>
       ) : confirmed ? (
         <p className="mt-6 text-center text-sm leading-7 text-muted">
           {emailSent && masked
