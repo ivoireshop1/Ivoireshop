@@ -22,17 +22,26 @@ export default async function AdminPaymentsPage({
   const payment = getPaymentReadiness();
   const stripe = getStripeConfig();
   const email = getEmailProviderStatus();
-  const [{ data: settings }, { data: health }, { data: recentPaid }, { data: recentFailed }, { data: recentRefunds }, { count: demoOrderCount }, { data: paidForRevenue }] = await Promise.all([
+  const [{ data: settings }, { data: health }, { data: recentPaid }, { data: recentPending }, { data: recentFailed }, { data: recentRefunds }, { data: recentDemo }, { count: demoOrderCount }, { data: paidForRevenue }] = await Promise.all([
     supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle(),
     supabase.from("payment_webhook_health").select("last_success_at, last_error_at, last_error_code, recent_failures").eq("provider", "stripe").maybeSingle(),
-    supabase.from("orders").select("id, order_number, customer_name, total, payment_status, created_at").eq("payment_provider", "stripe").eq("payment_status", "paid").eq("is_demo", false).order("paid_at", { ascending: false }).limit(5),
-    supabase.from("orders").select("id, order_number, customer_name, total, payment_status, created_at").eq("payment_provider", "stripe").eq("payment_status", "failed").order("updated_at", { ascending: false }).limit(5),
-    supabase.from("orders").select("id, order_number, customer_name, total, refunded_amount, payment_status, created_at").in("payment_status", ["refunded", "partially_refunded"]).eq("is_demo", false).order("updated_at", { ascending: false }).limit(5),
+    supabase.from("orders").select("id, order_number, customer_name, total, payment_status, provider_payment_id, paid_at, created_at").eq("payment_provider", "stripe").eq("payment_status", "paid").eq("is_demo", false).order("paid_at", { ascending: false }).limit(8),
+    supabase.from("orders").select("id, order_number, customer_name, total, payment_status, provider_payment_id, created_at").eq("payment_provider", "stripe").eq("payment_status", "pending").eq("is_demo", false).order("created_at", { ascending: false }).limit(8),
+    supabase.from("orders").select("id, order_number, customer_name, total, payment_status, provider_payment_id, created_at").eq("payment_provider", "stripe").eq("payment_status", "failed").order("updated_at", { ascending: false }).limit(8),
+    supabase.from("orders").select("id, order_number, customer_name, total, refunded_amount, payment_status, created_at").in("payment_status", ["refunded", "partially_refunded"]).eq("is_demo", false).order("updated_at", { ascending: false }).limit(8),
+    supabase.from("orders").select("id, order_number, customer_name, total, payment_status, created_at").eq("is_demo", true).order("created_at", { ascending: false }).limit(8),
     supabase.from("orders").select("id", { count: "exact", head: true }).eq("is_demo", true),
     supabase.from("orders").select("total, payment_status, refunded_amount, is_demo, payment_provider").eq("payment_status", "paid").limit(5000),
   ]);
   const realRevenue = (paidForRevenue ?? []).reduce((sum, order) => sum + netPaidRevenue(order), 0);
-  const stripeModeLabel = payment.stripe.canCollect ? (payment.stripe.mode === "live" ? "LIVE" : "TEST") : "Not Configured";
+  const stripeModeLabel = payment.stripe.liveBlocked ? "Live locked" : payment.stripe.canCollect ? (payment.stripe.mode === "live" ? "LIVE" : "TEST") : "Not Configured";
+  const attention: string[] = [];
+  if (!payment.canRecord) attention.push("Add SUPABASE_SERVICE_ROLE_KEY in Vercel Production so Stripe webhooks can mark orders paid.");
+  if (payment.stripe.missing.length) attention.push(`Stripe is waiting for: ${payment.stripe.missing.join(", ")}.`);
+  if (payment.stripe.liveBlocked) attention.push("Live Stripe keys are present but live charges stay locked until founder approval.");
+  if (health?.last_error_at && (!health.last_success_at || health.last_error_at > health.last_success_at)) {
+    attention.push(`Stripe webhook error${health.last_error_code ? ` (${health.last_error_code})` : ""}.`);
+  }
   const taxMode = parseTaxMode(settings?.tax_mode);
   return (
     <div className="space-y-6">
@@ -54,10 +63,20 @@ export default async function AdminPaymentsPage({
           <div><dt className="text-[#6b6b6b]">Demo / test orders</dt><dd className="font-semibold text-[#173f35]">{demoOrderCount ?? 0} recorded · $0.00 revenue</dd></div>
         </dl>
       </section>
+      {attention.length ? (
+        <section className="rounded-2xl border border-red-900/15 bg-red-50 p-6">
+          <h2 className="text-xl font-semibold text-red-900">Needs owner attention</h2>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-red-900">
+            {attention.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </section>
+      ) : null}
       <section className="rounded-2xl bg-white p-6">
         <h2 className="text-xl font-semibold">Stripe</h2>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <div><dt className="text-[#6b6b6b]">Stripe</dt><dd className="font-semibold text-[#173f35]">{payment.stripe.canCollect ? "Configured" : "Not Configured"}</dd></div>
+          <div><dt className="text-[#6b6b6b]">Test Mode readiness</dt><dd className="font-semibold text-[#173f35]">{payment.stripe.canCollect && payment.stripe.mode === "test" ? (payment.stripe.webhook === "configured" ? "Ready" : "Keys present; webhook missing") : "Not ready"}</dd></div>
+          <div><dt className="text-[#6b6b6b]">Live Payment readiness</dt><dd className="font-semibold text-[#173f35]">Disabled until founder approval</dd></div>
           <div><dt className="text-[#6b6b6b]">Mode</dt><dd className="font-semibold text-[#173f35]">{stripeModeLabel}</dd></div>
           <div><dt className="text-[#6b6b6b]">Publishable configuration</dt><dd className="font-semibold text-[#173f35]">{payment.stripe.publishable === "available" ? "Available" : "Missing"}</dd></div>
           <div><dt className="text-[#6b6b6b]">Server configuration</dt><dd className="font-semibold text-[#173f35]">{payment.stripe.server === "available" ? "Available" : "Missing"}</dd></div>
@@ -75,10 +94,12 @@ export default async function AdminPaymentsPage({
       </section>
       <section className="rounded-2xl bg-white p-6">
         <h2 className="text-xl font-semibold">Payment operations</h2>
-        <div className="mt-4 grid gap-4 lg:grid-cols-3">
-          <OpsList hrefBase="/admin/orders/" rows={recentPaid} title="Recent paid" />
-          <OpsList hrefBase="/admin/orders/" rows={recentFailed} title="Recent failures" />
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <OpsList hrefBase="/admin/orders/" rows={recentPaid} title="Successful payments" />
+          <OpsList hrefBase="/admin/orders/" rows={recentPending} title="Pending payments" />
+          <OpsList hrefBase="/admin/orders/" rows={recentFailed} title="Failed payments" />
           <OpsList hrefBase="/admin/orders/" rows={recentRefunds} title="Refunds" refund />
+          <OpsList hrefBase="/admin/orders/" rows={recentDemo} title="Demo orders (not revenue)" demo />
         </div>
       </section>
       <TaxSettingsForm
@@ -144,11 +165,23 @@ function OpsList({
   rows,
   hrefBase,
   refund,
+  demo,
 }: {
   title: string;
   hrefBase: string;
   refund?: boolean;
-  rows: Array<{ id: string; order_number: string; customer_name?: string | null; total: number | string; payment_status: string; refunded_amount?: number | string | null }> | null;
+  demo?: boolean;
+  rows: Array<{
+    id: string;
+    order_number: string;
+    customer_name?: string | null;
+    total: number | string;
+    payment_status: string;
+    refunded_amount?: number | string | null;
+    provider_payment_id?: string | null;
+    paid_at?: string | null;
+    created_at?: string | null;
+  }> | null;
 }) {
   return (
     <div>
@@ -159,7 +192,12 @@ function OpsList({
             <Link className="text-[#173f35] underline" href={`${hrefBase}${row.id}`}>
               {row.order_number}
             </Link>
-            <span className="text-[#6b6b6b]"> · {row.customer_name || "Customer"} · ${Number(refund ? row.refunded_amount ?? row.total : row.total).toFixed(2)} · {paymentStatusLabel(row.payment_status)}</span>
+            <span className="text-[#6b6b6b]">
+              {" "}· {row.customer_name || "Customer"} · ${Number(refund ? row.refunded_amount ?? row.total : row.total).toFixed(2)}
+              {demo ? " · DEMO" : ` · ${paymentStatusLabel(row.payment_status)}`}
+              {row.provider_payment_id ? ` · ${row.provider_payment_id}` : ""}
+              {row.paid_at ? ` · paid ${formatStoreDateTime(row.paid_at)}` : row.created_at ? ` · ${formatStoreDateTime(row.created_at)}` : ""}
+            </span>
           </li>
         ))}
       </ul>

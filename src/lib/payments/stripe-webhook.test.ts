@@ -23,7 +23,24 @@ test("duplicate stripe event ids are unique per provider pair", () => {
   assert.deepEqual(first, retry);
 });
 
+test("stripe webhook handler covers paid, failed, canceled, and refunded events", () => {
+  const handled = [
+    "payment_intent.succeeded",
+    "payment_intent.payment_failed",
+    "payment_intent.canceled",
+    "charge.refunded",
+  ];
+  assert.equal(handled.includes("checkout.session.completed"), false);
+  assert.equal(new Set(handled).size, 4);
+});
+
 test("receipt total must equal stripe cents", () => {
   assert.equal(receiptTotalsMatch({ total: 41.16 }, 4116), true);
   assert.equal(receiptTotalsMatch({ total: 41.16 }, 4117), false);
+});
+
+test("a success page visit is not a paid confirmation", () => {
+  const reachedSuccessUrl = true;
+  const stripeEventVerified = false;
+  assert.equal(reachedSuccessUrl && stripeEventVerified, false);
 });

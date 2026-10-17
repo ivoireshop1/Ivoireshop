@@ -345,7 +345,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
 
           <fieldset className={checkoutStep === "payment" || checkoutStep === "review" ? "min-w-0 space-y-4" : "hidden"}>
             <legend className="font-semibold text-forest-green">Payment</legend>
-            {demoEnabled ? null : (
+            {demoEnabled || !payments.stripe.canCollect ? null : (
               <PaymentMethodCards
                 demoEnabled={demoEnabled}
                 method={paymentMethod}
@@ -361,11 +361,11 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
                 }}
               />
             )}
-            {demoEnabled || paymentMethod !== "stripe" ? null : payments.stripe.mode === "test" ? (
+            {demoEnabled || paymentMethod !== "stripe" || payments.stripe.mode !== "test" ? null : (
               <p className="rounded-xl border border-[#b8964c]/40 bg-white px-4 py-3 text-sm text-[#7c5d1a]">Stripe TEST MODE. No live charges.</p>
-            ) : null}
-            {!demoEnabled && paymentMethod === "stripe" && !payments.stripe.canCollect ? (
-              <p className="rounded-xl border border-red-900/15 bg-white px-4 py-3 text-sm text-red-900">
+            )}
+            {!demoEnabled && !payments.stripe.canCollect ? (
+              <p className="rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-sm text-[#173f35]">
                 {payments.message}
               </p>
             ) : null}
@@ -384,7 +384,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
             />
             {paymentMethod === "demo" ? (
               <div className="space-y-3">
-                <p className="rounded-xl border border-[#b8964c]/40 bg-white px-4 py-3 text-sm text-[#7c5d1a]">This is a demonstration. No real payment will be collected.</p>
+                <p className="rounded-xl border border-[#b8964c]/40 bg-white px-4 py-3 text-sm text-[#7c5d1a]">Demo Payment — No real charge. This order will be labeled as a demonstration.</p>
                 <button
                   className="min-h-12 w-full rounded-xl bg-forest-green px-4 text-sm font-semibold text-white disabled:opacity-60"
                   disabled={!storeOpen || isSubmitting}
@@ -395,7 +395,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
                 </button>
               </div>
             ) : null}
-            {demoEnabled ? null : paymentMethod === "stripe" && clientSecret && publishableKey && attempt ? (
+            {demoEnabled || !payments.stripe.canCollect ? null : paymentMethod === "stripe" && clientSecret && publishableKey && attempt ? (
               <StripeCheckoutForm
                 amountLabel={displayTotal != null ? `$${displayTotal.toFixed(2)}` : ""}
                 clientSecret={clientSecret}

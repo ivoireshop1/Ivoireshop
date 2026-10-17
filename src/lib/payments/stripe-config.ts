@@ -17,6 +17,7 @@ export const STRIPE_ENV_NAMES = {
   secret: "STRIPE_SECRET_KEY",
   publishable: "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
   webhook: "STRIPE_WEBHOOK_SECRET",
+  liveEnabled: "STRIPE_LIVE_PAYMENTS_ENABLED",
 } as const;
 
 export function stripeKeyMode(value: string): StripeMode | null {
@@ -36,7 +37,9 @@ export function getStripeConfig() {
   const publishableMode = stripeKeyMode(publishableKey);
   const modeMismatch = Boolean(secretPresent && publishablePresent && (secretMode !== publishableMode || !secretMode || !publishableMode));
   const mode = !modeMismatch && secretMode && publishableMode ? secretMode : null;
-  const canCollect = Boolean(secretPresent && publishablePresent && mode);
+  const livePaymentsEnabled = text(STRIPE_ENV_NAMES.liveEnabled).toLowerCase() === "true";
+  const liveBlocked = mode === "live" && !livePaymentsEnabled;
+  const canCollect = Boolean(secretPresent && publishablePresent && mode && !liveBlocked);
   const configured = Boolean(canCollect && webhookPresent);
   const missingNames: string[] = [];
   if (!publishablePresent) missingNames.push(STRIPE_ENV_NAMES.publishable);
@@ -51,6 +54,8 @@ export function getStripeConfig() {
     webhookPresent,
     modeMismatch,
     mode,
+    livePaymentsEnabled,
+    liveBlocked,
     canCollect,
     configured,
     public: canCollect ? { publishableKey, mode } : null,

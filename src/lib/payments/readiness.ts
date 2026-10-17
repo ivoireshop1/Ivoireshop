@@ -16,7 +16,13 @@ export function getPaymentReadiness() {
       canCollect: stripe.canCollect,
       ready: stripeReady,
       mode: stripe.mode,
-      label: stripe.canCollect ? (stripe.mode === "live" ? "Live" : "Test") : "Not configured",
+      livePaymentsEnabled: stripe.livePaymentsEnabled,
+      liveBlocked: stripe.liveBlocked,
+      label: stripe.liveBlocked
+        ? "Live locked"
+        : stripe.canCollect
+          ? (stripe.mode === "live" ? "Live" : "Test")
+          : "Not configured",
       publishable: stripe.publishablePresent ? ("available" as const) : ("missing" as const),
       server: stripe.secretPresent ? ("available" as const) : ("missing" as const),
       webhook: stripe.webhookPresent ? ("configured" as const) : ("missing" as const),
@@ -36,13 +42,17 @@ export function getPaymentReadiness() {
       label: "Retired",
       public: null,
     },
-    message: stripeReady
-      ? stripe.webhookPresent
-        ? "Pay securely with Stripe. The charged amount is always the store-confirmed order total."
-        : "Stripe keys are present. Add STRIPE_WEBHOOK_SECRET so paid orders can be confirmed."
-      : missing.length
-        ? `Stripe checkout is waiting for: ${missing.join(", ")}.`
-        : "Online payment is not available.",
+    message: stripe.liveBlocked
+      ? "Live card payments are locked until the founder approves activation."
+      : stripeReady
+        ? stripe.webhookPresent
+          ? stripe.mode === "test"
+            ? "Stripe TEST MODE. Pay with a test card. This is not a live charge."
+            : "Pay securely with Stripe. The charged amount is always the store-confirmed order total."
+          : "Stripe keys are present. Add STRIPE_WEBHOOK_SECRET so paid orders can be confirmed."
+        : missing.length
+          ? `Card payment is not available yet. Waiting for: ${missing.join(", ")}.`
+          : "Card payment is not available yet.",
   };
 }
 
