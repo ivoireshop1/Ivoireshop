@@ -19,7 +19,7 @@ export function Hero() {
         <div className="relative z-10 mx-auto flex h-full max-w-7xl items-center px-5 py-10 sm:px-8 lg:px-8">
           <div className="max-w-xl text-white">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#f0d694]">African &amp; global essentials</p>
-            <h1 className="mt-5 font-serif text-5xl font-semibold leading-[0.96] tracking-[-0.04em] text-white sm:text-6xl lg:text-[5.25rem]">
+            <h1 className="mt-5 font-serif text-[2.35rem] font-semibold leading-[0.96] tracking-[-0.04em] text-white sm:text-5xl md:text-6xl lg:text-[5.25rem]">
               Better
               <span className="block text-[#f5efdf]">food, brighter</span>
               <span className="block">days.</span>

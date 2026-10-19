@@ -57,9 +57,9 @@ export function Header({
   const wishlistCountLabel = wishlistItems.length > 0 ? `Wishlist, ${wishlistItems.length} items` : "Wishlist";
 
   return (
-    <header className="relative z-40 border-b border-black/10 bg-background">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:gap-4 sm:px-5 lg:px-8">
-        <Link className="min-w-0 shrink-0 text-base font-semibold tracking-[0.18em] text-forest-green sm:text-lg" href={homeHref}>
+    <header className="relative z-40 min-w-0 max-w-[100vw] overflow-x-clip border-b border-black/10 bg-background pt-[env(safe-area-inset-top,0)]">
+        <div className="mx-auto flex min-w-0 max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-5 sm:py-4 lg:px-8">
+        <Link className="min-w-0 truncate text-sm font-semibold tracking-[0.14em] text-forest-green sm:text-base sm:tracking-[0.18em] sm:text-lg" href={homeHref}>
           IVOIRE <span className="font-normal">SHOP</span>
         </Link>
         <nav aria-label="Main navigation" className="hidden min-w-0 items-center gap-5 text-sm font-medium text-foreground/75 xl:flex">
@@ -83,7 +83,7 @@ export function Header({
             </>
           )}
         </nav>
-        <div className="flex items-center gap-2 text-sm sm:gap-4">
+        <div className="flex shrink-0 items-center gap-1.5 text-sm sm:gap-4">
           <Link aria-label="Search products" className="hidden text-forest-green sm:inline-flex" href="/shop"><SearchIcon /></Link>
           {role !== "admin" ? (
             <Link aria-label="Track My Order" className="hidden text-forest-green sm:inline-flex xl:hidden" href="/orders">Track</Link>
@@ -101,8 +101,8 @@ export function Header({
           ) : (
             <><Link aria-label="Sign in" className="hidden text-forest-green sm:inline-flex" href="/login">Sign in</Link><Link aria-label="Create account" className="hidden text-forest-green sm:inline-flex" href="/signup">Create account</Link></>
           )}
-          <Link aria-label={`Shopping cart${isLoaded ? `, ${totalItems} items` : ""}`} className="rounded-full border border-forest-green/20 px-3 py-1.5 text-forest-green" href="/cart"><span className={addEventId ? "cart-icon-pulse inline-flex" : ""} key={addEventId}>Cart {isLoaded && totalItems > 0 && <span className="ml-1 rounded-full bg-gold px-1.5 py-0.5 text-xs text-forest-green">{totalItems > 99 ? "99+" : totalItems}</span>}</span></Link>
-          <button aria-controls="mobile-navigation" aria-expanded={menuOpen} aria-label={menuOpen ? "Close menu" : "Open menu"} className="min-h-11 min-w-11 px-1 text-forest-green xl:hidden" onKeyDown={(event) => { if (event.key === "Escape") setMenuOpen(false); }} onClick={() => setMenuOpen((open) => !open)} type="button">{menuOpen ? "Close" : "Menu"}</button>
+          <Link aria-label={`Shopping cart${isLoaded ? `, ${totalItems} items` : ""}`} className="rounded-full border border-forest-green/20 px-2.5 py-1.5 text-forest-green sm:px-3" href="/cart"><span className={addEventId ? "cart-icon-pulse inline-flex" : ""} key={addEventId}>Cart{isLoaded && totalItems > 0 ? <span className="ml-1 rounded-full bg-gold px-1.5 py-0.5 text-xs text-forest-green">{totalItems > 99 ? "99+" : totalItems}</span> : null}</span></Link>
+          <button aria-controls="mobile-navigation" aria-expanded={menuOpen} aria-label={menuOpen ? "Close menu" : "Open menu"} className="min-h-11 min-w-11 shrink-0 px-1 text-forest-green xl:hidden" onKeyDown={(event) => { if (event.key === "Escape") setMenuOpen(false); }} onClick={() => setMenuOpen((open) => !open)} type="button">{menuOpen ? "Close" : "Menu"}</button>
         </div>
       </div>
       {menuOpen && <nav aria-label="Mobile navigation" className="border-t border-black/10 px-5 py-4 xl:hidden" id="mobile-navigation">

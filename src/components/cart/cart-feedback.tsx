@@ -18,7 +18,7 @@ export function CartFeedback() {
   if (!lastAddedItem || addEventId === dismissedEventId) return null;
 
   return (
-    <div aria-live="polite" className="cart-feedback fixed bottom-5 right-5 z-50 w-[min(calc(100vw-2rem),24rem)] rounded-2xl border border-forest-green/10 bg-surface p-4 text-foreground shadow-xl">
+    <div aria-live="polite" className="cart-feedback fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-3 right-3 z-50 mx-auto w-auto max-w-sm rounded-2xl border border-forest-green/10 bg-surface p-4 text-foreground shadow-xl sm:left-auto sm:right-5 sm:w-full">
       <div className="flex items-start gap-3">
         <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-forest-green text-sm font-bold text-white">✓</span>
         <div className="min-w-0 flex-1">

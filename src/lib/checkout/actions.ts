@@ -8,6 +8,7 @@ import { trySendOrderConfirmation } from "@/src/lib/communications/send-confirma
 import { recordCheckoutNotifications } from "@/src/lib/notifications/record";
 import { collectCheckoutOptions, optionToSnapshot } from "@/src/lib/delivery/orchestrate";
 import type { DeliveryOption } from "@/src/lib/delivery/types";
+import { IVOIRE_SHIPPING_RETIRED_MESSAGE, isRetiredIvoireShippingSelection } from "@/src/lib/delivery/checkout-eligibility";
 import { liveServiceKey, liveServiceKeyFromOptionId, resolveSelectedShippingOption } from "@/src/lib/shipping/shippo";
 import { originFromSettings, originIsComplete, pickupLocationSnapshot } from "@/src/lib/delivery/origin";
 import { createAdminClient } from "@/src/lib/supabase/admin";
@@ -44,6 +45,9 @@ export async function placeCheckoutOrder(
       .in("id", request.items.map((item) => item.product_id));
     const byId = new Map((catalog ?? []).map((row) => [row.id, row]));
     const selectedId = request.deliveryOptionId || (request.fulfillmentMethod === "local_pickup" ? "pickup" : "store");
+    if (isRetiredIvoireShippingSelection(selectedId)) {
+      return { success: false, error: IVOIRE_SHIPPING_RETIRED_MESSAGE, retrySame: false };
+    }
     let selected: DeliveryOption;
     let breakdown: { shipping: number; tax: number; total: number; taxLines?: TaxLine[] } | undefined;
     let quotesTax: TaxSettings;
@@ -169,17 +173,6 @@ export async function placeCheckoutOrder(
             delivery_snapshot: optionToSnapshot(selected, pickupLocation),
             tax_snapshot: taxSnapshotFromSettings(quotesTax, tax, breakdown?.taxLines ?? []),
           }).eq("id", row.order_id).neq("payment_status", "paid");
-          if (selected.provider === "ivoire") {
-            await admin.from("shipping_estimates").insert({
-              cart_fingerprint: `${request.idempotencyKey}`,
-              origin,
-              destination: request.address,
-              amount: shipping,
-              breakdown: optionToSnapshot(selected, pickupLocation),
-              source: "ivoire_engine",
-              order_id: row.order_id,
-            });
-          }
           row.total = total;
         } else if (current) {
           row.total = current.total;

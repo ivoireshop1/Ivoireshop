@@ -6,6 +6,7 @@ import { createAdminClient } from "@/src/lib/supabase/admin";
 import { createClient } from "@/src/lib/supabase/server";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { collectCheckoutOptions } from "@/src/lib/delivery/orchestrate";
+import { IVOIRE_SHIPPING_RETIRED_MESSAGE } from "@/src/lib/delivery/checkout-eligibility";
 import { resolveSelectedShippingOption } from "@/src/lib/shipping/shippo";
 import { clientQuotedTotalMatches, quoteFromAuthoritativeParts } from "./totals";
 import { getStripeConfig } from "./stripe-config";
@@ -54,6 +55,13 @@ async function authoritativeQuote(input: ReturnType<typeof validateCheckout> & {
   const byId = new Map((catalog ?? []).map((row) => [row.id, row]));
   const products = request.items.map((item) => ({ quantity: item.quantity, ...byId.get(item.product_id) }));
   const selectedId = request.deliveryOptionId || (request.fulfillmentMethod === "local_pickup" ? "pickup" : "store");
+  if (selectedId === "ivoire" || selectedId.startsWith("ivoire:")) {
+    return {
+      ok: false as const,
+      message: IVOIRE_SHIPPING_RETIRED_MESSAGE,
+      stale: true,
+    };
+  }
   const isLiveSelection = selectedId.includes(":live:");
 
   const shippoBusy = (message?: string | null) =>

@@ -249,8 +249,26 @@ export function resolveSelectedShippingOption<T extends {
   quotedShipping?: number | null,
 ): { option: T } | { error: string; stale?: boolean } {
   const wanted = selectedId || (fulfillmentMethod === "local_pickup" ? "pickup" : "");
+  if (wanted === "ivoire" || wanted.startsWith("ivoire:")) {
+    return {
+      error: "Ivoire Shop Shipping is no longer available. Choose Store Pickup or a live UPS/USPS rate.",
+      stale: true,
+    };
+  }
   const exact = options.find((row) => row.id === wanted && row.fulfillmentMethod === fulfillmentMethod);
   if (exact) {
+    if (exact.provider === "ivoire") {
+      return {
+        error: "Ivoire Shop Shipping is no longer available. Choose Store Pickup or a live UPS/USPS rate.",
+        stale: true,
+      };
+    }
+    if ((exact.provider === "ups" || exact.provider === "usps") && exact.rateMode !== "live_api") {
+      return {
+        error: "Carrier shipping must use a live UPS or USPS quote. Choose another method or Store Pickup.",
+        stale: true,
+      };
+    }
     const check = liveAmountOk(exact, quotedShipping);
     if (!check.ok) return { error: check.error, stale: check.stale };
     return { option: exact };

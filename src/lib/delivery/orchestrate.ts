@@ -1,15 +1,14 @@
 import { createClient } from "@/src/lib/supabase/server";
 import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
-import { formatOriginLines, originFromSettings, originIsComplete } from "./origin";
+import { originFromSettings, originIsComplete } from "./origin";
 import { optionToSnapshot } from "./snapshot";
 import { quoteDoorDash } from "./providers/doordash";
 import { sanitizeProviderError, type DeliveryOption } from "./types";
 import { parseCharge, manualCarrierOptions, parseRateMode } from "./manual";
 import { destinationReadyForCarrierQuotes, destinationReadyForLocalDelivery, incompleteCarrierQuoteMessage } from "./destination";
 import { taxSettingsFromRow, computeTaxLines, computeOrderTotalCents, moneyFromCents, safeUsdToCents, type TaxLine } from "@/src/lib/tax/totals";
-import { estimateIvoireShipping, ivoireShippingConfigFromRow } from "@/src/lib/shipping/estimate";
 import { quoteLiveCarrierOptions } from "@/src/lib/shipping/live-quotes";
-import { lineShipWeightLb, sellingSettingsFromProduct } from "@/src/lib/catalog/selling";
+import { isCheckoutEligibleShippingOption } from "./checkout-eligibility";
 
 function logDelivery(provider: string, operation: string, success: boolean, message?: string) {
   console.info("[delivery]", {
@@ -55,14 +54,18 @@ export async function collectCheckoutOptions(input: {
   }
   const destReady = destinationReadyForCarrierQuotes(input.destination);
   const localReady = destinationReadyForLocalDelivery(input.destination);
-  if (settings?.store_delivery_enabled !== false && settings?.store_delivery_show_at_checkout !== false && localReady) {
-    options.push({
-      id: "store",
-      provider: "store",
-      fulfillmentMethod: "delivery",
-      label: "Delivery · Arranged by Ivoire Shop",
-      amount: parseCharge(settings?.store_delivery_charge) ?? 0,
-    });
+  // Local delivery only when explicitly enabled and shown — never offer an unconfigured $0 method.
+  if (settings?.store_delivery_enabled === true && settings?.store_delivery_show_at_checkout === true && localReady) {
+    const charge = parseCharge(settings?.store_delivery_charge);
+    if (charge != null && charge >= 0) {
+      options.push({
+        id: "store",
+        provider: "store",
+        fulfillmentMethod: "delivery",
+        label: "Delivery · Arranged by Ivoire Shop",
+        amount: charge,
+      });
+    }
   }
 
   const tax = taxSettingsFromRow(settings);
@@ -84,6 +87,7 @@ export async function collectCheckoutOptions(input: {
     options.push(...quoted.options.map((option) => ({ ...option, mode: "api" as const })));
   }
   const quoteCountry = input.destination.country?.trim() || origin.country?.trim() || "US";
+  // Manual/store UPS/USPS rates stay gated; production must never substitute them for live quotes.
   options.push(...manualCarrierOptions(settings as Record<string, unknown> | null, quoteCountry, moneyFromCents(subtotalCents)));
   const settingsRow = (settings ?? {}) as Record<string, unknown>;
   const expectedFromSettings = (["ups", "usps"] as const).filter((carrier) => (
@@ -102,83 +106,28 @@ export async function collectCheckoutOptions(input: {
       })
     : {
         options: [] as typeof options,
-        message: includeLive && liveCarriersWanted && !destReady
-          ? undefined
-          : undefined as string | undefined,
+        message: undefined as string | undefined,
         expectedLiveCarriers: expectedFromSettings,
       };
   options.push(...live.options);
   const expectedLiveCarriers = live.expectedLiveCarriers.length ? live.expectedLiveCarriers : expectedFromSettings;
 
-  const destReadyForParcel = Boolean(input.destination.country?.trim());
-  const ivoireConfig = ivoireShippingConfigFromRow(settings as Record<string, unknown> | null);
   const carrierPrompt = liveCarriersWanted && !destReady ? incompleteCarrierQuoteMessage(input.destination) : "";
-  let ivoireMessage: string | undefined = [carrierPrompt, live.message].filter(Boolean).join(" ") || undefined;
-  if (destReadyForParcel && input.products.length) {
-    const originLabel = formatOriginLines(origin).slice(0, 2).join(", ");
-    const estimatePackages = input.products.map((product) => {
-      const settings = sellingSettingsFromProduct(product);
-      if (settings.sellingMethod === "weight") {
-        const weightLb = lineShipWeightLb({
-          settings,
-          quantity: product.quantity,
-          shipWeightLb: product.ship_weight_lb != null ? Number(product.ship_weight_lb) : null,
-        });
-        return {
-          quantity: 1,
-          ship_weight_lb: weightLb,
-          ship_length_in: product.ship_length_in,
-          ship_width_in: product.ship_width_in,
-          ship_height_in: product.ship_height_in,
-          forbidPackageDefaults: true,
-        };
-      }
-      return {
-        quantity: product.quantity,
-        ship_weight_lb: product.ship_weight_lb,
-        ship_length_in: product.ship_length_in,
-        ship_width_in: product.ship_width_in,
-        ship_height_in: product.ship_height_in,
-      };
-    });
-    const ivoire = estimateIvoireShipping({
-      config: ivoireConfig,
-      packages: estimatePackages,
-      destinationCountry: quoteCountry,
-      destinationPostalCode: input.destination.postal_code,
-      originLabel: originLabel || null,
-    });
-    const hasWeightProduct = input.products.some(
-      (product) => sellingSettingsFromProduct(product).sellingMethod === "weight",
-    );
-    if (ivoire?.blocked) {
-      ivoireMessage = [carrierPrompt, live.message, ivoire.blockReason].filter(Boolean).join(" ") || undefined;
-    } else if (ivoire && hasWeightProduct && ivoire.usedDefaults) {
-      ivoireMessage = [
-        carrierPrompt,
-        live.message,
-        "Ivoire Shop shipping needs configured package dimensions for weight-based products. Purchased weight is used as product weight; package defaults are never invented.",
-      ].filter(Boolean).join(" ") || undefined;
-    } else if (ivoire) {
-      options.push({
-        id: "ivoire:estimate",
-        provider: "ivoire",
-        fulfillmentMethod: "delivery",
-        label: "Ivoire Shop Shipping",
-        amount: ivoire.amount,
-        serviceCode: ivoire.zoneId || "ivoire-estimate",
-        estimate: ivoire.explanation,
-        mode: "manual",
-        zone: ivoire.zoneName?.toLowerCase().includes("international") ? "international" : "domestic",
-        rateMode: "store_rate",
-        usedFallback: ivoire.usedFallback,
-        billableWeightLb: ivoire.billableWeightLb,
-      });
-    }
+  const hasPickup = options.some((option) => option.provider === "pickup");
+  const hasLiveCarrier = options.some((option) => (option.provider === "ups" || option.provider === "usps") && option.rateMode === "live_api");
+  let checkoutMessage: string | undefined = [carrierPrompt, live.message].filter(Boolean).join(" ") || undefined;
+  if (liveCarriersWanted && destReady && !hasLiveCarrier && !live.temporaryBusy) {
+    const unavailable =
+      "Live UPS/USPS rates are unavailable for this address and package right now."
+      + (hasPickup ? " Store Pickup is still available." : " Please try again later or contact the store.");
+    checkoutMessage = [checkoutMessage, unavailable].filter(Boolean).join(" ");
   }
 
+  // Never offer retired Ivoire Shop store-calculated shipping or non-live carrier store rates.
+  const eligible = options.filter(isCheckoutEligibleShippingOption);
+
   const breakdowns: Record<string, { shipping: number; tax: number; total: number; taxLines: TaxLine[] }> = {};
-  for (const option of options) {
+  for (const option of eligible) {
     const shippingCents = safeUsdToCents(option.amount);
     const taxLines = computeTaxLines({
       subtotalCents,
@@ -195,29 +144,26 @@ export async function collectCheckoutOptions(input: {
     };
   }
 
-  if (!options.length) {
+  if (!eligible.length) {
     return {
-      options,
+      options: eligible,
       breakdowns,
       subtotal: moneyFromCents(subtotalCents),
       tax,
       origin: originIsComplete(origin) ? origin : null,
       expectedLiveCarriers,
-      message: ivoireMessage || "No delivery methods are available right now. Please try pickup later or contact the store.",
+      message: checkoutMessage || "No delivery methods are available right now. Please try pickup later or contact the store.",
     };
   }
   return {
-    options,
+    options: eligible,
     breakdowns,
     subtotal: moneyFromCents(subtotalCents),
     tax,
     origin: originIsComplete(origin) ? origin : null,
     expectedLiveCarriers,
-    message: options.length
-      ? ivoireMessage
-      : ivoireMessage || "No delivery methods are available right now. Please try pickup later or contact the store.",
+    message: checkoutMessage,
   };
 }
 
 export { optionToSnapshot };
-

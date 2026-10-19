@@ -21,14 +21,14 @@ export function ProductCard({ product, returnTo }: { product: Product; returnTo?
   function add() { if (unavailable) return; addItem({ productId: product.id, slug: product.slug, name: product.name, price: product.price, image: product.image, quantity: 1 }); setAdded(true); setTimeout(() => setAdded(false), 1600); }
   const href = buildProductPath(product.slug, returnTo);
   return (
-    <article className="group rounded-xl bg-surface p-3 text-foreground shadow-sm">
+    <article className="group min-w-0 rounded-xl bg-surface p-3 text-foreground shadow-sm">
       <Link className="relative block aspect-square overflow-hidden rounded-2xl bg-[#eadfce]" href={href}>
         <ProductImage alt={product.name} className="object-cover transition duration-300 group-hover:scale-105" fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" src={product.image} />
         {badge && <ProductBadge label={badge} />}
       </Link>
-      <div className="pt-4">
-        <p className="text-xs text-muted">{product.category}</p>
-        <Link className="mt-1 block break-words font-semibold text-foreground hover:text-forest-green" href={href}>{product.name}</Link>
+      <div className="min-w-0 pt-4">
+        <p className="truncate text-xs text-muted">{product.category}</p>
+        <Link className="mt-1 block break-words font-semibold leading-snug text-foreground hover:text-forest-green" href={href}>{product.name}</Link>
         <p className="mt-1 text-xs text-muted">{product.isComingSoon ? "Preview" : stockLabel}</p>
         <p className="mt-3 font-semibold text-forest-green">{product.isComingSoon || !Number.isFinite(product.price) ? "Coming soon" : `$${product.price.toFixed(2)}`}</p>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
