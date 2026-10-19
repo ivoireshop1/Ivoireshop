@@ -269,10 +269,13 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
               tax: 0,
               total: draft.quotedShipping,
             };
-            pinnedQuoteFingerprintRef.current = checkoutQuoteFingerprint(
-              draft.address,
-              items.map(({ productId, quantity }) => ({ productId, quantity })),
-            );
+            // Prefer the fingerprint stored with the draft so an empty cart on first paint
+            // cannot clear a valid UPS pin before cart hydration finishes.
+            pinnedQuoteFingerprintRef.current = draft.cartFingerprint
+              || checkoutQuoteFingerprint(
+                draft.address,
+                items.map(({ productId, quantity }) => ({ productId, quantity })),
+              );
             lastLiveQuoteFingerprintRef.current = pinnedQuoteFingerprintRef.current;
             setOptions((current) => (current.some((row) => row.id === placeholder.id) ? current : [...current, placeholder]));
             setBreakdowns((current) => ({ ...current, [placeholder.id]: pinnedLiveBreakdownRef.current! }));
@@ -284,6 +287,25 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
     }, 0);
     return () => window.clearTimeout(timer);
   }, [demoEnabled, payments.stripeReady, setFulfillmentMethod]);
+
+  // Once the cart is loaded, align a draft pin that was restored before cart hydration.
+  useEffect(() => {
+    if (!sessionReady || !isLoaded || !pinnedLiveOptionRef.current || items.length === 0) return;
+    const nextFingerprint = checkoutQuoteFingerprint(address, items);
+    const current = pinnedQuoteFingerprintRef.current;
+    if (!current || current === nextFingerprint) {
+      pinnedQuoteFingerprintRef.current = nextFingerprint;
+      lastLiveQuoteFingerprintRef.current = nextFingerprint;
+      return;
+    }
+    // Empty-cart restore ends with "::" and no product ids — upgrade after hydration.
+    const restoredEmptyCart = current.endsWith("::");
+    const draft = readCheckoutDraft();
+    if (restoredEmptyCart || draft?.cartFingerprint === nextFingerprint) {
+      pinnedQuoteFingerprintRef.current = nextFingerprint;
+      lastLiveQuoteFingerprintRef.current = nextFingerprint;
+    }
+  }, [sessionReady, isLoaded, address, items]);
 
   // Persist non-sensitive checkout progress for refresh / back-forward (never card data).
   useEffect(() => {
@@ -297,6 +319,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
           fulfillmentMethod,
           deliveryOptionId,
           quotedShipping: resolveSelectedOption()?.amount ?? selectedLiveAmountRef.current ?? undefined,
+          cartFingerprint: checkoutQuoteFingerprint(address, items),
         });
       } catch {
         /* sessionStorage optional */
@@ -305,7 +328,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
     return () => window.clearTimeout(timer);
     // resolveSelectedOption reads options/deliveryOptionId from the latest render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionReady, confirmation, checkoutStep, contact, address, fulfillmentMethod, deliveryOptionId, options]);
+  }, [sessionReady, confirmation, checkoutStep, contact, address, fulfillmentMethod, deliveryOptionId, options, items]);
 
   // Fast path: pickup / store / Ivoire — never waits on Shippo. Debounced on address edits.
   // Freeze quotes on Payment/Review so a background refresh cannot invalidate a selected UPS rate.

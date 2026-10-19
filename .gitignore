@@ -49,3 +49,10 @@ supabase/.temp/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.admin-recovery-link.local
+.env.staging.admin.tmp
+
+
+.admin-temp-pwd.local
+

@@ -77,7 +77,12 @@ export default async function AdminCategoriesPage({
         </p>
       ) : null}
 
-      <CategoryCreateForm action={createCategory} parents={parents} title="Add new category" />
+      <CategoryCreateForm
+        action={createCategory}
+        parents={parents}
+        title="Add top-level category"
+        topLevelOnly
+      />
 
       <CategoryTreeManager
         activateAction={activateCategory}

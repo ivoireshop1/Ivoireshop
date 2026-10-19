@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { liveOptionId, resolveSelectedShippingOption } from "./shippo.ts";
+import { isShippoRateLimitStatus, liveOptionId, resolveSelectedShippingOption } from "./shippo.ts";
 import type { DeliveryOption } from "../delivery/types.ts";
 
 function live(partial: Partial<DeliveryOption> & Pick<DeliveryOption, "id" | "provider" | "amount">): DeliveryOption {
@@ -22,6 +22,12 @@ const ground = live({
   serviceToken: "ups_ground",
   etaDays: 3,
   shippoRateId: "r1",
+});
+
+test("Shippo HTTP 429 and 10429 text classify as temporary rate limits", () => {
+  assert.equal(isShippoRateLimitStatus(429, ""), true);
+  assert.equal(isShippoRateLimitStatus(200, "UPS 10429: Too Many Requests"), true);
+  assert.equal(isShippoRateLimitStatus(400, "invalid address"), false);
 });
 
 test("live checkout revalidation refuses a missing quoted amount and a changed price", () => {

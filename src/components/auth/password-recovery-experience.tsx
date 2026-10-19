@@ -14,9 +14,25 @@ import {
 import { RECOVERY_INVALID_PATH, RECOVERY_SET_PASSWORD_PATH } from "@/src/lib/auth/recovery";
 
 const PRIVACY_MESSAGE = "If an account exists for that email, we've sent password reset instructions.";
+const MISSING_ENV_MESSAGE =
+  "This app is missing its Supabase connection settings. On Preview, redeploy with NEXT_PUBLIC_SUPABASE_URL and the public key. For local development, add them to .env.local.";
 
 function recoveryRedirectTo() {
-  return `${getPublicSiteUrl()}/auth/callback?next=${encodeURIComponent("/reset-password")}`;
+  // Prefer the live browser origin so a Preview deployment never mails users back to
+  // NEXT_PUBLIC_SITE_URL=http://localhost:3000 from a local env file.
+  const origin =
+    typeof window !== "undefined" && window.location.origin
+      ? window.location.origin
+      : getPublicSiteUrl();
+  return `${origin.replace(/\/$/, "")}/auth/callback?next=${encodeURIComponent("/reset-password")}`;
+}
+
+function tryCreateClient() {
+  try {
+    return { client: createClient(), error: null as string | null };
+  } catch {
+    return { client: null, error: MISSING_ENV_MESSAGE };
+  }
 }
 
 export function PasswordRecoveryExperience({
@@ -31,6 +47,7 @@ export function PasswordRecoveryExperience({
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [message, setMessage] = useState("");
+  const [configError, setConfigError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [checking, setChecking] = useState(stage === "set");
   const [consumingLink, setConsumingLink] = useState(false);
@@ -46,7 +63,13 @@ export function PasswordRecoveryExperience({
     }
 
     const fragment = parseRecoveryFragment(hash);
-    const supabase = createClient();
+    const created = tryCreateClient();
+    if (!created.client) {
+      setConfigError(created.error);
+      setChecking(false);
+      return;
+    }
+    const supabase = created.client;
 
     let cancelled = false;
     let invalidTimer: ReturnType<typeof setTimeout> | undefined;
@@ -76,7 +99,9 @@ export function PasswordRecoveryExperience({
         setChecking(false);
         return;
       }
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (cancelled) return;
       if (canSetRecoveryPassword({ stage, hasSession: Boolean(session) })) {
         setReady(true);
@@ -120,18 +145,30 @@ export function PasswordRecoveryExperience({
     event.preventDefault();
     setIsSubmitting(true);
     setMessage("");
-    const supabase = createClient();
-    await supabase.auth.resetPasswordForEmail(email, { redirectTo: recoveryRedirectTo() });
+    const { client: supabase, error: clientError } = tryCreateClient();
+    if (!supabase) {
+      setIsSubmitting(false);
+      setMessage(clientError ?? MISSING_ENV_MESSAGE);
+      return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: recoveryRedirectTo() });
     setIsSubmitting(false);
-    setMessage(PRIVACY_MESSAGE);
+    setMessage(error ? "We could not send a reset email right now. Try again in a moment." : PRIVACY_MESSAGE);
   }
 
   async function setPasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
     setMessage("");
-    const supabase = createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { client: supabase, error: clientError } = tryCreateClient();
+    if (!supabase) {
+      setIsSubmitting(false);
+      setMessage(clientError ?? MISSING_ENV_MESSAGE);
+      return;
+    }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     const result = session
       ? await applyNewPasswordAndRevokeSession(supabase, {
           nextPassword: password,
@@ -151,6 +188,21 @@ export function PasswordRecoveryExperience({
     router.refresh();
   }
 
+  if (configError) {
+    return (
+      <main className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-6 py-16">
+        <section className="w-full rounded-2xl bg-surface p-8 shadow-sm">
+          <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-gold">Ivoire Shop</p>
+          <h1 className="text-3xl font-semibold text-forest-green">Sign-in is not configured</h1>
+          <p className="mt-4 text-sm leading-6 text-muted">{configError}</p>
+          <Link className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-forest-green px-4 py-3 text-sm font-semibold text-white" href="/login">
+            Back to login
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
   if (consumingLink || (checking && stage === "set")) {
     return (
       <main className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-6 py-16">
@@ -165,7 +217,12 @@ export function PasswordRecoveryExperience({
         <section className="w-full rounded-2xl bg-surface p-8 shadow-sm">
           <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-gold">Ivoire Shop</p>
           <h1 className="text-3xl font-semibold text-forest-green">Reset link unavailable</h1>
-          <p className="mt-4 text-sm leading-6 text-muted">This password reset link is invalid or has expired.</p>
+          <p className="mt-4 text-sm leading-6 text-muted">
+            This password reset link is invalid or has expired. Request a new one from this same website (Preview or local), then open the newest email link.
+          </p>
+          <p className="mt-3 text-sm leading-6 text-muted">
+            If the link opened on localhost by mistake, request a fresh reset from the Preview site instead.
+          </p>
           <Link className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-forest-green px-4 py-3 text-sm font-semibold text-white" href="/reset-password">
             Request a new link
           </Link>
@@ -215,7 +272,9 @@ export function PasswordRecoveryExperience({
           </button>
         </form>
         {message ? <p className="mt-5 text-sm text-muted">{message}</p> : null}
-        <Link className="mt-6 inline-block text-sm text-forest-green" href="/login">Back to login</Link>
+        <Link className="mt-6 inline-block text-sm text-forest-green" href="/login">
+          Back to login
+        </Link>
       </section>
     </main>
   );
