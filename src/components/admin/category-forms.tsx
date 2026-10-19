@@ -4,6 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { CategoryImageField } from "@/src/components/admin/category-image-field";
 import type { CategorySaveState } from "@/src/lib/catalog/actions";
+import { isCanonicalSlug } from "@/src/lib/catalog/canonical-categories";
 
 export type AdminCategoryRow = {
   id: string;
@@ -263,7 +264,6 @@ export function CategoryTreeManager({
   categories,
   productTotals,
   productActives,
-  isCanonicalSlug,
   createAction,
   updateAction,
   deleteAction,
@@ -273,7 +273,6 @@ export function CategoryTreeManager({
   categories: AdminCategoryRow[];
   productTotals: Record<string, number>;
   productActives: Record<string, number>;
-  isCanonicalSlug: (slug: string) => boolean;
   createAction: (formData: FormData) => void | Promise<void>;
   updateAction: (prev: CategorySaveState, formData: FormData) => Promise<CategorySaveState>;
   deleteAction: (formData: FormData) => void | Promise<void>;
