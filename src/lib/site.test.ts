@@ -44,3 +44,18 @@ test("auth callback on preview does not target production", () => {
     delete process.env.VERCEL_URL;
   }
 });
+
+test("preview recovery origin wins over a localhost SITE_URL env value", () => {
+  const preview = "https://ivoireshop-mjgpaqjyw-ivoireshop1.vercel.app";
+  assert.equal(
+    resolvePublicSiteUrl(
+      {
+        VERCEL_ENV: "preview",
+        NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
+        VERCEL_URL: "ivoireshop-mjgpaqjyw-ivoireshop1.vercel.app",
+      },
+      preview,
+    ),
+    preview,
+  );
+});

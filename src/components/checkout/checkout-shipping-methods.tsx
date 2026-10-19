@@ -184,11 +184,12 @@ function CarrierAccordion({
   const panelId = `${baseId}-panel`;
   const buttonId = `${baseId}-button`;
   const selectedInCarrier = options.some((option) => option.id === value)
-    || (value.startsWith(`${carrier}:`) && temporaryBusy);
+    || value.startsWith(`${carrier}:`);
   const selectedOption = options.find((option) => option.id === value);
   const selectedCopy = selectedOption ? shippingMethodCopy(selectedOption) : null;
-  // Never label a rate-limited carrier as permanently unavailable when empty this pass.
+  // Never label a rate-limited / pinned selection as permanently unavailable when empty this pass.
   const unavailable = !options.length && !temporaryBusy && !value.startsWith(`${carrier}:`);
+  const keepSelectionBusy = temporaryBusy || (value.startsWith(`${carrier}:`) && !options.length);
 
   return (
     <div
@@ -221,7 +222,7 @@ function CarrierAccordion({
           <span className="mt-0.5 block text-sm text-muted">
             {selectedCopy && selectedOption
               ? `${serviceTitle(selectedOption)} · ${selectedCopy.price}`
-              : temporaryBusy && !options.length
+              : keepSelectionBusy
                 ? "Temporarily busy — your selection is kept"
                 : unavailable
                   ? "Unavailable for this destination"
@@ -246,7 +247,7 @@ function CarrierAccordion({
           <div className="space-y-2 border-t border-black/8 px-3 py-3 sm:px-4" hidden={!expanded}>
             {!options.length ? (
               <p className="text-sm text-[#7c5d1a]" role="status">
-                {temporaryBusy
+                {keepSelectionBusy
                   ? `${meta.title} rates are temporarily busy. If you already selected a ${meta.title} service, it is kept — wait a moment or continue to payment.`
                   : (unavailableMessage || `No ${meta.title} services are available for this address.`)}
               </p>

@@ -50,18 +50,28 @@ export function AuthHashCatcher() {
       return;
     }
     void (async () => {
-      const supabase = createClient();
-      const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-      if (error) {
-        window.location.replace("/auth/verify-failed");
-        return;
+      try {
+        const supabase = createClient();
+        const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        if (error) {
+          window.location.replace(type === "recovery" ? "/reset-password?error=invalid" : "/auth/verify-failed");
+          return;
+        }
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (type === "recovery") {
+          window.location.replace("/reset-password?stage=set");
+          return;
+        }
+        const { data: profile } = user
+          ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
+          : { data: null };
+        const next = new URLSearchParams(window.location.search).get("next");
+        window.location.replace(resolvePostLoginPath(profile?.role, next));
+      } catch {
+        window.location.replace(type === "recovery" ? "/reset-password?error=invalid" : "/auth/verify-failed");
       }
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile } = user
-        ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
-        : { data: null };
-      const next = new URLSearchParams(window.location.search).get("next");
-      window.location.replace(resolvePostLoginPath(profile?.role, next));
     })();
   }, []);
   return null;

@@ -380,7 +380,21 @@ async function shippoRequest(path: string, init?: RequestInit) {
   return { ok: response.ok, status: response.status, body };
 }
 
-export async function listShippoCarrierAccounts() {
+type ShippoAccountsSnapshot = {
+  ok: boolean;
+  ups: number;
+  usps: number;
+  accountIds: string[];
+  carriers: Array<{ id: string; carrier: string; provider: "ups" | "usps"; test: boolean }>;
+};
+
+let shippoAccountsCache: { at: number; value: ShippoAccountsSnapshot } | null = null;
+const SHIPPO_ACCOUNTS_TTL_MS = 5 * 60_000;
+
+export async function listShippoCarrierAccounts(options?: { force?: boolean }) {
+  if (!options?.force && shippoAccountsCache && Date.now() - shippoAccountsCache.at < SHIPPO_ACCOUNTS_TTL_MS) {
+    return shippoAccountsCache.value;
+  }
   const accounts: Array<{ object_id?: string; carrier?: string; active?: boolean; test?: boolean; provider: "ups" | "usps" }> = [];
   let url: string | null = "/carrier_accounts/?results=100";
   let pages = 0;
@@ -406,7 +420,7 @@ export async function listShippoCarrierAccounts() {
       ? (next.startsWith("http") ? next.replace("https://api.goshippo.com", "") : next)
       : null;
   }
-  return {
+  const value: ShippoAccountsSnapshot = {
     ok,
     ups: accounts.filter((row) => row.provider === "ups").length,
     usps: accounts.filter((row) => row.provider === "usps").length,
@@ -418,6 +432,23 @@ export async function listShippoCarrierAccounts() {
       test: row.test === true,
     })),
   };
+  if (ok) shippoAccountsCache = { at: Date.now(), value };
+  return value;
+}
+
+function shippoErrorText(body: unknown, status: number) {
+  if (!body || typeof body !== "object") return status ? `HTTP ${status}` : "";
+  const row = body as { detail?: unknown; message?: unknown; messages?: Array<{ text?: string; code?: string; source?: string }> };
+  const parts = [
+    row.detail != null ? String(row.detail) : "",
+    row.message != null ? String(row.message) : "",
+    ...(Array.isArray(row.messages) ? row.messages.map((item) => `${item.source || ""} ${item.code || ""} ${item.text || ""}`.trim()) : []),
+  ].filter(Boolean);
+  return parts.join(" · ") || (status ? `HTTP ${status}` : "");
+}
+
+export function isShippoRateLimitStatus(status: number, text = "") {
+  return status === 429 || /too many requests|10429|rate.?limit/i.test(text);
 }
 
 export async function quoteShippoShipment(input: {
@@ -444,9 +475,6 @@ export async function quoteShippoShipment(input: {
   };
   if (input.carrierAccountIds?.length) payload.carrier_accounts = input.carrierAccountIds;
   const result = await shippoRequest("/shipments/", { method: "POST", body: JSON.stringify(payload) });
-  if (!result.ok) {
-    return { ok: false as const, error: "Shippo could not return rates.", rates: [] as ShippoRate[], carrierMessages: [] as string[] };
-  }
   const messagesRaw = result.body && typeof result.body === "object"
     ? (result.body as { messages?: Array<{ source?: string; code?: string; text?: string }> }).messages
     : null;
@@ -456,12 +484,38 @@ export async function quoteShippoShipment(input: {
       .map((row) => `${row.source}${row.code ? ` ${row.code}` : ""}: ${String(row.text || "").trim()}`.trim())
       .filter((text) => text.length > 4)
     : [];
+  if (!result.ok) {
+    const errorText = shippoErrorText(result.body, result.status);
+    const rateLimited = isShippoRateLimitStatus(result.status, `${errorText} ${carrierMessages.join(" ")}`);
+    // Never log tokens or full addresses — status + sanitized codes only.
+    console.info("[shippo]", {
+      operation: "shipments",
+      ok: false,
+      status: result.status,
+      rateLimited,
+      message: rateLimited ? "rate_limited" : "request_failed",
+    });
+    return {
+      ok: false as const,
+      error: rateLimited
+        ? "Shippo rate limit (10429/429). Retry shortly — no substitute rate was invented."
+        : "Shippo could not return rates.",
+      rates: [] as ShippoRate[],
+      carrierMessages: rateLimited
+        ? [...carrierMessages, "UPS 10429: Too Many Requests", "USPS 10429: Too Many Requests"]
+        : carrierMessages,
+      rateLimited,
+      status: result.status,
+    };
+  }
   return {
     ok: true as const,
     shipmentId: result.body && typeof result.body === "object" ? String((result.body as { object_id?: string }).object_id || "") : "",
     rates: mapShippoRates(result.body, input.allowedServices),
     test: creds.isTest,
     carrierMessages,
+    rateLimited: carrierMessages.some((text) => isShippoRateLimitStatus(0, text)),
+    status: result.status,
   };
 }
 

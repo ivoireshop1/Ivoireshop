@@ -90,33 +90,48 @@ export function CategoryCreateForm({
   action,
   parents = [],
   defaultParentId = "",
-  title = "Add category",
+  title = "Add top-level category",
   compact = false,
+  topLevelOnly = false,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   parents?: Array<{ id: string; name: string }>;
   defaultParentId?: string;
   title?: string;
   compact?: boolean;
+  /** When true, creates only a root category (no parent picker). */
+  topLevelOnly?: boolean;
 }) {
+  const isSubcategoryForm = Boolean(defaultParentId) || compact;
+  const parentName = parents.find((parent) => parent.id === defaultParentId)?.name;
+
   return (
     <form action={action} className={`grid gap-3 rounded-[28px] border border-[#173f35]/10 bg-white p-5 shadow-[0_12px_32px_rgba(23,63,53,0.04)] sm:p-6 ${compact ? "" : "lg:grid-cols-2"}`}>
       <div className={compact ? "" : "lg:col-span-2"}>
         <h2 className="font-semibold text-[#173f35]">{title}</h2>
         <p className="mt-1 text-sm text-[#6b6b6b]">
-          {defaultParentId || compact
-            ? "Creates a subcategory under the selected parent. It appears in the storefront when active."
-            : "Create a top-level category or pick a parent to add a subcategory."}
+          {isSubcategoryForm
+            ? `Creates a subcategory${parentName ? ` under ${parentName}` : ""}. It appears in the storefront when active.`
+            : "Creates a new top-level category. To add a subcategory, use + Add Subcategory inside a category below."}
         </p>
       </div>
       <input className="min-h-11 rounded-xl border border-[#173f35]/15 px-4 py-3" name="name" placeholder="Name" required />
       {!compact ? <input className="min-h-11 rounded-xl border border-[#173f35]/15 px-4 py-3" name="slug" placeholder="Slug (optional)" /> : null}
-      <select className="min-h-11 rounded-xl border border-[#173f35]/15 px-4 py-3" defaultValue={defaultParentId} name="parent_id">
-        <option value="">Top-level category</option>
-        {parents.map((parent) => (
-          <option key={parent.id} value={parent.id}>{parent.name}</option>
-        ))}
-      </select>
+      {topLevelOnly || (isSubcategoryForm && defaultParentId) ? (
+        <input name="parent_id" type="hidden" value={defaultParentId} />
+      ) : (
+        <select className="min-h-11 rounded-xl border border-[#173f35]/15 px-4 py-3" defaultValue={defaultParentId} name="parent_id">
+          <option value="">Top-level category</option>
+          {parents.map((parent) => (
+            <option key={parent.id} value={parent.id}>{parent.name}</option>
+          ))}
+        </select>
+      )}
+      {isSubcategoryForm && parentName ? (
+        <p className="rounded-xl bg-[#f4f7f5] px-4 py-3 text-sm text-[#173f35]">
+          Parent: <span className="font-semibold">{parentName}</span>
+        </p>
+      ) : null}
       <input className="min-h-11 rounded-xl border border-[#173f35]/15 px-4 py-3" defaultValue={0} name="sort_order" placeholder="Sort order" type="number" />
       {!compact ? (
         <>
@@ -133,7 +148,7 @@ export function CategoryCreateForm({
         </label>
         <SubmitButton
           className="min-h-11 rounded-xl bg-[#173f35] px-4 py-3 text-sm font-medium text-white disabled:opacity-60"
-          label={defaultParentId || compact ? "Add subcategory" : "Add category"}
+          label={isSubcategoryForm ? "Add subcategory" : "Add top-level category"}
           pendingLabel="Saving..."
         />
       </div>
@@ -299,68 +314,93 @@ export function CategoryTreeManager({
     return map;
   }, [categories]);
 
+  // Expand active parents and any parent that already has children so subcategories are visible on load.
   const [openIds, setOpenIds] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(roots.filter((row) => row.is_active).map((row) => [row.id, true])),
+    Object.fromEntries(
+      roots
+        .filter((row) => row.is_active || (childrenByParent.get(row.id)?.length ?? 0) > 0)
+        .map((row) => [row.id, true]),
+    ),
   );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [addingUnder, setAddingUnder] = useState<string | null>(null);
 
   const parentOptions = roots.map((row) => ({ id: row.id, name: row.name }));
 
+  function toggleAddSubcategory(parentId: string) {
+    setOpenIds((prev) => ({ ...prev, [parentId]: true }));
+    setAddingUnder((id) => (id === parentId ? null : parentId));
+    setEditingId(null);
+  }
+
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-[#173f35]">Category tree</h2>
-          <p className="mt-1 text-sm text-[#6b6b6b]">Expand a category to manage its subcategories. Hidden categories stay below for cleanup.</p>
+          <h2 className="text-lg font-semibold text-[#173f35]">Categories &amp; subcategories</h2>
+          <p className="mt-1 text-sm text-[#6b6b6b]">
+            Expand a parent to see every subcategory. Use <span className="font-semibold text-[#173f35]">+ Add Subcategory</span> inside a category card.
+          </p>
         </div>
       </div>
 
       {roots.map((root) => {
         const children = childrenByParent.get(root.id) ?? [];
-        const open = Boolean(openIds[root.id]);
+        const isOpen = openIds[root.id] ?? (root.is_active || children.length > 0);
         const totalCount = productTotals[root.id] ?? 0;
         const activeCount = productActives[root.id] ?? 0;
         const canonical = isCanonicalSlug(root.slug);
+        const adding = addingUnder === root.id;
 
         return (
-          <article className={`rounded-[24px] border bg-white p-4 shadow-[0_10px_25px_rgba(23,63,53,0.04)] sm:p-5 ${root.is_active ? "border-[#173f35]/10" : "border-[#173f35]/08 opacity-85"}`} key={root.id}>
+          <article
+            className={`rounded-[24px] border bg-white p-4 shadow-[0_10px_25px_rgba(23,63,53,0.04)] sm:p-5 ${root.is_active ? "border-[#173f35]/10" : "border-[#173f35]/08 opacity-90"}`}
+            key={root.id}
+          >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <button
-                className="min-h-11 flex-1 text-left"
-                onClick={() => setOpenIds((prev) => ({ ...prev, [root.id]: !open }))}
+                aria-expanded={isOpen}
+                className="min-h-11 min-w-0 flex-1 text-left"
+                onClick={() => setOpenIds((prev) => ({ ...prev, [root.id]: !isOpen }))}
                 type="button"
               >
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#173f35]/15 text-sm text-[#173f35]" aria-hidden>
-                    {open ? "−" : "+"}
+                <div className="flex items-start gap-3">
+                  <span
+                    className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#173f35]/15 text-base font-semibold text-[#173f35]"
+                    aria-hidden
+                  >
+                    {isOpen ? "▾" : "▸"}
                   </span>
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="text-lg font-semibold text-[#173f35]">{root.name}</h3>
                     <p className="mt-1 text-sm text-[#6b6b6b]">
-                      {root.is_active ? "Visible" : "Hidden"} · {children.length} subcategor{children.length === 1 ? "y" : "ies"} · {totalCount} product{totalCount === 1 ? "" : "s"} ({activeCount} live)
+                      {root.is_active ? "Visible" : "Hidden"}
+                      {" · "}
+                      {children.length} subcategor{children.length === 1 ? "y" : "ies"}
+                      {" · "}
+                      {totalCount} product{totalCount === 1 ? "" : "s"} ({activeCount} live)
                     </p>
                     <p className="mt-1 text-xs text-[#6b6b6b]">/{root.slug}</p>
                   </div>
                 </div>
               </button>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
                 <button
-                  className="min-h-11 rounded-xl border border-[#173f35]/20 px-4 text-sm font-semibold text-[#173f35]"
-                  onClick={() => setEditingId((id) => (id === root.id ? null : root.id))}
+                  className="min-h-11 flex-1 rounded-xl border border-[#173f35]/20 px-4 text-sm font-semibold text-[#173f35] sm:flex-none"
+                  onClick={() => {
+                    setEditingId((id) => (id === root.id ? null : root.id));
+                    setAddingUnder(null);
+                  }}
                   type="button"
                 >
                   {editingId === root.id ? "Close" : "Edit"}
                 </button>
                 <button
-                  className="min-h-11 rounded-xl bg-[#173f35] px-4 text-sm font-semibold text-white"
-                  onClick={() => {
-                    setOpenIds((prev) => ({ ...prev, [root.id]: true }));
-                    setAddingUnder((id) => (id === root.id ? null : root.id));
-                  }}
+                  className="min-h-11 flex-1 rounded-xl bg-[#173f35] px-4 text-sm font-semibold text-white sm:flex-none"
+                  onClick={() => toggleAddSubcategory(root.id)}
                   type="button"
                 >
-                  {addingUnder === root.id ? "Cancel" : "Add subcategory"}
+                  {adding ? "Cancel" : "+ Add Subcategory"}
                 </button>
                 <CategoryActions
                   activateAction={activateAction}
@@ -384,9 +424,22 @@ export function CategoryTreeManager({
               />
             ) : null}
 
-            {open ? (
-              <div className="mt-4 space-y-3 border-t border-[#173f35]/10 pt-4">
-                {addingUnder === root.id ? (
+            {isOpen ? (
+              <div className="mt-4 space-y-3 border-t border-[#173f35]/10 pt-4 sm:ml-12">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-[#b8964c]">
+                    Subcategories
+                  </h4>
+                  <button
+                    className="min-h-10 rounded-xl border border-[#173f35]/20 bg-[#f4f7f5] px-3 text-sm font-semibold text-[#173f35]"
+                    onClick={() => toggleAddSubcategory(root.id)}
+                    type="button"
+                  >
+                    {adding ? "Cancel" : "+ Add Subcategory"}
+                  </button>
+                </div>
+
+                {adding ? (
                   <CategoryCreateForm
                     action={createAction}
                     compact
@@ -397,56 +450,84 @@ export function CategoryTreeManager({
                 ) : null}
 
                 {children.length === 0 ? (
-                  <p className="rounded-2xl bg-[#f4f7f5] px-4 py-3 text-sm text-[#6b6b6b]">
-                    No subcategories yet. Add one to organize products under {root.name}.
-                  </p>
-                ) : null}
-
-                {children.map((child) => {
-                  const childTotal = productTotals[child.id] ?? 0;
-                  const childActive = productActives[child.id] ?? 0;
-                  return (
-                    <div className={`rounded-2xl border px-4 py-4 ${child.is_active ? "border-[#173f35]/10 bg-[#fffdf9]" : "border-dashed border-[#173f35]/15 bg-[#f7f7f5]"}`} key={child.id}>
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <h4 className="font-semibold text-[#173f35]">{child.name}</h4>
-                          <p className="mt-1 text-sm text-[#6b6b6b]">
-                            {child.is_active ? "Visible" : "Hidden"} · {childTotal} product{childTotal === 1 ? "" : "s"} ({childActive} live)
-                          </p>
-                          <p className="mt-1 text-xs text-[#6b6b6b]">/{child.slug}</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            className="min-h-11 rounded-xl border border-[#173f35]/20 px-4 text-sm font-semibold text-[#173f35]"
-                            onClick={() => setEditingId((id) => (id === child.id ? null : child.id))}
-                            type="button"
-                          >
-                            {editingId === child.id ? "Close" : "Edit"}
-                          </button>
-                          <CategoryActions
-                            activateAction={activateAction}
-                            category={child}
-                            deactivateAction={deactivateAction}
-                            deleteAction={deleteAction}
-                            isCanonical={false}
-                            totalCount={childTotal}
-                          />
-                        </div>
-                      </div>
-                      {editingId === child.id ? (
-                        <CategoryEditForm
-                          category={child}
-                          isCanonical={false}
-                          parents={parentOptions}
-                          totalCount={childTotal}
-                          updateAction={updateAction}
-                        />
-                      ) : null}
-                    </div>
-                  );
-                })}
+                  <div className="rounded-2xl border border-dashed border-[#173f35]/20 bg-[#f4f7f5] px-4 py-5">
+                    <p className="text-sm font-medium text-[#173f35]">No subcategories yet</p>
+                    <p className="mt-1 text-sm text-[#6b6b6b]">
+                      Add one to organize products under {root.name}.
+                    </p>
+                    {!adding ? (
+                      <button
+                        className="mt-3 min-h-11 rounded-xl bg-[#173f35] px-4 text-sm font-semibold text-white"
+                        onClick={() => toggleAddSubcategory(root.id)}
+                        type="button"
+                      >
+                        + Add Subcategory
+                      </button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <ul className="space-y-3">
+                    {children.map((child) => {
+                      const childTotal = productTotals[child.id] ?? 0;
+                      const childActive = productActives[child.id] ?? 0;
+                      return (
+                        <li
+                          className={`rounded-2xl border px-4 py-4 ${child.is_active ? "border-[#173f35]/10 bg-[#fffdf9]" : "border-dashed border-[#173f35]/15 bg-[#f7f7f5]"}`}
+                          key={child.id}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#b8964c]">Subcategory</p>
+                              <h4 className="mt-1 font-semibold text-[#173f35]">{child.name}</h4>
+                              <p className="mt-1 text-sm text-[#6b6b6b]">
+                                {child.is_active ? "Visible" : "Hidden"}
+                                {" · "}
+                                {childTotal} product{childTotal === 1 ? "" : "s"} ({childActive} live)
+                              </p>
+                              <p className="mt-1 text-xs text-[#6b6b6b]">/{child.slug}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                className="min-h-11 rounded-xl border border-[#173f35]/20 px-4 text-sm font-semibold text-[#173f35]"
+                                onClick={() => setEditingId((id) => (id === child.id ? null : child.id))}
+                                type="button"
+                              >
+                                {editingId === child.id ? "Close" : "Edit"}
+                              </button>
+                              <CategoryActions
+                                activateAction={activateAction}
+                                category={child}
+                                deactivateAction={deactivateAction}
+                                deleteAction={deleteAction}
+                                isCanonical={false}
+                                totalCount={childTotal}
+                              />
+                            </div>
+                          </div>
+                          {editingId === child.id ? (
+                            <CategoryEditForm
+                              category={child}
+                              isCanonical={false}
+                              parents={parentOptions}
+                              totalCount={childTotal}
+                              updateAction={updateAction}
+                            />
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
-            ) : null}
+            ) : children.length > 0 ? (
+              <p className="mt-3 text-sm text-[#6b6b6b] sm:ml-12">
+                {children.length} subcategor{children.length === 1 ? "y" : "ies"} hidden — expand to manage.
+              </p>
+            ) : (
+              <p className="mt-3 text-sm text-[#6b6b6b] sm:ml-12">
+                No subcategories yet — expand or use + Add Subcategory.
+              </p>
+            )}
           </article>
         );
       })}

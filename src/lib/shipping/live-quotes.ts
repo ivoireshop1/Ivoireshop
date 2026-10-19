@@ -8,6 +8,7 @@ import {
   applyShippingMargin,
   assignUniqueLiveOptionIds,
   internationalDestinationAllowed,
+  isShippoRateLimitStatus,
   listShippoCarrierAccounts,
   liveOptionId,
   parseAllowedServices,
@@ -78,8 +79,86 @@ export type LiveQuoteResult = {
   rateLimitedCarriers?: LiveCarrier[];
 };
 
+type QuoteCacheEntry = { at: number; result: LiveQuoteResult };
+const liveQuoteCache = new Map<string, QuoteCacheEntry>();
+const LIVE_QUOTE_TTL_MS = 45_000;
+const LIVE_QUOTE_CACHE_MAX = 40;
+
+function liveQuoteCacheKey(input: {
+  origin: StoreOrigin;
+  destination: { address_line_1?: string; city?: string; state?: string; postal_code?: string; country?: string };
+  parcel: { weightLb: number; lengthIn: number; widthIn: number; heightIn: number };
+  carriers: LiveCarrier[];
+  allowedServices: string[];
+  margin: number;
+}) {
+  const dest = input.destination;
+  return [
+    input.carriers.join(","),
+    input.allowedServices.join(","),
+    String(input.margin),
+    [
+      input.origin.address_line_1,
+      input.origin.city,
+      input.origin.state,
+      input.origin.postal_code,
+      input.origin.country,
+    ].join("|"),
+    [
+      dest.address_line_1,
+      dest.city,
+      dest.state,
+      dest.postal_code,
+      (dest.country || "US").slice(0, 2).toUpperCase(),
+    ].join("|"),
+    [
+      input.parcel.weightLb.toFixed(3),
+      input.parcel.lengthIn.toFixed(2),
+      input.parcel.widthIn.toFixed(2),
+      input.parcel.heightIn.toFixed(2),
+    ].join("x"),
+  ].join("::");
+}
+
+function readLiveQuoteCache(key: string): LiveQuoteResult | null {
+  const hit = liveQuoteCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > LIVE_QUOTE_TTL_MS) {
+    liveQuoteCache.delete(key);
+    return null;
+  }
+  return hit.result;
+}
+
+function writeLiveQuoteCache(key: string, result: LiveQuoteResult) {
+  liveQuoteCache.set(key, { at: Date.now(), result });
+  if (liveQuoteCache.size > LIVE_QUOTE_CACHE_MAX) {
+    const oldest = [...liveQuoteCache.entries()].sort((a, b) => a[1].at - b[1].at)[0];
+    if (oldest) liveQuoteCache.delete(oldest[0]);
+  }
+}
+
 function isShippoRateLimitMessage(text: string) {
-  return /too many requests|10429|rate.?limit/i.test(text);
+  return isShippoRateLimitStatus(0, text);
+}
+
+function temporaryBusyResult(input: {
+  options: DeliveryOption[];
+  remaining: LiveCarrier[];
+  busyCarriers: LiveCarrier[];
+  reason: "rate_limit" | "silent_omit";
+}): LiveQuoteResult {
+  const busy = input.busyCarriers.map((carrier) => carrier.toUpperCase()).join(" and ");
+  const message = input.reason === "rate_limit"
+    ? `${busy} rates are temporarily busy (carrier API limit). Your selected ${busy} rate is kept when already chosen — wait a moment before refreshing rates.`
+    : `${busy} rates did not return on this pass while other carriers did. This is treated as a temporary carrier gap — your selected ${busy} rate is kept when already chosen.`;
+  return {
+    options: input.options,
+    expectedLiveCarriers: input.remaining,
+    temporaryBusy: true,
+    rateLimitedCarriers: input.busyCarriers,
+    message,
+  };
 }
 
 export async function quoteLiveCarrierOptions(input: {
@@ -154,8 +233,20 @@ export async function quoteLiveCarrierOptions(input: {
     };
   }
 
-  const accounts = await listShippoCarrierAccounts();
   const allowedServices = parseAllowedServices(settings.shippo_allowed_services);
+  const margin = Number(settings.shippo_margin_percent ?? 0);
+  const cacheKey = liveQuoteCacheKey({
+    origin: input.origin,
+    destination: input.destination,
+    parcel: packed.parcel,
+    carriers: remaining,
+    allowedServices,
+    margin,
+  });
+  const cached = readLiveQuoteCache(cacheKey);
+  if (cached) return cached;
+
+  const accounts = await listShippoCarrierAccounts();
   let quoted = await quoteShippoShipment({
     origin: input.origin,
     destination: input.destination,
@@ -163,9 +254,11 @@ export async function quoteLiveCarrierOptions(input: {
     allowedServices,
   });
   // Bounded single backoff for Shippo 10429 — never loop. Callers must not spam Shippo after a selection.
-  if (quoted.ok && (quoted.carrierMessages ?? []).some(isShippoRateLimitMessage)) {
+  const hitRateLimit = (!quoted.ok && Boolean(quoted.rateLimited))
+    || (quoted.carrierMessages ?? []).some(isShippoRateLimitMessage);
+  if (hitRateLimit) {
     const missingAfterLimit = remaining.filter((carrier) => !quoted.rates.some((rate) => rate.provider === carrier));
-    if (missingAfterLimit.length) {
+    if (missingAfterLimit.length || !quoted.ok) {
       await new Promise((resolve) => setTimeout(resolve, 1600));
       const retry = await quoteShippoShipment({
         origin: input.origin,
@@ -175,17 +268,31 @@ export async function quoteLiveCarrierOptions(input: {
       });
       if (retry.ok) {
         const retryCoversMore = missingAfterLimit.some((carrier) => retry.rates.some((rate) => rate.provider === carrier));
-        if (retryCoversMore || retry.rates.length > quoted.rates.length) quoted = retry;
+        if (retryCoversMore || retry.rates.length > quoted.rates.length || !quoted.ok) quoted = retry;
+      } else if (!quoted.ok && retry.rateLimited) {
+        quoted = retry;
       }
     }
   }
   if (!quoted.ok) {
+    const rateLimited = Boolean(quoted.rateLimited)
+      || (quoted.carrierMessages ?? []).some(isShippoRateLimitMessage);
     await recordShippingMonitorEvent("quote_failure", {
-      reason: "shippo_error",
+      reason: rateLimited ? "shippo_rate_limited" : "shippo_error",
       carriers: remaining,
       upsAccounts: accounts.ups,
       uspsAccounts: accounts.usps,
+      status: quoted.status ?? null,
     });
+    if (rateLimited) {
+      const busy = temporaryBusyResult({
+        options: [],
+        remaining,
+        busyCarriers: remaining,
+        reason: "rate_limit",
+      });
+      return busy;
+    }
     return {
       options: [],
       expectedLiveCarriers: remaining,
@@ -193,7 +300,6 @@ export async function quoteLiveCarrierOptions(input: {
     };
   }
 
-  const margin = Number(settings.shippo_margin_percent ?? 0);
   const options: DeliveryOption[] = assignUniqueLiveOptionIds(quoted.rates
     .filter((rate) => remaining.includes(rate.provider))
     .map((rate) => {
@@ -224,6 +330,11 @@ export async function quoteLiveCarrierOptions(input: {
 
   const upsRates = options.filter((option) => option.provider === "ups").length;
   const uspsRates = options.filter((option) => option.provider === "usps").length;
+  const upsMessages = (quoted.carrierMessages || []).filter((text) => text.startsWith("UPS"));
+  const uspsMessages = (quoted.carrierMessages || []).filter((text) => text.startsWith("USPS"));
+  const anyRateLimitMessage = (quoted.carrierMessages || []).some(isShippoRateLimitMessage)
+    || Boolean(quoted.rateLimited);
+
   await recordShippingMonitorEvent("checkout_quote", {
     rates: options.length,
     upsRates,
@@ -233,9 +344,18 @@ export async function quoteLiveCarrierOptions(input: {
     test: creds.isTest,
     country: String(input.destination.country || "").slice(0, 2).toUpperCase(),
     weightLb: packed.parcel.weightLb,
+    rateLimited: anyRateLimitMessage,
   });
 
   if (!options.length) {
+    if (anyRateLimitMessage) {
+      return temporaryBusyResult({
+        options: [],
+        remaining,
+        busyCarriers: remaining,
+        reason: "rate_limit",
+      });
+    }
     const wanted = remaining.map((carrier) => carrier.toUpperCase()).join(" and ");
     return {
       options: [],
@@ -247,22 +367,27 @@ export async function quoteLiveCarrierOptions(input: {
   const missingCarriers = remaining.filter((carrier) => !options.some((option) => option.provider === carrier));
   if (missingCarriers.length) {
     const present = [...new Set(options.map((option) => option.provider.toUpperCase()))].join(", ");
-    const upsMessages = (quoted.carrierMessages || []).filter((text) => text.startsWith("UPS"));
-    const uspsMessages = (quoted.carrierMessages || []).filter((text) => text.startsWith("USPS"));
     const rateLimitedCarriers = missingCarriers.filter((carrier) => {
       const msgs = carrier === "ups" ? upsMessages : uspsMessages;
-      return msgs.some(isShippoRateLimitMessage);
+      return msgs.some(isShippoRateLimitMessage) || anyRateLimitMessage;
     });
-    const temporaryBusy = rateLimitedCarriers.length > 0;
-    if (temporaryBusy) {
-      const busy = rateLimitedCarriers.map((carrier) => carrier.toUpperCase()).join(" and ");
-      return {
+    // Silent UPS/USPS omission while sibling carriers return rates is the intermittent Shippo pattern
+    // seen in staging monitor (upsRates 0 → 7 within seconds). Treat as temporary, not permanent.
+    const silentOmitCarriers = missingCarriers.filter((carrier) => {
+      if (rateLimitedCarriers.includes(carrier)) return false;
+      const msgs = carrier === "ups" ? upsMessages : uspsMessages;
+      return msgs.length === 0;
+    });
+    const busyCarriers = [...new Set([...rateLimitedCarriers, ...silentOmitCarriers])];
+    if (busyCarriers.length) {
+      const busy = temporaryBusyResult({
         options,
-        expectedLiveCarriers: remaining,
-        temporaryBusy: true,
-        rateLimitedCarriers,
-        message: `${busy} rates are temporarily busy (carrier API limit). Your selected ${busy} rate is kept when already chosen — wait a moment before refreshing rates.`,
-      };
+        remaining,
+        busyCarriers,
+        reason: rateLimitedCarriers.length ? "rate_limit" : "silent_omit",
+      });
+      writeLiveQuoteCache(cacheKey, busy);
+      return busy;
     }
     const missing = missingCarriers.map((carrier) => carrier.toUpperCase()).join(" and ");
     const apiHint = missingCarriers.includes("ups") && upsMessages.length
@@ -270,11 +395,15 @@ export async function quoteLiveCarrierOptions(input: {
       : missingCarriers.includes("usps") && uspsMessages.length
         ? ` Shippo USPS note: ${uspsMessages[0]}`
         : "";
-    return {
+    const result = {
       options,
       expectedLiveCarriers: remaining,
       message: `${missing} did not return a rate for this destination and parcel.${apiHint} Showing available ${present} test rates only. This is a carrier/API quote result, not a disabled setting.`,
     };
+    writeLiveQuoteCache(cacheKey, result);
+    return result;
   }
-  return { options, expectedLiveCarriers: remaining };
+  const success = { options, expectedLiveCarriers: remaining };
+  writeLiveQuoteCache(cacheKey, success);
+  return success;
 }

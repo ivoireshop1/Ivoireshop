@@ -39,6 +39,8 @@ export type CheckoutDraft = {
   fulfillmentMethod: "delivery" | "local_pickup";
   deliveryOptionId: string;
   quotedShipping?: number;
+  /** Cart fingerprint used to keep pinned live quotes aligned after refresh. */
+  cartFingerprint?: string;
   updatedAt: number;
 };
 
@@ -97,6 +99,7 @@ export function readCheckoutDraft(): CheckoutDraft | null {
       quotedShipping: typeof parsed.quotedShipping === "number" && Number.isFinite(parsed.quotedShipping)
         ? parsed.quotedShipping
         : undefined,
+      cartFingerprint: typeof parsed.cartFingerprint === "string" ? parsed.cartFingerprint : undefined,
       updatedAt: parsed.updatedAt,
     };
   } catch {

@@ -1,6 +1,6 @@
 "use server";
 
-import { placeCheckoutOrder } from "@/src/lib/checkout/actions";
+import { placeCheckoutOrder, type PreResolvedCheckoutShipping } from "@/src/lib/checkout/actions";
 import { validateCheckout, type CheckoutReceipt } from "@/src/lib/checkout/checkout-validation";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { createClient } from "@/src/lib/supabase/server";
@@ -134,7 +134,16 @@ export async function prepareStripePayment(input: {
       total: quoted.quote.total,
     };
   }
-  const placed = await placeCheckoutOrder(validated.request);
+  const preResolved: PreResolvedCheckoutShipping = {
+    selected: quoted.selected,
+    shipping: quoted.quote.shipping,
+    tax: quoted.quote.tax,
+    taxLines: quoted.quotes.breakdowns[quoted.selected.id]?.taxLines,
+    taxSettings: quoted.quotes.tax,
+    subtotal: quoted.quote.subtotal,
+    breakdowns: quoted.quotes.breakdowns,
+  };
+  const placed = await placeCheckoutOrder(validated.request, { preResolved });
   if (!placed.success) return { success: false, error: placed.error };
   const admin = createAdminClient();
   if (!admin) return { success: false, error: "Payments cannot be recorded." };
