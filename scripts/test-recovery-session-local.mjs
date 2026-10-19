@@ -117,11 +117,21 @@ await test("a recovery link grants the set-password form without a stage paramet
   assert.equal(canSetRecoveryPassword({ hasSession: false, fromRecoveryLink: true }), false);
 });
 
-await test("the auth callback hands fragment recovery to the set-password stage", () => {
+await test("the auth callback hands fragment recovery to the reset request page", () => {
   const source = fs.readFileSync("app/auth/callback/route.ts", "utf8");
   const fallback = source.slice(source.indexOf("} else if (recovered) {"));
-  assert.match(fallback, /RECOVERY_SET_PASSWORD_PATH/);
+  // Fragment tokens never reach the server — avoid stage=set so a dropped hash
+  // does not hard-fail into the invalid page before the client can recover.
+  assert.match(fallback, /RECOVERY_REQUEST_PATH/);
   assert.doesNotMatch(fallback.slice(0, fallback.indexOf("} else {")), /RECOVERY_INVALID_PATH/);
+});
+
+await test("dedicated recovery callback always finishes on set-password or invalid", () => {
+  const source = fs.readFileSync("app/auth/callback/recovery/route.ts", "utf8");
+  assert.match(source, /RECOVERY_SET_PASSWORD_PATH/);
+  assert.match(source, /exchangeCodeForSession/);
+  assert.match(source, /verifyOtp/);
+  assert.doesNotMatch(source, /resolvePostLoginPath|\/login\?/);
 });
 
 await test("the reset page consumes the fragment before rendering the invalid state", () => {

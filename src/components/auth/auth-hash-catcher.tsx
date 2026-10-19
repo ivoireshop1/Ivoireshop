@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { createClient } from "@/src/lib/supabase/browser";
 import { CANONICAL_PRODUCTION_ORIGIN, isProtectedInfrastructureOrigin, isTrustedPublicSiteOrigin } from "@/src/lib/site";
 import { resolvePostLoginPath } from "@/src/lib/auth/post-login";
+import { isPasswordRecoveryPath, RECOVERY_CALLBACK_PATH } from "@/src/lib/auth/recovery";
 
 function hashParams() {
   if (typeof window === "undefined") return new URLSearchParams();
@@ -13,10 +14,21 @@ function hashParams() {
 export function AuthHashCatcher() {
   useEffect(() => {
     const search = new URLSearchParams(window.location.search);
-    if ((search.get("code") || search.get("token_hash")) && window.location.pathname !== "/auth/callback") {
+    const pathname = window.location.pathname;
+    const onCallback = pathname === "/auth/callback" || pathname === RECOVERY_CALLBACK_PATH;
+
+    if ((search.get("code") || search.get("token_hash")) && !onCallback) {
+      const params = new URLSearchParams(window.location.search);
+      // Codes that land on the reset pages (or already carry recovery next)
+      // must use the dedicated recovery callback — never a generic login handoff.
+      if (isPasswordRecoveryPath(pathname) || params.get("next") === "/reset-password" || params.get("type") === "recovery") {
+        window.location.replace(`${RECOVERY_CALLBACK_PATH}?${params.toString()}`);
+        return;
+      }
       window.location.replace(`/auth/callback${window.location.search}`);
       return;
     }
+
     const params = hashParams();
     const type = params.get("type");
     const hashError = params.get("error") || params.get("error_code");
@@ -25,7 +37,7 @@ export function AuthHashCatcher() {
       return;
     }
     if (type === "recovery") {
-      if (window.location.pathname === "/reset-password") return;
+      if (pathname === "/reset-password") return;
       window.location.replace(`/reset-password${window.location.hash}`);
       return;
     }

@@ -1,7 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { CANONICAL_PRODUCTION_ORIGIN, isTrustedPublicSiteOrigin, resolvePublicSiteUrl } from "@/src/lib/site";
 import { resolvePostLoginPath } from "@/src/lib/auth/post-login";
-import { isPasswordRecoveryPath, RECOVERY_INVALID_PATH, RECOVERY_SET_PASSWORD_PATH } from "@/src/lib/auth/recovery";
+import {
+  isPasswordRecoveryPath,
+  isRecoveryFlow,
+  RECOVERY_CALLBACK_PATH,
+  RECOVERY_INVALID_PATH,
+  RECOVERY_REQUEST_PATH,
+  RECOVERY_SET_PASSWORD_PATH,
+} from "@/src/lib/auth/recovery";
 import { sanitizeReturnPath } from "@/src/lib/navigation/smart-navigation";
 import { createRouteHandlerClient } from "@/src/lib/supabase/route-handler";
 
@@ -17,7 +24,17 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type");
   const next = sanitizeReturnPath(searchParams.get("next"), "/account");
   const authError = searchParams.get("error");
-  const recoveredHint = type === "recovery" || isPasswordRecoveryPath(next);
+  const recoveredHint = isRecoveryFlow(searchParams) || isPasswordRecoveryPath(next);
+
+  // Prefer the dedicated recovery handler whenever recovery intent is present.
+  if (recoveredHint && (code || tokenHash || type === "recovery")) {
+    const dedicated = new URL(RECOVERY_CALLBACK_PATH, request.nextUrl.origin);
+    dedicated.search = request.nextUrl.search;
+    if (process.env.VERCEL_ENV === "production") {
+      return NextResponse.redirect(new URL(`${RECOVERY_CALLBACK_PATH}${request.nextUrl.search}`, CANONICAL_PRODUCTION_ORIGIN));
+    }
+    return NextResponse.redirect(dedicated);
+  }
 
   if (authError) {
     if (recoveredHint) {
@@ -34,7 +51,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { supabase, redirect } = createRouteHandlerClient(request);
-  let recovered = type === "recovery" || isPasswordRecoveryPath(next);
+  let recovered = isRecoveryFlow(searchParams) || isPasswordRecoveryPath(next);
 
   if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({
@@ -68,11 +85,9 @@ export async function GET(request: NextRequest) {
       return redirect(sitePath(request, `/login?error=already_confirmed&next=${encodeURIComponent("/account")}`));
     }
   } else if (recovered) {
-    // Supabase delivers recovery tokens in the URL fragment when the email link
-    // was not issued through PKCE. A route handler cannot read a fragment, so
-    // hand the request to the reset page, which the browser reaches with the
-    // fragment still attached.
-    return NextResponse.redirect(sitePath(request, RECOVERY_SET_PASSWORD_PATH));
+    // Fragment tokens never reach this route handler. Do not force stage=set —
+    // that path times out to "invalid" when the hash was dropped.
+    return NextResponse.redirect(sitePath(request, RECOVERY_REQUEST_PATH));
   } else {
     return NextResponse.redirect(sitePath(request, `/auth/complete?next=${encodeURIComponent(next)}`));
   }

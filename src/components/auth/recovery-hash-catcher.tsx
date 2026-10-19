@@ -1,9 +1,16 @@
 "use client";
 
 import { useEffect } from "react";
+import { RECOVERY_CALLBACK_PATH } from "@/src/lib/auth/recovery";
 
 export function RecoveryHashCatcher() {
   useEffect(() => {
+    const search = new URLSearchParams(window.location.search);
+    if (search.get("code") || (search.get("token_hash") && (search.get("type") === "recovery" || !search.get("type")))) {
+      window.location.replace(`${RECOVERY_CALLBACK_PATH}?${search.toString()}`);
+      return;
+    }
+
     const hash = window.location.hash;
     if (!hash) return;
     const params = new URLSearchParams(hash.replace(/^#/, ""));

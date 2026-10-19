@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   CANONICAL_PRODUCTION_ORIGIN,
   getAuthCallbackUrl,
+  getPasswordRecoveryCallbackUrl,
   resolvePublicSiteUrl,
 } from "./site.ts";
 
@@ -58,4 +59,18 @@ test("preview recovery origin wins over a localhost SITE_URL env value", () => {
     ),
     preview,
   );
+});
+
+test("password recovery callback uses the dedicated recovery path on production", () => {
+  const previous = process.env.VERCEL_ENV;
+  process.env.VERCEL_ENV = "production";
+  try {
+    assert.equal(
+      getPasswordRecoveryCallbackUrl(),
+      `${CANONICAL_PRODUCTION_ORIGIN}/auth/callback/recovery`,
+    );
+  } finally {
+    if (previous === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previous;
+  }
 });

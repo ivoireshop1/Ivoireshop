@@ -106,6 +106,14 @@ export function getAuthCallbackUrl(nextPath: string) {
   return `${origin}/auth/callback?next=${encodeURIComponent(next)}`;
 }
 
+/** Password-reset emails must land on the recovery callback, never a generic post-login path. */
+export function getPasswordRecoveryCallbackUrl() {
+  const vercelEnv = process.env.VERCEL_ENV ?? "";
+  const origin =
+    vercelEnv === "production" ? CANONICAL_PRODUCTION_ORIGIN : getPublicSiteUrl();
+  return `${origin.replace(/\/$/, "")}/auth/callback/recovery`;
+}
+
 export const siteConfig = {
   name: "Ivoire Shop",
   description:

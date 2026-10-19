@@ -6,7 +6,7 @@ import { createClient } from "@/src/lib/supabase/browser";
 import { useRouter } from "next/navigation";
 import { resolveAuthRedirectTarget } from "@/src/lib/navigation/smart-navigation";
 import { resolvePostLoginPath } from "@/src/lib/auth/post-login";
-import { getAuthCallbackUrl } from "@/src/lib/site";
+import { getAuthCallbackUrl, getPasswordRecoveryCallbackUrl } from "@/src/lib/site";
 import { customerAuthPageCopy, publicAuthActionMessage, RATE_LIMIT_BODY, RATE_LIMIT_TITLE } from "@/src/lib/auth/customer-auth-messages";
 import { PENDING_SIGNUP_EMAIL_KEY, RESEND_CONFIRM_AT_KEY } from "@/src/lib/auth/mask-email";
 import { isAuthRateLimited, remainingResendMs, resendCooldownLabel } from "@/src/lib/auth/resend-cooldown";
@@ -101,7 +101,7 @@ export default function AuthForm({
     );
     if (mode === "reset") {
       await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: getAuthCallbackUrl("/reset-password"),
+        redirectTo: getPasswordRecoveryCallbackUrl(),
       });
       setIsSubmitting(false);
       setMessage("If an account exists for that email, we've sent password reset instructions.");
