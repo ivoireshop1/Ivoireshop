@@ -5,7 +5,8 @@ import { getEmailProviderStatus } from "@/src/lib/email/send";
 import { sendAdminTestEmail } from "@/src/lib/admin/email-actions";
 import { TaxSettingsForm } from "@/src/components/admin/tax-settings-form";
 import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
-import { parseTaxMode, taxModeLabel } from "@/src/lib/tax/totals";
+import { parseTaxMode, taxModeLabel, taxSettingsFromRow } from "@/src/lib/tax/totals";
+import { TAX_PAYMENT_BLOCKED_MESSAGE, taxReadyForPaidCheckout } from "@/src/lib/tax/readiness";
 import { getStripeConfig } from "@/src/lib/payments/stripe-config";
 import { formatStoreDateTime } from "@/src/lib/store/timezone";
 import { paymentStatusLabel } from "@/src/lib/orders/status";
@@ -19,7 +20,6 @@ export default async function AdminPaymentsPage({
 }) {
   const { supabase } = await requireAdmin();
   const notices = await searchParams;
-  const payment = getPaymentReadiness();
   const stripe = getStripeConfig();
   const email = getEmailProviderStatus();
   const [{ data: settings }, { data: health }, { data: recentPaid }, { data: recentPending }, { data: recentFailed }, { data: recentRefunds }, { data: recentDemo }, { count: demoOrderCount }, { data: paidForRevenue }] = await Promise.all([
@@ -33,9 +33,22 @@ export default async function AdminPaymentsPage({
     supabase.from("orders").select("id", { count: "exact", head: true }).eq("is_demo", true),
     supabase.from("orders").select("total, payment_status, refunded_amount, is_demo, payment_provider").eq("payment_status", "paid").limit(5000),
   ]);
+  const tax = taxSettingsFromRow(settings as Record<string, unknown> | null);
+  const taxGate = taxReadyForPaidCheckout(tax, { stripeMode: stripe.mode });
+  const payment = getPaymentReadiness({
+    taxBlocked: !taxGate.ok,
+    taxBlockedMessage: TAX_PAYMENT_BLOCKED_MESSAGE,
+  });
   const realRevenue = (paidForRevenue ?? []).reduce((sum, order) => sum + netPaidRevenue(order), 0);
-  const stripeModeLabel = payment.stripe.liveBlocked ? "Live locked" : payment.stripe.canCollect ? (payment.stripe.mode === "live" ? "LIVE" : "TEST") : "Not Configured";
+  const stripeModeLabel = payment.taxBlocked
+    ? "Tax lock"
+    : payment.stripe.liveBlocked
+      ? "Live locked"
+      : payment.stripe.canCollect
+        ? (payment.stripe.mode === "live" ? "LIVE" : "TEST")
+        : "Not Configured";
   const attention: string[] = [];
+  if (payment.taxBlocked) attention.push(TAX_PAYMENT_BLOCKED_MESSAGE);
   if (!payment.canRecord) attention.push("Add SUPABASE_SERVICE_ROLE_KEY in Vercel Production so Stripe webhooks can mark orders paid.");
   if (payment.stripe.missing.length) attention.push(`Stripe is waiting for: ${payment.stripe.missing.join(", ")}.`);
   if (payment.stripe.liveBlocked) attention.push("Live Stripe keys are present but live charges stay locked until founder approval.");

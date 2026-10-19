@@ -11,6 +11,7 @@ import { clientQuotedTotalMatches, quoteFromAuthoritativeParts } from "./totals"
 import { getStripeConfig } from "./stripe-config";
 import { hasPaymentAdminClient } from "./config";
 import { CUSTOMER_CARD_UNAVAILABLE } from "./customer-copy";
+import { TAX_PAYMENT_BLOCKED_MESSAGE, taxReadyForPaidCheckout } from "@/src/lib/tax/readiness";
 import { stripeClient } from "./stripe-server";
 import { usdToCents } from "./money";
 import { applyVerifiedPayment, loadOrderById } from "./record";
@@ -123,6 +124,10 @@ export async function prepareStripePayment(input: {
   const quoted = await authoritativeQuote(validated);
   if (!quoted) return { success: false, error: "Unable to quote this checkout." };
   if (!quoted.ok) return { success: false, error: quoted.message, totalsChanged: quoted.stale === true };
+  const taxGate = taxReadyForPaidCheckout(quoted.quotes.tax, { stripeMode: stripe.mode });
+  if (!taxGate.ok) {
+    return { success: false, error: TAX_PAYMENT_BLOCKED_MESSAGE };
+  }
   if (!clientQuotedTotalMatches(quoted.quote.totalCents, input.expectedTotal)) {
     return {
       success: false,

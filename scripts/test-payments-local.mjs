@@ -234,20 +234,39 @@ await test('carrier tracking validation is helpful not only 1Z', () => {
 });
 
 await test('manual carrier options require configured charges', () => {
-  const none = manual.manualCarrierOptions({ ups_enabled: true, ups_domestic_enabled: true }, 'US');
-  const ups = manual.manualCarrierOptions({ ups_enabled: true, ups_domestic_enabled: true, ups_domestic_charge: 12.5 }, 'US');
-  const intlOff = manual.manualCarrierOptions({ ups_enabled: true, ups_international_enabled: false, ups_international_charge: 40 }, 'CA');
-  assert.equal(none.length, 0);
-  assert.equal(ups[0].label, 'UPS Shipping');
-  assert.equal(ups[0].mode, 'manual');
-  assert.equal(intlOff.length, 0);
-  const hidden = manual.manualCarrierOptions({ ups_enabled: true, ups_show_at_checkout: false, ups_domestic_enabled: true, ups_domestic_charge: 12.5 }, 'US');
-  assert.equal(hidden.length, 0);
-  const live = manual.manualCarrierOptions({ ups_enabled: true, ups_rate_mode: 'live_api', ups_domestic_enabled: true, ups_domestic_charge: 12.5 }, 'US');
-  assert.equal(live.length, 0);
-  const free = manual.manualCarrierOptions({ ups_enabled: true, ups_domestic_enabled: true, ups_domestic_charge: 12.5, ups_free_shipping_threshold: 20, ups_handling_fee: 1 }, 'US', 25);
-  assert.equal(free[0].amount, 1);
-  assert.equal(manual.shippingMargin(12.5, 9.1), 3.4);
+  const previous = process.env.ALLOW_MANUAL_CARRIER_CHECKOUT_RATES;
+  process.env.ALLOW_MANUAL_CARRIER_CHECKOUT_RATES = 'true';
+  try {
+    const none = manual.manualCarrierOptions({ ups_enabled: true, ups_domestic_enabled: true }, 'US');
+    const ups = manual.manualCarrierOptions({ ups_enabled: true, ups_domestic_enabled: true, ups_domestic_charge: 12.5 }, 'US');
+    const intlOff = manual.manualCarrierOptions({ ups_enabled: true, ups_international_enabled: false, ups_international_charge: 40 }, 'CA');
+    assert.equal(none.length, 0);
+    assert.equal(ups[0].label, 'UPS Shipping');
+    assert.equal(ups[0].mode, 'manual');
+    assert.equal(intlOff.length, 0);
+    const hidden = manual.manualCarrierOptions({ ups_enabled: true, ups_show_at_checkout: false, ups_domestic_enabled: true, ups_domestic_charge: 12.5 }, 'US');
+    assert.equal(hidden.length, 0);
+    const live = manual.manualCarrierOptions({ ups_enabled: true, ups_rate_mode: 'live_api', ups_domestic_enabled: true, ups_domestic_charge: 12.5 }, 'US');
+    assert.equal(live.length, 0);
+    const free = manual.manualCarrierOptions({ ups_enabled: true, ups_domestic_enabled: true, ups_domestic_charge: 12.5, ups_free_shipping_threshold: 20, ups_handling_fee: 1 }, 'US', 25);
+    assert.equal(free[0].amount, 1);
+    assert.equal(manual.shippingMargin(12.5, 9.1), 3.4);
+  } finally {
+    if (previous == null) delete process.env.ALLOW_MANUAL_CARRIER_CHECKOUT_RATES;
+    else process.env.ALLOW_MANUAL_CARRIER_CHECKOUT_RATES = previous;
+  }
+});
+
+await test('manual carrier checkout rates are off by default', () => {
+  const previous = process.env.ALLOW_MANUAL_CARRIER_CHECKOUT_RATES;
+  delete process.env.ALLOW_MANUAL_CARRIER_CHECKOUT_RATES;
+  try {
+    const ups = manual.manualCarrierOptions({ ups_enabled: true, ups_domestic_enabled: true, ups_domestic_charge: 12.5 }, 'US');
+    assert.equal(ups.length, 0);
+  } finally {
+    if (previous == null) delete process.env.ALLOW_MANUAL_CARRIER_CHECKOUT_RATES;
+    else process.env.ALLOW_MANUAL_CARRIER_CHECKOUT_RATES = previous;
+  }
 });
 
 await test('paid confirmation email includes stored tax line', () => {

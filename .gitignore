@@ -36,6 +36,10 @@ yarn-error.log*
 .env*
 *.clip
 
+# Production logical backups and local restore artifacts (never commit)
+/backups/
+*.sql.dump
+
 # vercel
 .vercel
 
