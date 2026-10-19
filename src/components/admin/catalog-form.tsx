@@ -10,7 +10,7 @@ import {
 } from "@/src/lib/catalog/product-slug";
 import { useState, useRef, type ChangeEvent, type FormEvent } from "react";
 
-export type CategoryOption = { id: string; name: string; slug?: string; parent_id?: string | null };
+export type CategoryOption = { id: string; name: string; slug?: string; parent_id?: string | null; is_active?: boolean | null };
 
 export type ProductValues = {
   id?: string;
@@ -514,12 +514,18 @@ export function ProductForm({
                 value={subcategoryId}
               >
                 <option value="">None</option>
-                {categories.filter((cat) => cat.parent_id === categoryId).map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
+                {categories
+                  .filter((cat) => cat.parent_id === categoryId)
+                  .filter((cat) => cat.id === subcategoryId || cat.is_active !== false)
+                  .map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
               </select>
+              <span className="mt-1 block text-xs text-[#6b6b6b]">
+                Optional. Create new subcategories under Admin → Categories; refresh this page to see them.
+              </span>
             </label>
 
             <label className="block text-sm font-medium text-[#173f35]">

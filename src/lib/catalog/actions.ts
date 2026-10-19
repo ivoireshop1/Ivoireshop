@@ -55,10 +55,25 @@ function saveError(code: string): SaveProductResult {
   return { success: false, code, error: SAVE_ERRORS[code] ?? SAVE_ERRORS.product_save_failed };
 }
 
+async function siblingNameTaken(
+  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+  name: string,
+  parentId: string | null,
+  excludeId?: string,
+) {
+  let query = supabase.from("categories").select("id, name").ilike("name", name);
+  query = parentId ? query.eq("parent_id", parentId) : query.is("parent_id", null);
+  const { data } = await query;
+  return (data ?? []).some((row) => {
+    if (excludeId && row.id === excludeId) return false;
+    return row.name.trim().toLowerCase() === name.trim().toLowerCase();
+  });
+}
+
 export async function createCategory(formData: FormData) {
   const { supabase } = await requireAdmin();
   const name = textValue(formData, "name");
-  const slug = slugify(textValue(formData, "slug") || name);
+  let slug = slugify(textValue(formData, "slug") || name);
 
   if (!name || !slug) {
     redirect("/admin/categories?error=category_required");
@@ -75,10 +90,18 @@ export async function createCategory(formData: FormData) {
   }
 
   if (parentId) {
-    const { data: parent } = await supabase.from("categories").select("id, parent_id").eq("id", parentId).maybeSingle();
+    const { data: parent } = await supabase.from("categories").select("id, parent_id, slug").eq("id", parentId).maybeSingle();
     if (!parent || parent.parent_id) {
       redirect("/admin/categories?error=category_parent_invalid");
     }
+    // Prefer unique slugs under a parent without requiring the owner to invent one.
+    if (!textValue(formData, "slug")) {
+      slug = slugify(`${parent.slug}-${name}`);
+    }
+  }
+
+  if (await siblingNameTaken(supabase, name, parentId)) {
+    redirect("/admin/categories?error=category_name_duplicate");
   }
 
   const sortOrder = Number(textValue(formData, "sort_order") || "0");
@@ -99,8 +122,9 @@ export async function createCategory(formData: FormData) {
   revalidatePath("/admin/categories");
   revalidatePath("/admin/products");
   revalidatePath("/categories");
+  revalidatePath("/shop");
   revalidatePath("/");
-  redirect("/admin/categories?success=category_created");
+  redirect(parentId ? "/admin/categories?success=subcategory_created" : "/admin/categories?success=category_created");
 }
 
 export type CategorySaveState = { ok: boolean; message: string } | null;
@@ -115,7 +139,7 @@ export async function updateCategory(_prev: CategorySaveState, formData: FormDat
     return { ok: false, message: "Enter a category name." };
   }
 
-  const { data: existing } = await supabase.from("categories").select("slug, image_url, parent_id").eq("id", id).maybeSingle();
+  const { data: existing } = await supabase.from("categories").select("slug, image_url, parent_id, is_active").eq("id", id).maybeSingle();
   if (!existing?.slug) {
     return { ok: false, message: "The category could not be saved. Check the values and try again." };
   }
@@ -136,8 +160,35 @@ export async function updateCategory(_prev: CategorySaveState, formData: FormDat
     return { ok: false, message: "Choose a valid category image." };
   }
 
-  const keepActive = isCanonicalSlug(existing.slug) || formData.get("is_active") === "on";
-  const parentId = isCanonicalSlug(existing.slug) ? null : textValue(formData, "parent_id") || existing.parent_id || null;
+  // Explicit empty parent_id promotes a subcategory to top-level. Missing field keeps the previous parent.
+  const parentField = formData.get("parent_id");
+  let parentId: string | null = existing.parent_id ?? null;
+  if (isCanonicalSlug(existing.slug)) {
+    parentId = null;
+  } else if (parentField !== null) {
+    parentId = String(parentField).trim() || null;
+  }
+
+  if (parentId) {
+    const { data: parent } = await supabase.from("categories").select("id, parent_id").eq("id", parentId).maybeSingle();
+    if (!parent || parent.parent_id || parent.id === id) {
+      return { ok: false, message: "Choose a valid top-level parent category." };
+    }
+    const { data: children } = await supabase.from("categories").select("id").eq("parent_id", id).limit(1);
+    if (children?.length) {
+      return { ok: false, message: "Move or remove subcategories before nesting this category." };
+    }
+  }
+
+  if (await siblingNameTaken(supabase, name, parentId, id)) {
+    return { ok: false, message: "A category with that name already exists at this level." };
+  }
+
+  const keepActive = isCanonicalSlug(existing.slug)
+    ? true
+    : formData.has("is_active")
+      ? formData.get("is_active") === "on"
+      : Boolean(existing.is_active);
   const sortOrder = Number(textValue(formData, "sort_order") || "0");
   const { error } = await supabase
     .from("categories")
@@ -153,7 +204,21 @@ export async function updateCategory(_prev: CategorySaveState, formData: FormDat
     .eq("id", id);
 
   if (error) {
-    return { ok: false, message: error.code === "23505" ? "A category with that slug already exists." : "The category could not be saved. Check the values and try again." };
+    const message = error.message?.includes("Subcategories cannot have children")
+      || error.message?.includes("must stay top-level")
+      || error.message?.includes("its own parent")
+      ? "That parent change is not allowed."
+      : error.code === "23505"
+        ? "A category with that slug already exists."
+        : "The category could not be saved. Check the values and try again.";
+    return { ok: false, message };
+  }
+
+  // Keep product parent/subcategory assignments consistent after reparent or promotion.
+  if (parentId && parentId !== existing.parent_id) {
+    await supabase.from("products").update({ category_id: parentId }).eq("subcategory_id", id);
+  } else if (!parentId && existing.parent_id) {
+    await supabase.from("products").update({ category_id: id, subcategory_id: null }).eq("subcategory_id", id);
   }
 
   const previousPath = existing.image_url ? productImagesObjectPath(existing.image_url) : null;

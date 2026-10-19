@@ -20,3 +20,7 @@ test("shop defaults to all products and can filter by subcategory", () => {
   assert.equal(shopMatchesCategory({ selected: "foods", categorySlug: "foods", subcategorySlug: "sauces" }), true);
   assert.equal(shopMatchesCategory({ selected: "cosmetics", categorySlug: "foods", subcategorySlug: "sauces" }), false);
 });
+
+test("empty subcategory lists stay empty without inventing children", () => {
+  assert.deepEqual(childrenOf("3", categories).map((row) => row.slug), []);
+});
