@@ -14,7 +14,7 @@ export default async function CheckoutRoute() {
   const [{ data: store }, storeOpen, payments] = await Promise.all([
     supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle(),
     isStoreOpen(),
-    Promise.resolve(getPublicPaymentConfig()),
+    getPublicPaymentConfig(),
   ]);
   const origin = originFromSettings(store);
   const pickupOrigin = originIsComplete(origin) ? origin : null;

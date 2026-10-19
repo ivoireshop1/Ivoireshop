@@ -132,11 +132,18 @@ await test('UPS appears from persisted settings without hiding USPS when show_at
     usps_domestic_charge: 19.33,
     usps_rate_mode: 'store_rate',
   };
-  const options = delivery.manualCarrierOptions(settings, 'US', 20);
-  assert.equal(options.some((option) => option.provider === 'ups' && option.amount === 14.66), true);
-  assert.equal(options.some((option) => option.provider === 'usps'), false);
-  const hidden = delivery.manualCarrierOptions({ ...settings, ups_show_at_checkout: false }, 'US', 20);
-  assert.equal(hidden.some((option) => option.provider === 'ups'), false);
+  const previous = process.env.ALLOW_MANUAL_CARRIER_CHECKOUT_RATES;
+  process.env.ALLOW_MANUAL_CARRIER_CHECKOUT_RATES = 'true';
+  try {
+    const options = delivery.manualCarrierOptions(settings, 'US', 20);
+    assert.equal(options.some((option) => option.provider === 'ups' && option.amount === 14.66), true);
+    assert.equal(options.some((option) => option.provider === 'usps'), false);
+    const hidden = delivery.manualCarrierOptions({ ...settings, ups_show_at_checkout: false }, 'US', 20);
+    assert.equal(hidden.some((option) => option.provider === 'ups'), false);
+  } finally {
+    if (previous == null) delete process.env.ALLOW_MANUAL_CARRIER_CHECKOUT_RATES;
+    else process.env.ALLOW_MANUAL_CARRIER_CHECKOUT_RATES = previous;
+  }
 });
 
 console.log(`${count} tests passed`);

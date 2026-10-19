@@ -62,11 +62,21 @@ export function shippingMargin(collected: unknown, postage: unknown) {
   return Number((charge - cost).toFixed(2));
 }
 
+/**
+ * UPS/USPS checkout prices must come from live carrier quotes (Shippo), not
+ * admin-entered store/manual rates. Opt in only for isolated legacy tests via
+ * ALLOW_MANUAL_CARRIER_CHECKOUT_RATES=true.
+ */
+export function manualCarrierCheckoutRatesAllowed(env: NodeJS.ProcessEnv = process.env) {
+  return (env.ALLOW_MANUAL_CARRIER_CHECKOUT_RATES ?? "").trim().toLowerCase() === "true";
+}
+
 export function manualCarrierOptions(
   settings: Record<string, unknown> | null | undefined,
   destinationCountry?: string | null,
   subtotal = 0,
 ): DeliveryOption[] {
+  if (!manualCarrierCheckoutRatesAllowed()) return [];
   if (!destinationCountry?.trim()) return [];
   const international = !isDomesticCountry(destinationCountry);
   const options: DeliveryOption[] = [];

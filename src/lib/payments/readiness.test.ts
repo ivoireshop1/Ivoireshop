@@ -11,6 +11,16 @@ test("customer payment copy never includes environment or secret names", () => {
   assert.equal(testMode.stripeReady, true);
   assert.equal(testMode.stripeTestMode, true);
   assert.match(testMode.paymentUnavailableMessage, /TEST MODE/);
-  const blob = `${JSON.stringify(unavailable)}${JSON.stringify(testMode)}${customerPaymentMessage({ stripeReady: false, testMode: false, liveBlocked: true })}`;
+  const taxBlocked = toPublicPaymentConfig({
+    ready: true,
+    mode: "test",
+    liveBlocked: false,
+    taxBlocked: true,
+    taxBlockedMessage: "Online payment is unavailable until sales tax is configured.",
+  });
+  assert.equal(taxBlocked.stripeReady, false);
+  assert.equal(taxBlocked.taxBlocked, true);
+  assert.match(taxBlocked.paymentUnavailableMessage, /sales tax/i);
+  const blob = `${JSON.stringify(unavailable)}${JSON.stringify(testMode)}${JSON.stringify(taxBlocked)}${customerPaymentMessage({ stripeReady: false, testMode: false, liveBlocked: true })}`;
   assert.equal(/STRIPE_|SUPABASE_|WEBHOOK_SECRET|SERVICE_ROLE|NEXT_PUBLIC_/.test(blob), false);
 });
