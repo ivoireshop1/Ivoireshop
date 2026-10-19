@@ -38,7 +38,14 @@ export function AuthHashCatcher() {
       return;
     }
     const origin = window.location.origin;
-    if (isProtectedInfrastructureOrigin(origin) && !isTrustedPublicSiteOrigin(origin)) {
+    // Preview deployments share staging Supabase — keep hash tokens on this host.
+    // Only bounce stray Production aliases to the founder storefront.
+    const onPreviewHost = /\.vercel\.app$/i.test(new URL(origin).host) && !isTrustedPublicSiteOrigin(origin);
+    if (
+      isProtectedInfrastructureOrigin(origin) &&
+      !isTrustedPublicSiteOrigin(origin) &&
+      !onPreviewHost
+    ) {
       window.location.replace(`${CANONICAL_PRODUCTION_ORIGIN}/auth/complete${window.location.search}${window.location.hash}`);
       return;
     }

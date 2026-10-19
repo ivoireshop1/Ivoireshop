@@ -87,6 +87,38 @@ test("missing weight can block quoting", () => {
   assert.equal(quote?.amount, 0);
 });
 
+test("weight-based packages never invent default shipping weight", () => {
+  const blocked = estimateIvoireShipping({
+    config: {
+      ...DEFAULT_IVOIRE_SHIPPING_CONFIG,
+      missing_info_policy: "fallback",
+      package_defaults: { weight_lb: 1, length_in: 10, width_in: 8, height_in: 6 },
+    },
+    packages: [{ quantity: 1, forbidPackageDefaults: true, ship_length_in: 12, ship_width_in: 8, ship_height_in: 6 }],
+    destinationCountry: "US",
+    destinationPostalCode: "30093",
+  });
+  assert.equal(blocked?.blocked, true);
+  assert.match(blocked?.blockReason ?? "", /weight-based/i);
+
+  const ok = estimateIvoireShipping({
+    config: DEFAULT_IVOIRE_SHIPPING_CONFIG,
+    packages: [{
+      quantity: 1,
+      ship_weight_lb: 3.1,
+      ship_length_in: 12,
+      ship_width_in: 8,
+      ship_height_in: 6,
+      forbidPackageDefaults: true,
+    }],
+    destinationCountry: "US",
+    destinationPostalCode: "30093",
+  });
+  assert.equal(ok?.usedDefaults, false);
+  assert.ok((ok?.billableWeightLb ?? 0) >= 3.1);
+  assert.ok((ok?.amount ?? 0) > 0);
+});
+
 test("invalid ZIP blocks domestic Ivoire shipping by default", () => {
   assert.equal(parseUsZip("abc").ok, false);
   const quote = estimateIvoireShipping({

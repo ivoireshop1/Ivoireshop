@@ -6,6 +6,7 @@
   address: { address_line_1?: string; address_line_2?: string; city?: string; state?: string; postal_code?: string; country?: string };
   fulfillmentMethod: "delivery" | "local_pickup";
   deliveryOptionId?: string;
+  quotedShipping?: number;
   idempotencyKey: string;
 };
 export type CheckoutReceipt = {
@@ -48,7 +49,13 @@ export function validateCheckout(input: unknown): { request: CheckoutRequest; er
   }
   const fulfillmentMethod = value.fulfillmentMethod;
   if (fulfillmentMethod !== "delivery" && fulfillmentMethod !== "local_pickup") return { error: "Choose delivery or pickup." };
-  const deliveryOptionId = typeof value.deliveryOptionId === "string" && value.deliveryOptionId.length <= 80 ? value.deliveryOptionId.trim() : "";
+  const deliveryOptionId = typeof value.deliveryOptionId === "string" && value.deliveryOptionId.length <= 180 ? value.deliveryOptionId.trim() : "";
+  const quotedShippingRaw = value.quotedShipping;
+  const quotedShipping = typeof quotedShippingRaw === "number" && Number.isFinite(quotedShippingRaw)
+    ? quotedShippingRaw
+    : typeof quotedShippingRaw === "string" && quotedShippingRaw.trim()
+      ? Number(quotedShippingRaw)
+      : undefined;
   const rawAddress = value.address && typeof value.address === "object" ? value.address as Record<string, unknown> : {};
   const address: CheckoutRequest["address"] = {};
   for (const key of ["address_line_1", "address_line_2", "city", "state", "postal_code", "country"] as const) {
@@ -61,19 +68,44 @@ export function validateCheckout(input: unknown): { request: CheckoutRequest; er
   if (!Array.isArray(value.items) || value.items.length === 0 || value.items.length > 100) return { error: "Your cart must contain between 1 and 100 products." };
   const quantities = new Map<string, number>();
   for (const item of value.items) {
-    if (!item || typeof item.product_id !== "string" || !uuid.test(item.product_id) || !Number.isSafeInteger(item.quantity) || item.quantity < 1 || item.quantity > 2147483647) return { error: "Your cart contains an invalid item or quantity. Please review it." };
-    const quantity = (quantities.get(item.product_id) ?? 0) + item.quantity;
+    if (!item || typeof item !== "object") return { error: "Your cart contains an invalid item or quantity. Please review it." };
+    const row = item as { product_id?: unknown; quantity?: unknown };
+    const quantityRaw = typeof row.quantity === "number" ? row.quantity : Number(row.quantity);
+    const quantityRounded = Math.round(quantityRaw * 1000) / 1000;
+    if (
+      typeof row.product_id !== "string"
+      || !uuid.test(row.product_id)
+      || !Number.isFinite(quantityRounded)
+      || quantityRounded <= 0
+      || quantityRounded > 2147483647
+      || Math.abs(quantityRounded - quantityRaw) > 0.0005
+    ) {
+      return { error: "Your cart contains an invalid item or quantity. Please review it." };
+    }
+    const quantity = Math.round(((quantities.get(row.product_id) ?? 0) + quantityRounded) * 1000) / 1000;
     if (quantity > 2147483647) return { error: "The requested quantity is too large." };
-    quantities.set(item.product_id, quantity);
+    quantities.set(row.product_id, quantity);
   }
-  return { request: { customerName, customerEmail, customerPhone, address, fulfillmentMethod, deliveryOptionId: deliveryOptionId || undefined, idempotencyKey: text("idempotencyKey", 36), items: [...quantities].sort(([a], [b]) => a.localeCompare(b)).map(([product_id, quantity]) => ({ product_id, quantity })) } };
+  return { request: { customerName, customerEmail, customerPhone, address, fulfillmentMethod, deliveryOptionId: deliveryOptionId || undefined, quotedShipping: quotedShipping != null && Number.isFinite(quotedShipping) ? Number(quotedShipping) : undefined, idempotencyKey: text("idempotencyKey", 36), items: [...quantities].sort(([a], [b]) => a.localeCompare(b)).map(([product_id, quantity]) => ({ product_id, quantity })) } };
+}
+
+export function logCheckoutFailure(stage: string, error?: { code?: string; message?: string } | unknown) {
+  const record = error && typeof error === "object" ? (error as { code?: string; message?: string }) : {};
+  const code = String(record.code ?? (error instanceof Error ? error.name : "")).slice(0, 32);
+  const raw = String(record.message ?? (error instanceof Error ? error.message : "")).slice(0, 240);
+  const message = raw
+    .replace(/Bearer\s+\S+/gi, "[redacted]")
+    .replace(/Basic\s+\S+/gi, "[redacted]")
+    .replace(/sk_(?:live|test)_[A-Za-z0-9]+/g, "[redacted]")
+    .replace(/whsec_[A-Za-z0-9]+/g, "[redacted]");
+  console.error("[checkout]", { stage, code, message });
 }
 
 export function checkoutFailure(code?: string, message?: string): CheckoutResponse {
   if (code === "P0001" && message === "This checkout belongs to a different session.") {
     return { success: false, error: "This pending order was started with a different sign-in state. Return to that account (or sign out if you checked out as a guest), then retry it.", retrySame: true };
   }
-  const known = ["Your cart is empty.", "A valid name and email are required.", "A valid phone number is required.", "A shipping address is required.", "Your cart contains an invalid item.", "A product in your cart is no longer available.", "Some items are no longer available in the requested quantity.", "Ordering is temporarily unavailable. Please check back soon.", "Demo payment is turned off.", "This checkout was started with a different payment method."];
+  const known = ["Your cart is empty.", "A valid name and email are required.", "A valid phone number is required.", "A shipping address is required.", "Your cart contains an invalid item.", "A product in your cart is no longer available.", "Some items are no longer available in the requested quantity.", "Some items are outside the allowed quantity.", "Some items use an invalid quantity step.", "Ordering is temporarily unavailable. Please check back soon.", "Demo payment is turned off.", "This checkout was started with a different payment method."];
   if (code === "P0001" && message && known.includes(message)) return { success: false, error: message, retrySame: false };
   return { success: false, error: "We could not confirm your order. Your cart is safe. Retry this order to check its status without creating a duplicate.", retrySame: true };
 }

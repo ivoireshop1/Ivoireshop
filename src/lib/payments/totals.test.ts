@@ -24,6 +24,17 @@ test("authoritative totals ignore client-supplied prices", () => {
   assert.equal(clientQuotedTotalMatches(quote.totalCents, quote.total), true);
 });
 
+test("weight quantities produce integer Stripe cents", () => {
+  const quote = quoteFromAuthoritativeParts({
+    unitPrices: [{ price: 2.49, quantity: 2.5 }],
+    shippingAmount: 0,
+    tax: { tax_mode: "not_configured", tax_rate_percent: null, tax_applies_to_shipping: false, tax_name: "Tax" },
+  });
+  assert.equal(quote.subtotalCents, 623);
+  assert.equal(Number.isInteger(quote.totalCents), true);
+  assert.equal(quote.total, 6.23);
+});
+
 test("shipping and tax tampering cannot change server quote", () => {
   const server = quoteFromAuthoritativeParts({
     unitPrices: [{ price: 10, quantity: 1 }],

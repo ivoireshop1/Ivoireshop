@@ -2,10 +2,10 @@ function isLocalHost(value: string) {
   return /localhost|127\.0\.0\.1/i.test(value);
 }
 
-/** Public customer storefront. Never a Vercel deployment or team alias hostname. */
-export const CANONICAL_PRODUCTION_ORIGIN = "https://ivoire-shop-five.vercel.app";
+/** Founder public storefront on the ivoireshop Vercel project. Never Ibrahim's ivoire-shop-five. */
+export const CANONICAL_PRODUCTION_ORIGIN = "https://ivoireshop-steel.vercel.app";
 
-const TRUSTED_PRODUCTION_HOSTS = new Set(["ivoire-shop-five.vercel.app"]);
+const TRUSTED_PRODUCTION_HOSTS = new Set(["ivoireshop-steel.vercel.app"]);
 
 function parseHttpUrl(value: string) {
   try {
@@ -37,6 +37,15 @@ function normalizeOrigin(value: string) {
   return value.trim().replace(/\/$/, "");
 }
 
+function vercelPreviewOrigin(env: NodeJS.ProcessEnv, browserOrigin?: string) {
+  const origin = normalizeOrigin(browserOrigin ?? "");
+  if (origin && parseHttpUrl(origin)?.host.endsWith(".vercel.app")) return origin;
+  const vercelUrl = normalizeOrigin(env.VERCEL_URL ?? "");
+  if (!vercelUrl) return "";
+  const host = vercelUrl.replace(/^https?:\/\//i, "");
+  return host ? `https://${host}` : "";
+}
+
 function trustedOrigin(value: string | undefined) {
   const trimmed = normalizeOrigin(value ?? "");
   if (!trimmed || isProtectedInfrastructureOrigin(trimmed)) return "";
@@ -54,14 +63,28 @@ export function resolvePublicSiteUrl(
   const envUrl = normalizeOrigin(env.NEXT_PUBLIC_SITE_URL ?? "");
   const origin = normalizeOrigin(browserOrigin ?? "");
   const vercelEnv = env.VERCEL_ENV ?? "";
-  const onVercel = vercelEnv === "production" || vercelEnv === "preview";
+
+  if (vercelEnv === "production") {
+    return CANONICAL_PRODUCTION_ORIGIN;
+  }
+
+  // Preview + staging Supabase must keep their own deployment origin. Sending
+  // customers to Production would exchange auth codes against the wrong project.
+  // Client bundles often lack VERCEL_ENV, so also accept a *.vercel.app browser origin
+  // when we are not in the production environment.
+  if (
+    vercelEnv === "preview" ||
+    (vercelEnv !== "production" &&
+      origin &&
+      parseHttpUrl(origin)?.host.endsWith(".vercel.app") &&
+      !isTrustedPublicSiteOrigin(origin))
+  ) {
+    const preview = vercelPreviewOrigin(env, browserOrigin);
+    if (preview) return preview;
+  }
 
   const trusted = trustedOrigin(origin) || trustedOrigin(envUrl);
   if (trusted) return trusted;
-
-  if (onVercel) {
-    return CANONICAL_PRODUCTION_ORIGIN;
-  }
 
   if (origin && isLocalHost(origin)) return origin;
   if (envUrl && isLocalHost(envUrl)) return envUrl;
@@ -75,13 +98,11 @@ export function getPublicSiteUrl() {
 
 export function getAuthCallbackUrl(nextPath: string) {
   const next = nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/account";
-  // Confirmation emails must never target a protected Vercel deployment URL.
-  // Preview and production both send customers to the public storefront.
   const vercelEnv = process.env.VERCEL_ENV ?? "";
+  // Production confirmations use the founder storefront only.
+  // Preview / local confirmations stay on the host that owns the Supabase project.
   const origin =
-    vercelEnv === "production" || vercelEnv === "preview"
-      ? CANONICAL_PRODUCTION_ORIGIN
-      : getPublicSiteUrl();
+    vercelEnv === "production" ? CANONICAL_PRODUCTION_ORIGIN : getPublicSiteUrl();
   return `${origin}/auth/callback?next=${encodeURIComponent(next)}`;
 }
 

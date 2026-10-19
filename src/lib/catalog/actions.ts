@@ -11,6 +11,7 @@ import { uniqueProductSlug } from "@/src/lib/catalog/product-slug";
 import { nextOrderStatuses } from "@/src/lib/orders/status";
 import { notifyFulfillmentEmail } from "@/src/lib/communications/fulfillment-email";
 import { recordFulfillmentNotification } from "@/src/lib/notifications/record";
+import { logCheckoutFailure } from "@/src/lib/checkout/checkout-validation";
 import { parsePositive } from "@/src/lib/delivery/package";
 
 function textValue(formData: FormData, key: string) {
@@ -169,6 +170,46 @@ export async function updateCategory(_prev: CategorySaveState, formData: FormDat
   return { ok: true, message: "Category updated ✓" };
 }
 
+export async function mergeOrReassignCategory(formData: FormData) {
+  const { supabase } = await requireAdmin();
+  const fromId = textValue(formData, "from_id");
+  const toId = textValue(formData, "to_id");
+  const merge = formData.get("merge") === "on";
+  if (!fromId || !toId || fromId === toId) {
+    redirect("/admin/categories?error=category_reassign_invalid");
+  }
+  const { data: rows } = await supabase.from("categories").select("id, slug, parent_id, name").in("id", [fromId, toId]);
+  const from = rows?.find((row) => row.id === fromId);
+  const to = rows?.find((row) => row.id === toId);
+  if (!from || !to) redirect("/admin/categories?error=category_reassign_invalid");
+  if (isCanonicalSlug(from.slug) && merge) {
+    redirect("/admin/categories?error=canonical_locked");
+  }
+
+  if (from.parent_id && !to.parent_id) {
+    await supabase.from("products").update({ subcategory_id: null, category_id: to.id }).eq("subcategory_id", from.id);
+  } else if (!from.parent_id && to.parent_id) {
+    await supabase.from("products").update({ category_id: to.parent_id, subcategory_id: to.id }).eq("category_id", from.id);
+    await supabase.from("products").update({ category_id: to.parent_id, subcategory_id: to.id }).eq("subcategory_id", from.id);
+  } else if (from.parent_id && to.parent_id) {
+    await supabase.from("products").update({ subcategory_id: to.id, category_id: to.parent_id }).eq("subcategory_id", from.id);
+  } else {
+    await supabase.from("products").update({ category_id: to.id }).eq("category_id", from.id);
+    await supabase.from("categories").update({ parent_id: to.id }).eq("parent_id", from.id);
+  }
+
+  if (merge && !isCanonicalSlug(from.slug)) {
+    await supabase.from("categories").update({ is_active: false }).eq("id", from.id);
+  }
+
+  revalidatePath("/admin/categories");
+  revalidatePath("/admin/products");
+  revalidatePath("/shop");
+  revalidatePath("/categories");
+  revalidatePath("/");
+  redirect("/admin/categories?success=category_reassigned");
+}
+
 export async function deleteCategory(formData: FormData) {
   const { supabase } = await requireAdmin();
   const id = textValue(formData, "id");
@@ -258,13 +299,31 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
   const isComingSoon = formData.get("is_coming_soon") === "on";
   const isDraft = formData.get("save_as_draft") === "true" || formData.get("save_as_inactive") === "true";
 
+  const sellingMethodRaw = textValue(formData, "selling_method") || "each";
+  const sellingMethod = sellingMethodRaw === "weight" || sellingMethodRaw === "fixed_package" ? sellingMethodRaw : "each";
+  const sellingUnitRaw = textValue(formData, "selling_unit") || (sellingMethod === "weight" ? "lb" : "each");
+  const sellingUnit = ["each", "lb", "kg", "oz", "bag", "pack"].includes(sellingUnitRaw) ? sellingUnitRaw : "each";
+  const unitIncrementValue = positiveNumber(textValue(formData, "unit_increment"))
+    ?? (sellingMethod === "weight" ? 0.5 : 1);
+  const minSellQtyValue = positiveNumber(textValue(formData, "min_sell_qty"))
+    ?? (sellingMethod === "weight" ? unitIncrementValue : 1);
+  const maxSellRaw = textValue(formData, "max_sell_qty");
+  const maxSellQtyValue = maxSellRaw ? positiveNumber(maxSellRaw) : null;
+  const packageWeightValue = textValue(formData, "package_weight_lb")
+    ? positiveNumber(textValue(formData, "package_weight_lb"))
+    : null;
+  const allowFractionalStock = sellingMethod === "weight";
+
   if (
     !name ||
     !slug ||
     !categoryId ||
     (priceInput && price === null) ||
-    (trackInventory && stockQuantityInput && (stockQuantityValue === null || !Number.isInteger(stockQuantityValue))) ||
-    (textValue(formData, "compare_at_price") && compareAtPriceValue === null)
+    (trackInventory && stockQuantityInput && (stockQuantityValue === null || (!allowFractionalStock && !Number.isInteger(stockQuantityValue)))) ||
+    (textValue(formData, "compare_at_price") && compareAtPriceValue === null) ||
+    unitIncrementValue <= 0 ||
+    minSellQtyValue <= 0 ||
+    (maxSellQtyValue != null && maxSellQtyValue < minSellQtyValue)
   ) {
     return saveError("product_required");
   }
@@ -321,7 +380,7 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
   if (wantsActive) {
     if (!categoryId) return saveError("missing_category");
     if (price === null || price <= 0) return saveError("missing_price");
-    if (trackInventory && (stockQuantityValue === null || stockQuantityValue < 0 || !Number.isInteger(stockQuantityValue))) {
+    if (trackInventory && (stockQuantityValue === null || stockQuantityValue < 0 || (!allowFractionalStock && !Number.isInteger(stockQuantityValue)))) {
       return saveError("missing_stock");
     }
     if (imageUrls.length === 0) return saveError("missing_image");
@@ -373,6 +432,12 @@ export async function saveProduct(formData: FormData): Promise<SaveProductResult
     ship_length_in: parsePositive(textValue(formData, "ship_length_in")),
     ship_width_in: parsePositive(textValue(formData, "ship_width_in")),
     ship_height_in: parsePositive(textValue(formData, "ship_height_in")),
+    selling_method: sellingMethod,
+    selling_unit: sellingMethod === "each" ? "each" : sellingUnit === "each" && sellingMethod === "weight" ? "lb" : sellingUnit,
+    unit_increment: unitIncrementValue,
+    min_sell_qty: minSellQtyValue,
+    max_sell_qty: maxSellQtyValue,
+    package_weight_lb: packageWeightValue,
   };
 
   const query = id
@@ -581,7 +646,10 @@ export async function updateOrderStatus(_prev: OrderStatusActionState | null, fo
   }
   const { data: changed, error } = await supabase.from("orders").update({ status })
     .eq("id", id).eq("status", current.status).select("id").maybeSingle();
-  if (error || !changed) return { error: "Status could not be updated. Try again." };
+  if (error || !changed) {
+    logCheckoutFailure("update_order_status", error ?? { code: "empty", message: "UPDATE returned no order row." });
+    return { error: "Status could not be updated. Try again." };
+  }
   const afterDb = Date.now();
   await recordFulfillmentNotification(supabase, id, status, false, current.fulfillment_provider);
   const afterNotify = Date.now();

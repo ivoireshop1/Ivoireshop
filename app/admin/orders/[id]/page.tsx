@@ -23,7 +23,7 @@ export default async function OrderDetailPage({ params, searchParams }: { params
   const { supabase } = await requireAdmin();
   const [{ data: order, error }, { data: items, error: itemsError }, { data: customerNotes }, { data: events }, { data: picks }, { data: internalNotes }] = await Promise.all([
     supabase.from("orders").select("*").eq("id", id).maybeSingle(),
-    supabase.from("order_items").select("id, product_id, product_name, product_price, quantity, image_url, products(product_images(image_url, position))").eq("order_id", id),
+    supabase.from("order_items").select("id, product_id, product_name, product_price, quantity, image_url, selling_unit, selling_method, products(product_images(image_url, position))").eq("order_id", id),
     supabase.from("customer_notifications").select("event_type, title, email_sent, created_at").eq("order_id", id).order("created_at", { ascending: true }),
     supabase.from("order_status_events").select("status, created_at").eq("order_id", id).order("created_at", { ascending: true }),
     supabase.from("order_item_picks").select("order_item_id").eq("order_id", id),
@@ -94,6 +94,8 @@ export default async function OrderDetailPage({ params, searchParams }: { params
           image_url: item.image_url,
           catalog_image_url: catalogImageFromProduct(item.products),
           picked: picked.has(item.id),
+          selling_unit: item.selling_unit,
+          selling_method: item.selling_method,
         }))}
         orderId={order.id}
       />

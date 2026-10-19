@@ -6,7 +6,7 @@ export async function proxy(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
   const requestOrigin = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
   if (
-    (process.env.VERCEL_ENV === "production" || process.env.VERCEL_ENV === "preview") &&
+    process.env.VERCEL_ENV === "production" &&
     isProtectedInfrastructureOrigin(requestOrigin) &&
     !isTrustedPublicSiteOrigin(requestOrigin)
   ) {
@@ -26,6 +26,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|audio/|sounds/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|wav|mp3|m4a|ogg)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|audio/|sounds/|api/payments/stripe/webhook|.*\\.(?:svg|png|jpg|jpeg|gif|webp|wav|mp3|m4a|ogg)$).*)",
   ],
 };

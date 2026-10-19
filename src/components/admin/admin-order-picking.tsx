@@ -17,7 +17,17 @@ export type PickingLine = {
   image_url?: string | null;
   catalog_image_url?: string | null;
   picked: boolean;
+  selling_unit?: string | null;
+  selling_method?: string | null;
 };
+
+function formatPickingQty(item: PickingLine) {
+  const qty = Number(item.quantity);
+  const unit = (item.selling_unit || (item.selling_method === "weight" ? "lb" : "")).trim();
+  const text = Number.isInteger(qty) ? String(qty) : String(Math.round(qty * 1000) / 1000);
+  if (!unit || unit === "each") return text;
+  return `${text} ${unit}`;
+}
 
 export function AdminOrderPicking({ orderId, items }: { orderId: string; items: PickingLine[] }) {
   const live = useLiveNotifications();
@@ -73,7 +83,7 @@ export function AdminOrderPicking({ orderId, items }: { orderId: string; items: 
           const src = orderLineImage(item);
           const parts = splitProductLabel(item.product_name);
           const unit = Number(item.product_price);
-          const line = unit * Number(item.quantity);
+          const line = Math.round((unit * Number(item.quantity) + Number.EPSILON) * 100) / 100;
           return (
             <li className="flex min-w-0 items-start gap-3 rounded-2xl border border-[#173f35]/10 p-3" key={item.id}>
               <button
@@ -91,8 +101,11 @@ export function AdminOrderPicking({ orderId, items }: { orderId: string; items: 
               <div className="min-w-0 flex-1">
                 <p className="break-words font-semibold text-[#173f35]">{parts.title}</p>
                 {parts.variant ? <p className="mt-0.5 text-sm text-[#6b6b6b]">{parts.variant}</p> : null}
-                <p className="mt-1 text-sm text-[#173f35]">Quantity: {item.quantity}</p>
-                <p className="text-sm text-[#6b6b6b]">${unit.toFixed(2)} each</p>
+                <p className="mt-1 text-sm text-[#173f35]">Quantity: {formatPickingQty(item)}</p>
+                <p className="text-sm text-[#6b6b6b]">
+                  ${unit.toFixed(2)}
+                  {item.selling_unit && item.selling_unit !== "each" ? ` / ${item.selling_unit}` : " each"}
+                </p>
                 <p className="mt-1 font-semibold tabular-nums text-[#173f35]">${line.toFixed(2)}</p>
                 <button
                   aria-pressed={item.picked}
@@ -101,7 +114,7 @@ export function AdminOrderPicking({ orderId, items }: { orderId: string; items: 
                   onClick={() => toggle(item)}
                   type="button"
                 >
-                  {item.picked ? "☑ Picked" : `☐ ${parts.title} ×${item.quantity}`}
+                  {item.picked ? "☑ Picked" : `☐ ${formatPickingQty(item)} ${parts.title}`}
                 </button>
               </div>
             </li>

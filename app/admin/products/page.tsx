@@ -71,7 +71,8 @@ export default async function AdminProductsPage({
       (inventoryFilter === "needs_stock" && product.track_inventory !== false && product.stock_quantity === null) ||
       (inventoryFilter === "untracked" && product.track_inventory === false) ||
       (inventoryFilter === "in_stock" && product.track_inventory !== false && Number(product.stock_quantity) > 0) ||
-      (inventoryFilter === "out_of_stock" && product.track_inventory !== false && Number(product.stock_quantity) === 0);
+      (inventoryFilter === "out_of_stock" && product.track_inventory !== false && Number(product.stock_quantity) === 0) ||
+      (inventoryFilter === "needs_shipping" && !(product.ship_weight_lb && product.ship_length_in && product.ship_width_in && product.ship_height_in));
     const featuredMatches =
       featuredFilter === "all" ||
       (featuredFilter === "featured" && product.is_featured) ||
@@ -172,6 +173,7 @@ export default async function AdminProductsPage({
         <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products?review=missing_image">Missing image</Link>
         <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products?review=inventory">Inventory issue</Link>
         <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products?review=coming_soon">Coming Soon</Link>
+        <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products?inventory=needs_shipping">Missing package data</Link>
         <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/products">All products</Link>
       </p>
 
@@ -230,6 +232,7 @@ export default async function AdminProductsPage({
               <option value="untracked">Not tracked</option>
               <option value="in_stock">In Stock</option>
               <option value="out_of_stock">Out of Stock</option>
+              <option value="needs_shipping">Missing package data</option>
             </select>
           </label>
 

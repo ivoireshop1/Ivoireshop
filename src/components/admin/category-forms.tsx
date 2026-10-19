@@ -14,6 +14,66 @@ function SubmitButton({ label, pendingLabel, className }: { label: string; pendi
   );
 }
 
+export function CategoryReassignForm({
+  action,
+  categories,
+}: {
+  action: (formData: FormData) => void | Promise<void>;
+  categories: Array<{ id: string; name: string; parent_id?: string | null }>;
+}) {
+  return (
+    <form
+      action={action}
+      className="space-y-4 rounded-[28px] border border-[#173f35]/10 bg-white p-6"
+      onSubmit={(event) => {
+        const data = new FormData(event.currentTarget);
+        const merge = data.get("merge") === "on";
+        const fromName = categories.find((row) => row.id === String(data.get("from_id")))?.name ?? "this category";
+        const toName = categories.find((row) => row.id === String(data.get("to_id")))?.name ?? "the destination";
+        if (!window.confirm(merge
+          ? `Move all products from ${fromName} to ${toName} and deactivate ${fromName}?`
+          : `Reassign all products from ${fromName} to ${toName}?`)) {
+          event.preventDefault();
+        }
+      }}
+    >
+      <h2 className="font-semibold text-[#173f35]">Move, merge, or bulk reassign</h2>
+      <p className="text-sm text-[#6b6b6b]">
+        Rename stays on each category row. Use this to move every assigned product, including subcategory assignments. Primary storefront categories cannot be merged away.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm">
+          From
+          <select className="mt-2 min-h-11 w-full rounded-xl border border-[#173f35]/15 px-3" name="from_id" required>
+            <option value="">Choose category</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>{category.name}{category.parent_id ? " (subcategory)" : ""}</option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm">
+          To
+          <select className="mt-2 min-h-11 w-full rounded-xl border border-[#173f35]/15 px-3" name="to_id" required>
+            <option value="">Choose destination</option>
+            {categories.map((category) => (
+              <option key={`to-${category.id}`} value={category.id}>{category.name}{category.parent_id ? " (subcategory)" : ""}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input name="merge" type="checkbox" />
+        Merge after reassignment (deactivate the source category)
+      </label>
+      <SubmitButton
+        className="min-h-11 rounded-xl bg-[#173f35] px-4 py-3 text-sm font-medium text-white disabled:opacity-60"
+        label="Reassign products"
+        pendingLabel="Reassigning..."
+      />
+    </form>
+  );
+}
+
 export function CategoryCreateForm({
   action,
   parents = [],

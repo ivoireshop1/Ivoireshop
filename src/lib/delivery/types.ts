@@ -5,12 +5,16 @@ export type DeliveryOption = {
   label: string;
   amount: number;
   serviceCode?: string;
+  serviceToken?: string;
   estimate?: string;
   mode?: "manual" | "api";
   zone?: "domestic" | "international";
   rateMode?: "store_rate" | "manual_quote" | "live_api";
   usedFallback?: boolean;
   billableWeightLb?: number;
+  shippoRateId?: string | null;
+  testRate?: boolean;
+  etaDays?: number | null;
 };
 
 export function sanitizeProviderError(raw: string) {
