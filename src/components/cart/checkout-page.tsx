@@ -973,7 +973,11 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
           <fieldset className="min-w-0 space-y-6" disabled={isSubmitting} hidden={checkoutStep !== "shipping"}>
             {selectedOption?.fulfillmentMethod === "local_pickup" ? (
               <>
-                <p className="rounded-xl border border-forest-green/10 bg-white/60 px-4 py-3 text-sm text-muted">We’ll have your groceries ready for pickup. A destination is still needed below if you want UPS or USPS rates.</p>
+                <p className="rounded-xl border border-forest-green/10 bg-white/60 px-4 py-3 text-sm text-muted">
+                  {expectedLiveCarriers.length
+                    ? "We’ll have your groceries ready for pickup. A destination is still needed below if you want UPS or USPS rates."
+                    : "We’ll have your order ready for pickup at the store. No shipping address is required for store pickup."}
+                </p>
                 <PickupLocationBlock className="rounded-xl border border-forest-green/10 bg-white px-4 py-3" location={livePickupOrigin} />
               </>
             ) : null}

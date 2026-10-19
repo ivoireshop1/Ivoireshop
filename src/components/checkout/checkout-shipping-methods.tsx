@@ -70,7 +70,11 @@ export function CheckoutShippingMethods({
   return (
     <section className="min-w-0">
       <h2 className="text-xl font-semibold text-forest-green">Choose your shipping method</h2>
-      <p className="mt-1 text-sm text-muted">Select a carrier, then pick a service with a live quote for your address</p>
+      <p className="mt-1 text-sm text-muted">
+        {showUps || showUsps
+          ? "Select a carrier, then pick a service with a live quote for your address"
+          : "Choose how you want to receive your order"}
+      </p>
       <div className="mt-4 space-y-3">
         {showUps ? (
           <CarrierAccordion
