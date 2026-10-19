@@ -4,6 +4,7 @@ import { getGuestOrderConfirmation } from "@/src/lib/checkout/guest-order";
 import { getCustomerOrder } from "@/src/lib/customer/orders";
 import { viewOrderHref } from "@/src/lib/checkout/view-order-href";
 import { OrderConfirmationExperience } from "@/src/components/checkout/order-confirmation-experience";
+import { RememberGuestOrder } from "@/src/components/checkout/remember-guest-order";
 import { ShipmentTrackingPanel } from "@/src/components/orders/shipment-tracking-panel";
 import { SiteHeader } from "@/src/components/layout/site-header";
 import { Footer } from "@/src/components/layout/footer";
@@ -29,6 +30,7 @@ export default async function GuestOrderConfirmationPage({ params }: { params: P
   return (
     <>
       <SiteHeader />
+      <RememberGuestOrder token={token} />
       <main className="mx-auto w-full max-w-4xl px-5 py-10 lg:px-8">
         <OrderConfirmationExperience
           emailSent={false}

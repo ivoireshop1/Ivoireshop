@@ -71,16 +71,23 @@ export function Header({
           {role === "customer" ? (
             <>
               <Link className="hover:text-forest-green" href="/wishlist">{wishlistLabel}</Link>
+              <Link className="hover:text-forest-green" href="/orders">Track My Order</Link>
               <Link className="hover:text-forest-green" href="/account">Account</Link>
             </>
           ) : role === "admin" ? (
             <Link className="hover:text-forest-green" href="/admin">Dashboard</Link>
           ) : (
-            <Link className="hover:text-forest-green" href="/categories">Categories</Link>
+            <>
+              <Link className="hover:text-forest-green" href="/categories">Categories</Link>
+              <Link className="hover:text-forest-green" href="/orders">Track My Order</Link>
+            </>
           )}
         </nav>
         <div className="flex items-center gap-2 text-sm sm:gap-4">
           <Link aria-label="Search products" className="hidden text-forest-green sm:inline-flex" href="/shop"><SearchIcon /></Link>
+          {role !== "admin" ? (
+            <Link aria-label="Track My Order" className="hidden text-forest-green sm:inline-flex xl:hidden" href="/orders">Track</Link>
+          ) : null}
           {isAuthenticated ? (
             <>
               {role === "customer" ? (
@@ -110,6 +117,7 @@ export function Header({
               <Link href="/wishlist" onClick={() => setMenuOpen(false)}>{wishlistLabel}</Link>
               <Link href="/account/notifications" onClick={() => setMenuOpen(false)}>Notifications</Link>
               <Link href="/account#current-orders" onClick={() => setMenuOpen(false)}>Orders</Link>
+              <Link href="/orders" onClick={() => setMenuOpen(false)}>Track My Order</Link>
               <Link href="/account" onClick={() => setMenuOpen(false)}>Account</Link>
               <Link href="/account#security" onClick={() => setMenuOpen(false)}>Security</Link>
               <MobileSignOutLink onSignOut={() => setMenuOpen(false)} />
@@ -122,6 +130,7 @@ export function Header({
           ) : (
             <>
               <Link href="/categories" onClick={() => setMenuOpen(false)}>Categories</Link>
+              <Link href="/orders" onClick={() => setMenuOpen(false)}>Track My Order</Link>
               <Link href="/login" onClick={() => setMenuOpen(false)}>Sign in</Link>
               <Link href="/signup" onClick={() => setMenuOpen(false)}>Create account</Link>
             </>
