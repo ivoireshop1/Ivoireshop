@@ -29,6 +29,8 @@ export async function changeAuthenticatedPassword(input: {
   if (error) {
     return { success: false, error: "The password could not be updated. Try again." };
   }
+  // Revoke every other session after a password change. Keep this device so the admin can finish the form.
+  await supabase.auth.signOut({ scope: "others" });
   return { success: true };
 }
 

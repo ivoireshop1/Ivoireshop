@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="BADGER GHOST">
+  <rect width="512" height="512" rx="72" fill="#173f35"/>
+  <circle cx="256" cy="214" r="118" fill="#f4efe6"/>
+  <path fill="#173f35" d="M168 196c18-46 54-72 88-72s70 26 88 72c8 20 10 40 6 58-22-18-52-28-94-28s-72 10-94 28c-4-18-2-38 6-58z"/>
+  <path fill="#b8964c" d="M214 188c10-22 24-34 42-34s32 12 42 34c-14-8-28-12-42-12s-28 4-42 12z"/>
+  <ellipse cx="220" cy="230" rx="14" ry="16" fill="#173f35"/>
+  <ellipse cx="292" cy="230" rx="14" ry="16" fill="#173f35"/>
+  <path fill="none" stroke="#b8964c" stroke-width="10" stroke-linecap="round" d="M196 278c22 18 40 26 60 26s38-8 60-26"/>
+  <path fill="#f4efe6" opacity="0.35" d="M318 150c34-8 62 10 74 40 8-28 34-42 58-28-28 52-78 70-120 52-8-18-12-40-12-64z"/>
+  <text x="256" y="390" text-anchor="middle" fill="#f4efe6" font-family="Georgia, 'Times New Roman', serif" font-size="42" letter-spacing="8">BADGER</text>
+  <text x="256" y="438" text-anchor="middle" fill="#b8964c" font-family="Georgia, 'Times New Roman', serif" font-size="34" letter-spacing="14">GHOST</text>
+</svg>

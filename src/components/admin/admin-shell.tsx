@@ -24,6 +24,7 @@ const navigation = [
   { href: "/admin/reviews", label: "Reviews" },
   { href: "/admin/announcements", label: "Announcements" },
   { href: "/admin/content", label: "Storefront / Promotions" },
+  { href: "/admin/settings", label: "Settings" },
   { href: "/admin/account", label: "Account/Security" },
   { href: "/", label: "View Store" },
 ];

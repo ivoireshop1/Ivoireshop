@@ -6,9 +6,18 @@ export function LiveConnectionBadge() {
   const { connection, role, probe } = useLiveNotifications();
   if (role !== "admin") return null;
   const live = connection === "live" && probe.channelStatus === "SUBSCRIBED";
-  const label = live ? "Live" : connection === "reconnecting" ? "Reconnecting…" : "Offline";
+  const label = live ? "Realtime live" : connection === "reconnecting" ? "Realtime…" : "Realtime off";
+  const detail = [
+    `host=${probe.supabaseHost || "—"}`,
+    `auth=${probe.authUser}`,
+    `jwt=${probe.jwtAttached}`,
+    `channel=${probe.channelStatus || "IDLE"}`,
+  ].join(" · ");
   return (
-    <p className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-[#173f35]/70" title="Realtime monitoring">
+    <p
+      className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-[#173f35]/70"
+      title={`Supabase realtime (not database health). ${detail}`}
+    >
       <span className={`h-1.5 w-1.5 rounded-full ${live ? "bg-[#2f7d4a]" : connection === "reconnecting" ? "bg-[#b8964c]" : "bg-[#8a8a8a]"}`} />
       {label}
     </p>

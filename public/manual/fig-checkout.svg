@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 280" role="img" aria-label="Checkout steps">
+  <rect width="720" height="280" rx="28" fill="#f7f1e8"/>
+  <text x="40" y="56" fill="#b8964c" font-family="system-ui, sans-serif" font-size="14" letter-spacing="3">CUSTOMER CHECKOUT</text>
+  <g font-family="Georgia, serif" font-size="22" fill="#173f35">
+    <circle cx="70" cy="140" r="28" fill="#173f35"/><text x="70" y="148" text-anchor="middle" fill="#fff">1</text>
+    <text x="110" y="148">Account</text>
+    <circle cx="250" cy="140" r="28" fill="#173f35"/><text x="250" y="148" text-anchor="middle" fill="#fff">2</text>
+    <text x="290" y="148">Shipping</text>
+    <circle cx="450" cy="140" r="28" fill="#173f35"/><text x="450" y="148" text-anchor="middle" fill="#fff">3</text>
+    <text x="490" y="148">Payment</text>
+    <circle cx="640" cy="140" r="28" fill="#b8964c"/><text x="640" y="148" text-anchor="middle" fill="#173f35">4</text>
+  </g>
+  <text x="40" y="220" fill="#6b6b6b" font-family="system-ui, sans-serif" font-size="15">Pickup stays available. Stripe/Shippo chapters mark awaiting configuration until verified.</text>
+</svg>
