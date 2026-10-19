@@ -8,7 +8,7 @@
           "value": "ivoireshop-ivoireshop1.vercel.app"
         }
       ],
-      "destination": "https://ivoire-shop-five.vercel.app/:path*",
+      "destination": "https://ivoireshop-steel.vercel.app/:path*",
       "permanent": false
     }
   ]
