@@ -60,8 +60,8 @@ export function CheckoutDeliveryOptions({
           <span className="min-w-0">
             <span className="block break-words font-medium text-forest-green">{option.label}</span>
             <span className="block text-sm text-muted">
-              {option.mode === "manual" ? "Ivoire Shop shipping charge" : "Amount"} ${option.amount.toFixed(2)}
-              {option.estimate && option.mode !== "manual" ? ` · ${option.estimate}` : ""}
+              {option.rateMode === "live_api" ? option.label : option.mode === "manual" ? "Ivoire Shop shipping charge" : "Amount"} ${option.amount.toFixed(2)}
+              {option.estimate ? ` · ${option.estimate}` : ""}
             </span>
           </span>
         </label>

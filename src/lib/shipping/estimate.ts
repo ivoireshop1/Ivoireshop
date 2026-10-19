@@ -21,6 +21,8 @@ export type ShippingPackage = {
   ship_length_in?: number | string | null;
   ship_width_in?: number | string | null;
   ship_height_in?: number | string | null;
+  /** When true, never invent weight/dimensions from admin package defaults. */
+  forbidPackageDefaults?: boolean;
 };
 
 export type ShippingZoneRule = {
@@ -159,12 +161,13 @@ function applyPackageDefaults(packages: ShippingPackage[], defaults: PackageDefa
   let usedDefaults = false;
   const next = packages.map((item) => {
     const qty = Math.max(1, Math.round(num(item.quantity, 1)));
-    const weight = num(item.ship_weight_lb) || defaults.weight_lb || 0;
-    const length = num(item.ship_length_in) || defaults.length_in || 0;
-    const width = num(item.ship_width_in) || defaults.width_in || 0;
-    const height = num(item.ship_height_in) || defaults.height_in || 0;
-    if (!num(item.ship_weight_lb) && defaults.weight_lb) usedDefaults = true;
-    if ((!num(item.ship_length_in) || !num(item.ship_width_in) || !num(item.ship_height_in)) && (defaults.length_in || defaults.width_in || defaults.height_in)) {
+    const strict = item.forbidPackageDefaults === true;
+    const weight = num(item.ship_weight_lb) || (!strict ? defaults.weight_lb : 0) || 0;
+    const length = num(item.ship_length_in) || (!strict ? defaults.length_in : 0) || 0;
+    const width = num(item.ship_width_in) || (!strict ? defaults.width_in : 0) || 0;
+    const height = num(item.ship_height_in) || (!strict ? defaults.height_in : 0) || 0;
+    if (!strict && !num(item.ship_weight_lb) && defaults.weight_lb) usedDefaults = true;
+    if (!strict && (!num(item.ship_length_in) || !num(item.ship_width_in) || !num(item.ship_height_in)) && (defaults.length_in || defaults.width_in || defaults.height_in)) {
       usedDefaults = true;
     }
     return {
@@ -422,10 +425,13 @@ export function estimateIvoireShipping(input: {
   }
 
   if (prepared.missingWeight) {
+    const strictWeight = input.packages.some((item) => item.forbidPackageDefaults);
     return fallbackOrBlock(
       input.config,
-      input.config.missing_info_policy,
-      "Package weight is missing. Add product shipping weight or package defaults, or set a fallback charge.",
+      strictWeight ? "block" : input.config.missing_info_policy,
+      strictWeight
+        ? "Package weight or dimensions are missing for a weight-based product. Configure shipping dimensions in admin; purchased weight is used as product weight and defaults are never invented."
+        : "Package weight is missing. Add product shipping weight or package defaults, or set a fallback charge.",
       extras,
     );
   }

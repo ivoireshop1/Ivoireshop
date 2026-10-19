@@ -15,7 +15,7 @@ const loadProduct = cache(async (slug: string) => {
   const supabase = await createClient();
   const { data: productRow, error } = await supabase
     .from("products")
-    .select(`id, name, slug, description, short_description, price, compare_at_price, stock_quantity, track_inventory, is_active, is_featured, is_new_arrival, is_coming_soon, category_id, ${PRODUCT_CATEGORY_NAME_EMBED}, product_images(image_url, position)`)
+    .select(`id, name, slug, description, short_description, price, compare_at_price, stock_quantity, track_inventory, is_active, is_featured, is_new_arrival, is_coming_soon, selling_method, selling_unit, unit_increment, min_sell_qty, max_sell_qty, package_weight_lb, category_id, ${PRODUCT_CATEGORY_NAME_EMBED}, product_images(image_url, position)`)
     .eq("slug", slug)
     .maybeSingle();
 
@@ -62,6 +62,12 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     isNew: Boolean(productRow.is_new_arrival) && Boolean(productRow.is_active),
     isPopular: false,
     isComingSoon,
+    sellingMethod: (productRow.selling_method as "each" | "weight" | "fixed_package" | null) ?? "each",
+    sellingUnit: (productRow.selling_unit as "each" | "lb" | "kg" | "oz" | "bag" | "pack" | null) ?? "each",
+    unitIncrement: productRow.unit_increment != null ? Number(productRow.unit_increment) : undefined,
+    minSellQty: productRow.min_sell_qty != null ? Number(productRow.min_sell_qty) : undefined,
+    maxSellQty: productRow.max_sell_qty != null ? Number(productRow.max_sell_qty) : null,
+    packageWeightLb: productRow.package_weight_lb != null ? Number(productRow.package_weight_lb) : null,
   };
 
   const [{ data: relatedRows }, { data: reviewSummary }, { data: reviews }, { data: { user } }] = await Promise.all([

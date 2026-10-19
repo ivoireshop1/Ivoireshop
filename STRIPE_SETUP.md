@@ -38,11 +38,15 @@ Redeploy after changing environment variables so the server process picks them u
 
 ## 4. Webhook URL
 
+Preview deployments get unique hosts. The Stripe **Test mode** endpoint URL must be updated to the **current** Preview host (signing secret stays the same when only the URL changes):
+
 ```
-https://ivoire-shop-five.vercel.app/api/payments/stripe/webhook
+https://<current-preview-host>/api/payments/stripe/webhook
 ```
 
 Repository route: `app/api/payments/stripe/webhook/route.ts`
+
+Do not point Test webhooks at Production aliases until Production Stripe is intentionally configured. Preview-only helper: `GET/POST /api/admin/stripe-webhook-fix` (requires confirm phrase; not available outside Preview).
 
 ## 5. Required Stripe events
 

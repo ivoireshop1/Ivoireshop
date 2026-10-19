@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/src/lib/supabase/server";
-import { checkoutFailure, validateCheckout, type CheckoutReceipt, type CheckoutResponse } from "./checkout-validation";
+import { checkoutFailure, logCheckoutFailure, validateCheckout, type CheckoutReceipt, type CheckoutResponse } from "./checkout-validation";
 import { STORE_CLOSED_MESSAGE, STORE_SETTINGS_ID } from "@/src/lib/store/constants";
 import { trySendOrderConfirmation } from "@/src/lib/communications/send-confirmation";
 import { recordCheckoutNotifications } from "@/src/lib/notifications/record";
 import { collectCheckoutOptions, optionToSnapshot } from "@/src/lib/delivery/orchestrate";
+import { resolveSelectedShippingOption } from "@/src/lib/shipping/shippo";
 import { originFromSettings, originIsComplete, pickupLocationSnapshot } from "@/src/lib/delivery/origin";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { centsToUsdString, usdToCents } from "@/src/lib/payments/money";
@@ -25,7 +26,7 @@ export async function placeCheckoutOrder(input: unknown, options?: { demo?: bool
     }
     const { data: catalog } = await supabase
       .from("products")
-      .select("id, price, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in")
+      .select("id, price, selling_method, selling_unit, unit_increment, min_sell_qty, max_sell_qty, package_weight_lb, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in")
       .in("id", request.items.map((item) => item.product_id));
     const byId = new Map((catalog ?? []).map((row) => [row.id, row]));
     const quotes = await collectCheckoutOptions({
@@ -33,10 +34,11 @@ export async function placeCheckoutOrder(input: unknown, options?: { demo?: bool
       products: request.items.map((item) => ({ quantity: item.quantity, ...byId.get(item.product_id) })),
     });
     const selectedId = request.deliveryOptionId || (request.fulfillmentMethod === "local_pickup" ? "pickup" : "store");
-    const selected = quotes.options.find((option) => option.id === selectedId);
-    if (!selected || selected.fulfillmentMethod !== request.fulfillmentMethod) {
-      return { success: false, error: "Choose an available pickup or delivery option.", retrySame: false };
+    const resolved = resolveSelectedShippingOption(quotes.options, selectedId, request.fulfillmentMethod, request.quotedShipping);
+    if ("error" in resolved) {
+      return { success: false, error: resolved.error, retrySame: false };
     }
+    const selected = resolved.option;
     const breakdown = quotes.breakdowns[selected.id];
     let shipping = breakdown?.shipping ?? selected.amount;
     let tax = breakdown?.tax ?? 0;
@@ -57,9 +59,15 @@ export async function placeCheckoutOrder(input: unknown, options?: { demo?: bool
       p_idempotency_key: request.idempotencyKey,
       p_is_demo: demo,
     });
-    if (error) return checkoutFailure(error.code, error.message);
+    if (error) {
+      logCheckoutFailure("create_checkout_order", error);
+      return checkoutFailure(error.code, error.message);
+    }
     const row = Array.isArray(data) ? data[0] : null;
-    if (!row?.order_id || !row.order_number || !row.status || !Number.isFinite(Number(row.total)) || Number(row.total) < 0) return checkoutFailure();
+    if (!row?.order_id || !row.order_number || !row.status || !Number.isFinite(Number(row.total)) || Number(row.total) < 0) {
+      logCheckoutFailure("create_checkout_order_row", { code: "empty", message: "RPC returned without a usable order row." });
+      return checkoutFailure();
+    }
     if (demo) {
       const applied = await supabase.rpc("apply_demo_order_charges", {
         p_order_id: row.order_id,
@@ -70,7 +78,10 @@ export async function placeCheckoutOrder(input: unknown, options?: { demo?: bool
         p_delivery_snapshot: optionToSnapshot(selected, pickupLocation),
         p_tax_snapshot: taxSnapshotFromSettings(quotes.tax, tax, breakdown?.taxLines ?? []),
       });
-      if (applied.error) return checkoutFailure(applied.error.code, applied.error.message);
+      if (applied.error) {
+        logCheckoutFailure("apply_demo_order_charges", applied.error);
+        return checkoutFailure(applied.error.code, applied.error.message);
+      }
       const appliedTotal = Array.isArray(applied.data) ? Number(applied.data[0]?.total) : Number((applied.data as { total?: number } | null)?.total);
       if (Number.isFinite(appliedTotal)) row.total = appliedTotal;
     } else if (admin) {
@@ -170,7 +181,8 @@ export async function placeCheckoutOrder(input: unknown, options?: { demo?: bool
       revalidatePath("/account/notifications");
     } catch { /* Order is already committed; fresh requests still read the database. */ }
     return { success: true, receipt };
-  } catch {
+  } catch (error) {
+    logCheckoutFailure("place_checkout_order", error);
     return checkoutFailure();
   }
 }

@@ -17,7 +17,7 @@ function CarrierFields({
   return (
     <fieldset className="min-w-0 space-y-3 rounded-xl border border-[#173f35]/10 p-4">
       <legend className="font-semibold text-[#173f35]">{carrier.toUpperCase()} — Manual Shipping</legend>
-      <p className="text-xs text-[#6b6b6b]">Customers see {carrier.toUpperCase()} Shipping. This is an Ivoire Shop shipping charge, not a live carrier quote.</p>
+      <p className="text-xs text-[#6b6b6b]">Store charges stay labeled as Ivoire Shop amounts. Choose Live Carrier API to request Shippo UPS/USPS test rates instead. Checkout never silently substitutes a manual estimate for a live quote.</p>
       <label className="flex items-center gap-2 text-sm"><input defaultChecked={Boolean(settings?.[`${prefix}_enabled`])} name={`${prefix}_enabled`} type="checkbox" /> Enabled</label>
       <label className="flex items-center gap-2 text-sm"><input defaultChecked={settings?.[`${prefix}_show_at_checkout`] !== false} name={`${prefix}_show_at_checkout`} type="checkbox" /> Show at Checkout</label>
       <label className="flex items-center gap-2 text-sm"><input defaultChecked={Boolean(settings?.[`${prefix}_domestic_enabled`])} name={`${prefix}_domestic_enabled`} type="checkbox" /> Domestic</label>
@@ -28,10 +28,10 @@ function CarrierFields({
         <select className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3" defaultValue={mode} name={`${prefix}_rate_mode`}>
           <option value="store_rate">{rateModeLabel("store_rate")}</option>
           <option value="manual_quote">{rateModeLabel("manual_quote")}</option>
-          <option value="live_api">{rateModeLabel("live_api")} (not connected)</option>
+          <option value="live_api">{rateModeLabel("live_api")} (Shippo)</option>
         </select>
       </label>
-      <p className="text-xs text-[#6b6b6b]">Live Carrier API stays unavailable until credentials and verification exist.</p>
+      <p className="text-xs text-[#6b6b6b]">Live Carrier API uses the Shippo test token on Preview. Enable Shippo below, then select this mode per carrier. Postage purchasing stays off.</p>
       <label className="block text-sm">Domestic Charge (USD)<input className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3" defaultValue={settings?.[`${prefix}_domestic_charge`] != null ? String(settings[`${prefix}_domestic_charge`]) : ""} min="0" name={`${prefix}_domestic_charge`} step="0.01" type="number" /></label>
       <label className="block text-sm">International Charge (USD)<input className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3" defaultValue={settings?.[`${prefix}_international_charge`] != null ? String(settings[`${prefix}_international_charge`]) : ""} min="0" name={`${prefix}_international_charge`} step="0.01" type="number" /></label>
       <label className="block text-sm">Handling fee (optional)<input className="mt-2 min-h-11 w-full min-w-0 rounded-xl border border-[#173f35]/15 px-3" defaultValue={settings?.[`${prefix}_handling_fee`] != null ? String(settings[`${prefix}_handling_fee`]) : ""} min="0" name={`${prefix}_handling_fee`} step="0.01" type="number" /></label>

@@ -33,6 +33,12 @@ export type ProductValues = {
   ship_length_in?: number | string | null;
   ship_width_in?: number | string | null;
   ship_height_in?: number | string | null;
+  selling_method?: string | null;
+  selling_unit?: string | null;
+  unit_increment?: number | string | null;
+  min_sell_qty?: number | string | null;
+  max_sell_qty?: number | string | null;
+  package_weight_lb?: number | string | null;
   product_images?: Array<{ id?: string; image_url?: string | null; position?: number }>;
 };
 
@@ -90,6 +96,18 @@ export function ProductForm({
   const [shipLength, setShipLength] = useState(product?.ship_length_in != null ? String(product.ship_length_in) : "");
   const [shipWidth, setShipWidth] = useState(product?.ship_width_in != null ? String(product.ship_width_in) : "");
   const [shipHeight, setShipHeight] = useState(product?.ship_height_in != null ? String(product.ship_height_in) : "");
+  const [sellingMethod, setSellingMethod] = useState(product?.selling_method ?? "each");
+  const [sellingUnit, setSellingUnit] = useState(product?.selling_unit ?? (product?.selling_method === "weight" ? "lb" : "each"));
+  const [unitIncrement, setUnitIncrement] = useState(
+    product?.unit_increment != null ? String(product.unit_increment) : product?.selling_method === "weight" ? "0.5" : "1",
+  );
+  const [minSellQty, setMinSellQty] = useState(
+    product?.min_sell_qty != null ? String(product.min_sell_qty) : product?.selling_method === "weight" ? "0.5" : "1",
+  );
+  const [maxSellQty, setMaxSellQty] = useState(product?.max_sell_qty != null ? String(product.max_sell_qty) : "");
+  const [packageWeightLb, setPackageWeightLb] = useState(
+    product?.package_weight_lb != null ? String(product.package_weight_lb) : "",
+  );
 
   // 3. Status & Featured State (independent)
   const [isActive, setIsActive] = useState(product?.is_active ?? false);
@@ -332,6 +350,12 @@ export function ProductForm({
     formData.set("ship_length_in", shipLength);
     formData.set("ship_width_in", shipWidth);
     formData.set("ship_height_in", shipHeight);
+    formData.set("selling_method", sellingMethod);
+    formData.set("selling_unit", sellingMethod === "each" ? "each" : sellingUnit);
+    formData.set("unit_increment", unitIncrement);
+    formData.set("min_sell_qty", minSellQty);
+    formData.set("max_sell_qty", maxSellQty);
+    formData.set("package_weight_lb", packageWeightLb);
     formData.set("status", willBeActive ? "active" : "hidden");
     formData.set("save_as_draft", saveAsDraft ? "true" : "false");
     if (isFeatured) {
@@ -598,16 +622,18 @@ export function ProductForm({
                 Quantity <span className="text-red-600">*</span>
                 <input
                   className="mt-2 w-full rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-[#173f35] outline-none transition focus:border-[#173f35]/35"
-                  inputMode="numeric"
+                  inputMode="decimal"
                   min="0"
                   onChange={(e) => setStockQuantity(e.target.value)}
                   placeholder="0"
-                  step="1"
+                  step={sellingMethod === "weight" ? "0.001" : "1"}
                   type="number"
                   value={stockQuantity}
                 />
                 <span className="mt-1 block text-xs text-[#6b6b6b]">
-                  Whole number of units currently available. Zero means out of stock.
+                  {sellingMethod === "weight"
+                    ? "Available inventory in the selling unit (lb/kg/oz). Zero means out of stock."
+                    : "Whole number of units currently available. Zero means out of stock."}
                 </span>
               </label>
 
@@ -632,6 +658,115 @@ export function ProductForm({
                 Inventory is not tracked for this product.
               </p>
             )}
+          </section>
+
+          <section className="space-y-4 rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-5">
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#b8964c]">
+              Selling Method &amp; Weight Settings
+            </p>
+            <p className="text-xs text-[#6b6b6b]">
+              Choose how customers buy this product. Changes stay as drafts until you press Save.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-medium text-[#173f35]">
+                Selling method
+                <select
+                  className="mt-2 w-full rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-[#173f35]"
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setSellingMethod(next);
+                    if (next === "weight") {
+                      setSellingUnit((unit) => (unit === "each" ? "lb" : unit));
+                      setUnitIncrement((value) => (value === "1" || !value ? "0.5" : value));
+                      setMinSellQty((value) => (value === "1" || !value ? "0.5" : value));
+                    }
+                    if (next === "each") {
+                      setSellingUnit("each");
+                      setUnitIncrement("1");
+                      setMinSellQty("1");
+                    }
+                  }}
+                  value={sellingMethod}
+                >
+                  <option value="each">Per item</option>
+                  <option value="weight">By weight</option>
+                  <option value="fixed_package">Fixed package / bag</option>
+                </select>
+              </label>
+              <label className="block text-sm font-medium text-[#173f35]">
+                Selling unit
+                <select
+                  className="mt-2 w-full rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-[#173f35] disabled:opacity-60"
+                  disabled={sellingMethod === "each"}
+                  onChange={(e) => setSellingUnit(e.target.value)}
+                  value={sellingMethod === "each" ? "each" : sellingUnit}
+                >
+                  <option value="each">Each</option>
+                  <option value="lb">Pound (lb)</option>
+                  <option value="kg">Kilogram (kg)</option>
+                  <option value="oz">Ounce (oz)</option>
+                  <option value="bag">Bag</option>
+                  <option value="pack">Pack</option>
+                </select>
+              </label>
+              <label className="block text-sm font-medium text-[#173f35]">
+                Quantity increment
+                <input
+                  className="mt-2 w-full rounded-xl border border-[#173f35]/15 bg-white px-4 py-3"
+                  inputMode="decimal"
+                  min="0.001"
+                  onChange={(e) => setUnitIncrement(e.target.value)}
+                  step="0.001"
+                  type="number"
+                  value={unitIncrement}
+                />
+                <span className="mt-1 block text-xs text-[#6b6b6b]">Default 0.5 for new weight products.</span>
+              </label>
+              <label className="block text-sm font-medium text-[#173f35]">
+                Minimum quantity
+                <input
+                  className="mt-2 w-full rounded-xl border border-[#173f35]/15 bg-white px-4 py-3"
+                  inputMode="decimal"
+                  min="0.001"
+                  onChange={(e) => setMinSellQty(e.target.value)}
+                  step="0.001"
+                  type="number"
+                  value={minSellQty}
+                />
+              </label>
+              <label className="block text-sm font-medium text-[#173f35]">
+                Maximum quantity (optional)
+                <input
+                  className="mt-2 w-full rounded-xl border border-[#173f35]/15 bg-white px-4 py-3"
+                  inputMode="decimal"
+                  min="0"
+                  onChange={(e) => setMaxSellQty(e.target.value)}
+                  step="0.001"
+                  type="number"
+                  value={maxSellQty}
+                />
+              </label>
+              <label className="block text-sm font-medium text-[#173f35]">
+                Packaging weight (lb, optional)
+                <input
+                  className="mt-2 w-full rounded-xl border border-[#173f35]/15 bg-white px-4 py-3"
+                  inputMode="decimal"
+                  min="0"
+                  onChange={(e) => setPackageWeightLb(e.target.value)}
+                  step="0.001"
+                  type="number"
+                  value={packageWeightLb}
+                />
+                <span className="mt-1 block text-xs text-[#6b6b6b]">
+                  Added to carrier parcel weight. Selling weight is not the same as packaging tare.
+                </span>
+              </label>
+            </div>
+            {sellingMethod === "weight" && !shipWeight.trim() ? (
+              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status">
+                Weight products still need package dimensions below for UPS/USPS. Purchased weight becomes the product ship weight; packaging tare is optional.
+              </p>
+            ) : null}
           </section>
 
           <section className="space-y-4 rounded-2xl border border-[#173f35]/10 bg-[#f9f7f3] p-5">

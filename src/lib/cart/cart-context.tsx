@@ -3,9 +3,10 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { CartItem } from "@/src/types/cart";
 import { completeStoredPurchase, loadCart, saveCart } from "./cart-storage";
-import { itemCount, mergeItem, subtotal } from "./cart-utils";
+import { itemCount, mergeItem, settingsFromCartItem, subtotal } from "./cart-utils";
+import { roundQty, snapQuantity } from "@/src/lib/catalog/selling";
 
-type CartInput = CartItem | (Omit<CartItem, "quantity" | "slug" | "image"> & Partial<Pick<CartItem, "quantity" | "slug" | "image">>);
+type CartInput = CartItem | (Omit<CartItem, "quantity" | "slug" | "image"> & Partial<Pick<CartItem, "quantity" | "slug" | "image" | "sellingMethod" | "sellingUnit" | "unitIncrement" | "minSellQty" | "maxSellQty">>);
 type CartContextValue = {
   items: CartItem[];
   isLoaded: boolean;
@@ -46,6 +47,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     itemCount: itemCount(items),
     subtotal: subtotal(items),
     addItem: (item: CartInput, quantity = 1) => {
+      const settings = settingsFromCartItem(item);
       const complete: CartItem = {
         productId: item.productId,
         slug: item.slug ?? "",
@@ -53,16 +55,37 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         price: item.price,
         compareAtPrice: item.compareAtPrice,
         image: item.image ?? "",
-        quantity: "quantity" in item && item.quantity ? item.quantity : quantity,
+        sellingMethod: settings.sellingMethod,
+        sellingUnit: settings.sellingUnit,
+        unitIncrement: settings.unitIncrement,
+        minSellQty: settings.minSellQty,
+        maxSellQty: settings.maxSellQty,
+        quantity: snapQuantity(("quantity" in item && item.quantity ? item.quantity : quantity), settings),
       };
       setItems((current) => mergeItem(current, complete));
       setLastAddedItem(complete);
       setAddEventId((eventId) => eventId + 1);
     },
     removeItem: (productId: string) => setItems((current) => current.filter((item) => item.productId !== productId)),
-    updateQuantity: (productId: string, quantity: number) => setItems((current) => quantity <= 0 || !Number.isFinite(quantity) ? current.filter((item) => item.productId !== productId) : current.map((item) => item.productId === productId ? { ...item, quantity: Math.max(1, Math.floor(quantity)) } : item)),
-    incrementQuantity: (productId: string) => setItems((current) => current.map((item) => item.productId === productId ? { ...item, quantity: item.quantity + 1 } : item)),
-    decrementQuantity: (productId: string) => setItems((current) => current.flatMap((item) => item.productId !== productId ? [item] : item.quantity <= 1 ? [] : [{ ...item, quantity: item.quantity - 1 }])),
+    updateQuantity: (productId: string, quantity: number) => setItems((current) => current.flatMap((item) => {
+      if (item.productId !== productId) return [item];
+      if (!Number.isFinite(quantity) || quantity <= 0) return [];
+      const settings = settingsFromCartItem(item);
+      const next = snapQuantity(quantity, settings);
+      return next < settings.minSellQty ? [] : [{ ...item, quantity: next }];
+    })),
+    incrementQuantity: (productId: string) => setItems((current) => current.map((item) => {
+      if (item.productId !== productId) return item;
+      const settings = settingsFromCartItem(item);
+      return { ...item, quantity: snapQuantity(item.quantity + settings.unitIncrement, settings) };
+    })),
+    decrementQuantity: (productId: string) => setItems((current) => current.flatMap((item) => {
+      if (item.productId !== productId) return [item];
+      const settings = settingsFromCartItem(item);
+      const next = roundQty(item.quantity - settings.unitIncrement);
+      if (next < settings.minSellQty - 1e-9) return [];
+      return [{ ...item, quantity: snapQuantity(next, settings) }];
+    })),
     clearCart: () => setItems([]),
     completePurchase: (purchased: { productId: string; quantity: number }[], orderId: string) => {
       const remaining = completeStoredPurchase(latestItems.current, purchased, orderId);

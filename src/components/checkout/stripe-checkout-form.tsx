@@ -80,12 +80,17 @@ function PayForm({
   }, [stripe, onError]);
 
   async function waitForPaid() {
-    for (let attempt = 0; attempt < 12; attempt += 1) {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
       const status = await stripePaymentStatus(idempotencyKey);
       if ("error" in status && status.error) return status;
       if (status.receipt?.payment_status === "paid") return status;
       if (status.receipt?.payment_status === "failed") return status;
-      await new Promise((resolve) => window.setTimeout(resolve, 400));
+      // Server reconciles succeeded PaymentIntents even when webhooks fail.
+      if (status.intent_status === "processing" || status.intent_status === "requires_capture") {
+        await new Promise((resolve) => window.setTimeout(resolve, 700));
+        continue;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
     }
     return stripePaymentStatus(idempotencyKey);
   }

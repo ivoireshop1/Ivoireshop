@@ -1,7 +1,7 @@
 import { requireAdmin } from "@/src/lib/auth/guards";
-import { activateCategory, createCategory, deactivateCategory, deleteCategory, updateCategory } from "@/src/lib/catalog/actions";
+import { activateCategory, createCategory, deactivateCategory, deleteCategory, mergeOrReassignCategory, updateCategory } from "@/src/lib/catalog/actions";
 import { isCanonicalSlug } from "@/src/lib/catalog/canonical-categories";
-import { CategoryCreateForm, CategoryRowForm } from "@/src/components/admin/category-forms";
+import { CategoryCreateForm, CategoryReassignForm, CategoryRowForm } from "@/src/components/admin/category-forms";
 import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 
 export default async function AdminCategoriesPage({
@@ -54,15 +54,21 @@ export default async function AdminCategoriesPage({
                   ? "Subcategories can only sit under Cosmetics, Foods, Ivoire Market, or another top-level category."
                 : params.error === "category_duplicate"
                   ? "A category with that slug already exists."
+                  : params.error === "category_reassign_invalid"
+                    ? "Choose two different categories to reassign or merge."
                   : "The category could not be saved. Check the values and try again."}
         </p>
       )}
       {params.success && (
         <p className="rounded-2xl border border-[#173f35]/15 bg-[#173f35]/5 px-4 py-3 text-sm text-[#173f35]">
-          Category changes saved.
+          {params.success === "category_reassigned" ? "Products were reassigned." : "Category changes saved."}
         </p>
       )}
 
+      <CategoryReassignForm
+        action={mergeOrReassignCategory}
+        categories={rows.map((category) => ({ id: category.id, name: category.name, parent_id: category.parent_id }))}
+      />
       <CategoryCreateForm
         action={createCategory}
         parents={rows.filter((category) => !category.parent_id).map((category) => ({ id: category.id, name: category.name }))}

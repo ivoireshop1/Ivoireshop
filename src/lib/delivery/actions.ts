@@ -11,28 +11,113 @@ import { doordashCredentials } from "./credentials";
 import { verifyDoorDash } from "./providers/doordash";
 import { sanitizeProviderError } from "./types";
 import { parseAdminMiles, parseAdminMoney, parseRateMode } from "./manual";
+import { canPrepareShippoLabel, createShippoTestTransaction, listShippoCarrierAccounts, shippoCredentials } from "@/src/lib/shipping/shippo";
+import { quoteLiveCarrierOptions } from "@/src/lib/shipping/live-quotes";
+import { recordShippingMonitorEvent } from "@/src/lib/shipping/monitor";
+import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
 import { recordAdminIncident } from "@/src/lib/ops/incident";
 import { isCarrierOrder, validateCarrierTracking } from "./tracking";
 import { notifyFulfillmentEmail } from "@/src/lib/communications/fulfillment-email";
 import { recordCustomerNotification, recordFulfillmentNotification } from "@/src/lib/notifications/record";
+import { computeOrderTotalCents, computeTaxLines, moneyFromCents, safeUsdToCents, taxSettingsFromRow } from "@/src/lib/tax/totals";
+
+type CheckoutProductRow = {
+  id: string;
+  price: number | null;
+  selling_method?: string | null;
+  selling_unit?: string | null;
+  unit_increment?: number | string | null;
+  min_sell_qty?: number | string | null;
+  max_sell_qty?: number | string | null;
+  package_weight_lb?: number | string | null;
+  ship_weight_lb?: number | string | null;
+  ship_length_in?: number | string | null;
+  ship_width_in?: number | string | null;
+  ship_height_in?: number | string | null;
+};
+
+async function loadCheckoutProducts(items: { product_id: string; quantity: number }[]) {
+  const supabase = await createClient();
+  const ids = items.map((item) => item.product_id);
+  const { data: products } = ids.length
+    ? await supabase
+        .from("products")
+        .select("id, price, selling_method, selling_unit, unit_increment, min_sell_qty, max_sell_qty, package_weight_lb, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in")
+        .in("id", ids)
+    : { data: [] as CheckoutProductRow[] };
+  const byId = new Map((products ?? []).map((row) => [row.id, row as CheckoutProductRow]));
+  return items.map((item) => {
+    const row = byId.get(item.product_id);
+    return row ? { quantity: item.quantity, ...row } : { quantity: item.quantity, id: item.product_id, price: null as number | null };
+  });
+}
 
 export async function getCheckoutDeliveryOptions(input: {
   address: { address_line_1?: string; city?: string; state?: string; postal_code?: string; country?: string };
   items: { product_id: string; quantity: number }[];
+  /** Default true. Pass false for fast pickup/store/Ivoire options without waiting on Shippo. */
+  includeLiveCarriers?: boolean;
 }) {
-  const supabase = await createClient();
-  const ids = input.items.map((item) => item.product_id);
-  const { data: products } = ids.length
-    ? await supabase
-        .from("products")
-        .select("id, price, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in")
-        .in("id", ids)
-    : { data: [] as Array<{ id: string; price: number | null }> };
-  const byId = new Map((products ?? []).map((row) => [row.id, row]));
-  return collectCheckoutOptions({
+  const started = Date.now();
+  const products = await loadCheckoutProducts(input.items);
+  const result = await collectCheckoutOptions({
     destination: input.address,
-    products: input.items.map((item) => ({ quantity: item.quantity, ...byId.get(item.product_id) })),
+    products,
+    includeLiveCarriers: input.includeLiveCarriers,
   });
+  console.info("[checkout-timing]", {
+    action: "getCheckoutDeliveryOptions",
+    includeLiveCarriers: input.includeLiveCarriers !== false,
+    ms: Date.now() - started,
+    optionCount: result.options.length,
+  });
+  return result;
+}
+
+/** Live UPS/USPS only — merge into an existing fast quote on the client. */
+export async function getCheckoutLiveCarrierOptions(input: {
+  address: { address_line_1?: string; city?: string; state?: string; postal_code?: string; country?: string };
+  items: { product_id: string; quantity: number }[];
+}) {
+  const started = Date.now();
+  const supabase = await createClient();
+  const { data: settings } = await supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle();
+  const origin = originFromSettings(settings);
+  const products = await loadCheckoutProducts(input.items);
+  const live = await quoteLiveCarrierOptions({
+    settings: settings as Record<string, unknown> | null,
+    origin,
+    destination: input.address,
+    products,
+  });
+  const tax = taxSettingsFromRow(settings as Record<string, unknown> | null);
+  const subtotalCents = products.reduce((sum, product) => {
+    const qty = Number(product.quantity);
+    const price = Number(product.price);
+    if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(price) || price <= 0) return sum;
+    return sum + Math.round(price * qty * 100);
+  }, 0);
+  const breakdowns: Record<string, { shipping: number; tax: number; total: number; taxLines: ReturnType<typeof computeTaxLines> }> = {};
+  for (const option of live.options) {
+    const shippingCents = safeUsdToCents(option.amount);
+    const taxLines = computeTaxLines({ subtotalCents, discountCents: 0, shippingCents, tax });
+    const taxCents = taxLines.reduce((sum, line) => sum + line.cents, 0);
+    breakdowns[option.id] = {
+      shipping: moneyFromCents(shippingCents),
+      tax: moneyFromCents(taxCents),
+      taxLines,
+      total: moneyFromCents(computeOrderTotalCents({ subtotalCents, discountCents: 0, shippingCents, taxCents })),
+    };
+  }
+  console.info("[checkout-timing]", {
+    action: "getCheckoutLiveCarrierOptions",
+    ms: Date.now() - started,
+    rates: live.options.length,
+    expected: live.expectedLiveCarriers,
+    temporaryBusy: live.temporaryBusy === true,
+    rateLimited: live.rateLimitedCarriers,
+  });
+  return { ...live, breakdowns, subtotal: moneyFromCents(subtotalCents) };
 }
 
 function revalidateFulfillment(orderId?: string) {
@@ -171,6 +256,94 @@ export async function saveManualShipping(_prev: { error?: string; saved?: boolea
   if (!saved) return { error: "Couldn’t save shipping settings. Stay on this page and try again, or sign in as an admin.", saved: false };
   revalidateFulfillment();
   return { saved: true };
+}
+
+export async function saveShippoSettings(_prev: { error?: string; saved?: boolean } | null, formData: FormData) {
+  const { supabase } = await requireAdmin();
+  if (formData.get("postage_purchases_enabled") === "on") {
+    return { error: "Live postage purchasing is disabled in this phase and requires founder approval.", saved: false };
+  }
+  const margin = Number(formData.get("shippo_margin_percent"));
+  if (formData.get("shippo_margin_percent") && (!Number.isFinite(margin) || margin < 0 || margin > 200)) {
+    return { error: "Margin must be between 0 and 200%.", saved: false };
+  }
+  const logo = String(formData.get("packing_slip_logo_url") ?? "").trim();
+  if (logo && !isPersistentImageUrl(logo)) {
+    return { error: "Use a site path or a stored image URL for the packing-slip logo.", saved: false };
+  }
+  const saved = await persistStoreSettings(supabase, {
+    shippo_enabled: formData.get("shippo_enabled") === "on",
+    shippo_allow_manual_fallback: formData.get("shippo_allow_manual_fallback") === "on",
+    postage_purchases_enabled: false,
+    shippo_margin_percent: Number.isFinite(margin) ? margin : 0,
+    shippo_allowed_services: String(formData.get("shippo_allowed_services") ?? "").trim(),
+    shippo_international_countries: String(formData.get("shippo_international_countries") ?? "").trim().toUpperCase(),
+    packing_slip_watermark_text: String(formData.get("packing_slip_watermark_text") ?? "IVOIRE SHOP").trim() || "IVOIRE SHOP",
+    packing_slip_logo_url: logo || null,
+    updated_at: new Date().toISOString(),
+  }, "shippo_settings");
+  if (!saved) return { error: "Couldn’t save Shippo settings. Confirm the shipping schema is applied.", saved: false };
+  revalidateFulfillment();
+  return { saved: true };
+}
+
+export type ShippoLabelState = { error?: string; saved?: boolean; labelUrl?: string | null; trackingNumber?: string | null };
+
+export async function prepareShippoTestLabel(_prev: ShippoLabelState | null, formData: FormData): Promise<ShippoLabelState> {
+  const { supabase } = await requireAdmin();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) return { error: "Order is missing." };
+  const creds = shippoCredentials();
+  const { data: settings } = await supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle();
+  if (!canPrepareShippoLabel({ isTest: creds.isTest, postagePurchasesEnabled: Boolean(settings?.postage_purchases_enabled) })) {
+    await recordShippingMonitorEvent("label_blocked", { reason: creds.isLive ? "live_token" : "postage_disabled" });
+    return { error: "Live postage purchasing is disabled. Test labels are only prepared with a Shippo test token." };
+  }
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id, shipping_address, fulfillment_provider, fulfillment_service, delivery_snapshot, is_demo")
+    .eq("id", id)
+    .maybeSingle();
+  if (!order) return { error: "That order could not be found." };
+  const dest = (order.shipping_address ?? {}) as { address_line_1?: string; city?: string; state?: string; postal_code?: string; country?: string };
+  const { data: items } = await supabase.from("order_items").select("quantity, product_id").eq("order_id", id);
+  const ids = (items ?? []).map((item) => item.product_id).filter(Boolean);
+  const { data: products } = ids.length
+    ? await supabase.from("products").select("id, selling_method, selling_unit, unit_increment, min_sell_qty, max_sell_qty, package_weight_lb, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in").in("id", ids)
+    : { data: [] as Array<{ id: string }> };
+  const byId = new Map((products ?? []).map((row) => [row.id, row]));
+  const origin = originFromSettings(settings);
+  const quoted = await quoteLiveCarrierOptions({
+    settings: settings as Record<string, unknown> | null,
+    origin,
+    destination: dest,
+    products: (items ?? []).map((item) => ({ quantity: item.quantity, ...byId.get(item.product_id) })),
+  });
+  const match = quoted.options.find((option) =>
+    option.provider === order.fulfillment_provider && option.serviceCode === order.fulfillment_service,
+  ) ?? quoted.options.find((option) => option.provider === order.fulfillment_provider);
+  if (!match?.shippoRateId) {
+    return { error: "A matching Shippo test rate was not available for this order. Missing parcel data is never invented." };
+  }
+  const created = await createShippoTestTransaction(match.shippoRateId, Boolean(settings?.postage_purchases_enabled));
+  if (!created.ok) {
+    await recordShippingMonitorEvent("label_blocked", { reason: "transaction_failed" });
+    return { error: created.error };
+  }
+  const snapshot = {
+    ...((order.delivery_snapshot && typeof order.delivery_snapshot === "object") ? order.delivery_snapshot as Record<string, unknown> : {}),
+    shippo_label_url: created.labelUrl,
+    shippo_transaction_id: created.transactionId,
+    test_rate: true,
+    postage_purchased: false,
+  };
+  const tracking = created.trackingNumber ? validateCarrierTracking(order.fulfillment_provider || "", created.trackingNumber) : null;
+  const patch: Record<string, unknown> = { delivery_snapshot: snapshot };
+  if (tracking?.ok) patch.tracking_number = tracking.tracking;
+  const { error } = await supabase.from("orders").update(patch).eq("id", id);
+  if (error) return { error: "The test label was created but could not be saved on the order." };
+  revalidateFulfillment(id);
+  return { saved: true, labelUrl: created.labelUrl, trackingNumber: tracking?.ok ? tracking.tracking : created.trackingNumber };
 }
 
 function parseTaxRule(formData: FormData, prefix: "tax_1" | "tax_2") {
@@ -432,10 +605,20 @@ export async function checkDeliveryProviders(): Promise<void> {
     success: verified.ok,
     message: last_error,
   });
+  const shippo = shippoCredentials();
+  const accounts = shippo.configured ? await listShippoCarrierAccounts() : { ok: false, ups: 0, usps: 0, accountIds: [] as string[] };
+  await supabase.from("delivery_provider_health").upsert({
+    provider: "shippo",
+    status: !shippo.configured ? "not_configured" : accounts.ok ? "connected" : "error",
+    last_check_at: new Date().toISOString(),
+    last_error: accounts.ok ? null : "Shippo carrier account check failed",
+    updated_at: new Date().toISOString(),
+  });
   for (const provider of ["ups", "usps"] as const) {
+    const connected = accounts.ok && accounts[provider] > 0;
     await supabase.from("delivery_provider_health").upsert({
       provider,
-      status: "manual",
+      status: connected ? "connected" : "manual",
       last_check_at: new Date().toISOString(),
       last_error: null,
       updated_at: new Date().toISOString(),

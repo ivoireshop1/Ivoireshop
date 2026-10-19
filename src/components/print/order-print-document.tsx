@@ -12,7 +12,19 @@ type PrintItem = {
   quantity: number;
   image_url?: string | null;
   picked?: boolean;
+  selling_unit?: string | null;
+  selling_method?: string | null;
 };
+
+function formatPrintQty(item: PrintItem) {
+  const qty = Number(item.quantity);
+  const unit = (item.selling_unit || (item.selling_method === "weight" ? "lb" : "")).trim();
+  if (!unit || unit === "each") {
+    return Number.isInteger(qty) ? String(qty) : String(qty);
+  }
+  const text = Number.isInteger(qty) ? String(qty) : String(Math.round(qty * 1000) / 1000);
+  return `${text} ${unit}`;
+}
 
 type PrintOrder = {
   id: string;
@@ -45,11 +57,15 @@ export function OrderPrintDocument({
   order,
   items,
   internalNotes,
+  watermarkText,
+  watermarkLogoUrl,
 }: {
   kind: OrderPrintKind;
   order: PrintOrder;
   items: PrintItem[];
   internalNotes?: string[];
+  watermarkText?: string | null;
+  watermarkLogoUrl?: string | null;
 }) {
   const title = orderPrintTitle(kind);
   const pickupLocation = pickupLocationForOrder(order);
@@ -61,7 +77,17 @@ export function OrderPrintDocument({
   const externalId = typeof snapshot.external_id === "string" ? snapshot.external_id : "";
 
   return (
-    <article className="print-sheet mx-auto max-w-3xl bg-white p-6 text-black sm:p-8">
+    <article className="print-sheet relative mx-auto max-w-3xl overflow-hidden bg-white p-6 text-black sm:p-8">
+      {kind === "packing-slip" && (watermarkLogoUrl || watermarkText) ? (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.08]">
+          {watermarkLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt="" className="max-h-[55%] max-w-[55%] object-contain" src={watermarkLogoUrl} />
+          ) : (
+            <p className="rotate-[-28deg] text-6xl font-semibold tracking-[0.2em]">{watermarkText}</p>
+          )}
+        </div>
+      ) : null}
       <PrintToolbar title={`Ivoire Shop · ${title}`} />
       <header className="border-b border-black pb-4">
         <p className="text-xs uppercase tracking-[0.24em]">Ivoire Shop</p>
@@ -120,10 +146,14 @@ export function OrderPrintDocument({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img alt="" className="h-10 w-10 rounded object-cover" src={item.image_url} />
                   ) : null}
-                  <span>{item.product_name}</span>
+                  <span>
+                    {kind === "packing-slip" && item.selling_unit && item.selling_unit !== "each"
+                      ? `${formatPrintQty(item)} ${item.product_name}`
+                      : item.product_name}
+                  </span>
                 </div>
               </td>
-              <td className="py-3 text-right">{item.quantity}{kind === "packing-slip" && item.picked ? " picked" : ""}</td>
+              <td className="py-3 text-right">{formatPrintQty(item)}{kind === "packing-slip" && item.picked ? " picked" : ""}</td>
               {kind !== "packing-slip" ? <td className="py-3 text-right">{money(item.product_price)}</td> : null}
               {kind !== "packing-slip" ? <td className="py-3 text-right">{money(Number(item.product_price) * item.quantity)}</td> : null}
             </tr>

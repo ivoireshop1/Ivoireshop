@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { saveOrderShipment, type ShipmentActionState } from "@/src/lib/delivery/actions";
+import { prepareShippoTestLabel, saveOrderShipment, type ShippoLabelState, type ShipmentActionState } from "@/src/lib/delivery/actions";
 import { carrierDisplayName, isCarrierOrder, officialTrackLabel, shippingOpsStatus, trackingUrl } from "@/src/lib/delivery/tracking";
 import { formatStoreDateTime } from "@/src/lib/store/timezone";
 import { useLiveNotifications } from "@/src/components/realtime/live-notifications-provider";
@@ -37,9 +37,11 @@ export function AdminOrderShipmentForm({
     postage_cost?: number | string | null;
     tracking_number?: string | null;
     shipped_at?: string | null;
+    delivery_snapshot?: Record<string, unknown> | null;
   };
 }) {
   const [state, action] = useActionState(saveOrderShipment, null as ShipmentActionState | null);
+  const [labelState, labelAction] = useActionState(prepareShippoTestLabel, null as ShippoLabelState | null);
   const [editing, setEditing] = useState(!order.tracking_number);
   const live = useLiveNotifications();
   useEffect(() => {
@@ -55,12 +57,27 @@ export function AdminOrderShipmentForm({
       <h2 className="font-semibold text-[#173f35]">Package Shipment</h2>
       <dl className="mt-3 space-y-2 text-sm">
         <div className="flex justify-between gap-4"><dt>Carrier</dt><dd>{carrier}</dd></div>
-        <div className="flex justify-between gap-4"><dt>Mode</dt><dd>{order.shipping_mode === "api" ? "API" : "Manual"}</dd></div>
+        <div className="flex justify-between gap-4"><dt>Mode</dt><dd>{order.shipping_mode === "api" ? "Shippo / API" : "Manual"}</dd></div>
         <div className="flex justify-between gap-4"><dt>Shipping collected</dt><dd>${Number(order.shipping_cost ?? 0).toFixed(2)}</dd></div>
         <div className="flex justify-between gap-4"><dt>Actual postage</dt><dd>{order.postage_cost == null ? "—" : `$${Number(order.postage_cost).toFixed(2)}`}</dd></div>
         <div className="flex justify-between gap-4"><dt>Shipping status</dt><dd>{ops === "missing-tracking" ? "Shipped · missing tracking" : ops === "awaiting-shipment" ? "Awaiting shipment" : ops?.replace("-", " ") || "Awaiting shipment"}</dd></div>
         {order.shipped_at ? <div className="flex justify-between gap-4"><dt>Ship date</dt><dd>{formatStoreDateTime(order.shipped_at)}</dd></div> : null}
       </dl>
+      <form action={labelAction} className="mt-4 space-y-2 rounded-xl border border-[#173f35]/10 p-3">
+        <input name="id" type="hidden" value={order.id} />
+        <p className="text-sm text-[#6b6b6b]">Prepare a Shippo test label and tracking. This does not purchase live postage.</p>
+        {typeof order.delivery_snapshot?.shippo_label_url === "string" ? (
+          <a className="inline-flex min-h-11 items-center text-sm font-semibold text-[#173f35] underline" href={order.delivery_snapshot.shippo_label_url} rel="noreferrer" target="_blank">Open saved test label</a>
+        ) : null}
+        {labelState?.error ? <p className="text-sm text-red-800">{labelState.error}</p> : null}
+        {labelState?.saved ? <p className="text-sm text-[#173f35]">Test label prepared{labelState.trackingNumber ? ` · ${labelState.trackingNumber}` : ""}.</p> : null}
+        {labelState?.labelUrl ? (
+          <a className="inline-flex min-h-11 items-center text-sm font-semibold text-[#173f35] underline" href={labelState.labelUrl} rel="noreferrer" target="_blank">Open test label PDF</a>
+        ) : null}
+        <button className="min-h-11 rounded-xl border border-[#173f35]/20 px-4 text-sm font-semibold text-[#173f35]" type="submit">
+          Prepare Shippo test label
+        </button>
+      </form>
       {locked ? (
         <div className="mt-4 space-y-3">
           <p className="break-all font-mono text-sm text-[#173f35]">{order.tracking_number}</p>

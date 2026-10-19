@@ -17,7 +17,11 @@ export function quoteFromAuthoritativeParts(input: {
   shippingAmount: number | string;
   tax: TaxSettings;
 }): QuoteCents {
-  const subtotalCents = input.unitPrices.reduce((sum, row) => sum + safeUsdToCents(row.price) * row.quantity, 0);
+  // Round per line so fractional weight quantities (e.g. 2.5 lb) never produce half-cents for Stripe.
+  const subtotalCents = input.unitPrices.reduce(
+    (sum, row) => sum + Math.round(safeUsdToCents(row.price) * Number(row.quantity)),
+    0,
+  );
   const shippingCents = safeUsdToCents(input.shippingAmount);
   const taxLines = computeTaxLines({
     subtotalCents,

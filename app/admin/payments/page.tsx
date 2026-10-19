@@ -75,7 +75,7 @@ export default async function AdminPaymentsPage({
         <h2 className="text-xl font-semibold">Stripe</h2>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <div><dt className="text-[#6b6b6b]">Stripe</dt><dd className="font-semibold text-[#173f35]">{payment.stripe.canCollect ? "Configured" : "Not Configured"}</dd></div>
-          <div><dt className="text-[#6b6b6b]">Test Mode readiness</dt><dd className="font-semibold text-[#173f35]">{payment.stripe.canCollect && payment.stripe.mode === "test" ? (payment.stripe.webhook === "configured" ? "Ready" : "Keys present; webhook missing") : "Not ready"}</dd></div>
+          <div><dt className="text-[#6b6b6b]">Test Mode readiness</dt><dd className="font-semibold text-[#173f35]">{payment.stripe.ready && payment.stripe.mode === "test" ? "Ready" : payment.stripe.canCollect && payment.stripe.mode === "test" ? "Keys present; webhook or order recording incomplete" : "Not ready"}</dd></div>
           <div><dt className="text-[#6b6b6b]">Live Payment readiness</dt><dd className="font-semibold text-[#173f35]">Disabled until founder approval</dd></div>
           <div><dt className="text-[#6b6b6b]">Mode</dt><dd className="font-semibold text-[#173f35]">{stripeModeLabel}</dd></div>
           <div><dt className="text-[#6b6b6b]">Publishable configuration</dt><dd className="font-semibold text-[#173f35]">{payment.stripe.publishable === "available" ? "Available" : "Missing"}</dd></div>

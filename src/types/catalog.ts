@@ -42,4 +42,10 @@ export interface Product {
   isNew: boolean;
   isPopular: boolean;
   isComingSoon?: boolean;
+  sellingMethod?: "each" | "weight" | "fixed_package";
+  sellingUnit?: "each" | "lb" | "kg" | "oz" | "bag" | "pack";
+  unitIncrement?: number;
+  minSellQty?: number;
+  maxSellQty?: number | null;
+  packageWeightLb?: number | null;
 }

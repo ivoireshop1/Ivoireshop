@@ -5,8 +5,9 @@ import Image from "next/image";
 import type { CartItem } from "@/src/types/cart";
 import { shippingSummaryLabel } from "@/src/lib/delivery/labels";
 import type { TaxLine, TaxMode } from "@/src/lib/tax/totals";
+import { formatSellQuantity, lineSubtotal, parseSellingMethod, parseSellingUnit } from "@/src/lib/catalog/selling";
 
-type SummaryItem = Pick<CartItem, "productId" | "name" | "quantity"> & Partial<Pick<CartItem, "price" | "image">>;
+type SummaryItem = Pick<CartItem, "productId" | "name" | "quantity"> & Partial<Pick<CartItem, "price" | "image" | "sellingMethod" | "sellingUnit">>;
 
 export function CheckoutOrderSummary({
   items,
@@ -40,7 +41,10 @@ export function CheckoutOrderSummary({
   showContinue?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const count = items.reduce((sum, item) => sum + item.quantity, 0);
+  const count = items.reduce((sum, item) => {
+    const method = parseSellingMethod(item.sellingMethod);
+    return sum + (method === "weight" ? 1 : item.quantity);
+  }, 0);
   const thumb = items.find((item) => item.image)?.image || items[0]?.image || "";
   const money = (value: number | null) => (value == null ? "—" : `$${value.toFixed(2)}`);
   return (
@@ -70,12 +74,18 @@ export function CheckoutOrderSummary({
       ) : null}
       {open ? (
         <ul className="mt-4 space-y-2 border-t border-black/10 pt-3 text-sm">
-          {items.map((item) => (
-            <li className="flex justify-between gap-3" key={item.productId}>
-              <span className="min-w-0 break-words">{item.name} × {item.quantity}</span>
-              <span className="shrink-0 whitespace-nowrap tabular-nums">{item.price != null ? `$${(item.price * item.quantity).toFixed(2)}` : ""}</span>
-            </li>
-          ))}
+          {items.map((item) => {
+            const unit = parseSellingUnit(item.sellingUnit ?? (parseSellingMethod(item.sellingMethod) === "weight" ? "lb" : "each"));
+            const qtyLabel = parseSellingMethod(item.sellingMethod) === "weight" || unit !== "each"
+              ? formatSellQuantity(item.quantity, unit)
+              : String(item.quantity);
+            return (
+              <li className="flex justify-between gap-3" key={item.productId}>
+                <span className="min-w-0 break-words">{item.name} · {qtyLabel}</span>
+                <span className="shrink-0 whitespace-nowrap tabular-nums">{item.price != null ? `$${lineSubtotal(item.price, item.quantity).toFixed(2)}` : ""}</span>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
       {showContinue ? (

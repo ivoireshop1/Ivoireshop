@@ -36,7 +36,7 @@ export function PaymentMethodCards({
         />
         <p className="font-semibold text-forest-green">Stripe Card Payment</p>
         <p className="mt-1 text-sm text-muted">
-          {stripeReady ? "Card details are collected by Stripe on this page." : "Stripe keys are not configured on the server yet."}
+          {stripeReady ? "Card details are collected securely on this page." : "Card payment is not available right now."}
         </p>
       </label>
       )}
