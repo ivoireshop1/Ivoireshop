@@ -98,8 +98,9 @@ export default async function AdminPaymentsPage({
         </dl>
         {payment.stripe.modeMismatch ? <p className="mt-4 text-sm text-red-800">Publishable and secret keys are not the same Stripe mode.</p> : null}
         {payment.stripe.missing.length ? <p className="mt-4 text-sm text-[#7c5d1a]">Missing: {payment.stripe.missing.join(", ")}.</p> : null}
-        <p className="mt-4 text-sm text-muted">Server environment names: {stripe.envNames.join(", ")}. Never paste secret keys into chat or the browser.</p>
-        <p className="mt-2 text-sm text-muted">Webhook endpoint: /api/payments/stripe/webhook</p>
+        <p className="mt-4 text-sm text-muted">Server environment names: {stripe.envNames.join(", ")}. Keys are set in the hosting project by the store owner — never paste secret keys into chat or the browser.</p>
+        <p className="mt-2 text-sm text-muted">Webhook endpoint: https://ivoireshop-steel.vercel.app/api/payments/stripe/webhook</p>
+        <p className="mt-2 text-sm text-muted">Live card charges stay locked until the owner sets matching LIVE keys and explicitly enables STRIPE_LIVE_PAYMENTS_ENABLED.</p>
         {!payment.canRecord ? (
           <p className="mt-4 text-sm text-muted">Order payment updates require a server-only Supabase service role key.</p>
         ) : null}

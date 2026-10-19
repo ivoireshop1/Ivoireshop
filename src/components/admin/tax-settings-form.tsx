@@ -39,7 +39,10 @@ export function TaxSettingsForm({
     <form action={action} className="min-w-0 space-y-4 overflow-x-hidden rounded-2xl bg-white p-5">
       <h2 className="font-semibold text-[#173f35]">Taxes</h2>
       <p className="text-sm text-[#6b6b6b]">
-        Tax 1 and Tax 2 are independent. Enable neither, either, or both. New checkouts use these rules. Historical orders keep their stored snapshot.
+        Client-managed store tax rules. Tax 1 and Tax 2 are independent — enable neither, either, or both. New checkouts use these rates; historical orders keep their stored snapshot. The store owner is responsible for choosing rates that match their tax obligations. This software does not determine legal tax rates, grocery exemptions, or destination-based jurisdiction rules.
+      </p>
+      <p className="text-sm text-[#6b6b6b]">
+        Per-product tax classes and automatic location-based tax lookup are not available in this release. Use Tax 1 / Tax 2 for the rates the business has decided to collect.
       </p>
       <TaxRuleFields appliesToShipping={Boolean(tax1Shipping)} enabled={Boolean(tax1Enabled)} name={tax1Name || "Tax 1"} prefix="tax_1" rate={tax1Rate} title="Tax 1" />
       <TaxRuleFields appliesToShipping={Boolean(tax2Shipping)} enabled={Boolean(tax2Enabled)} name={tax2Name || "Tax 2"} prefix="tax_2" rate={tax2Rate} title="Tax 2" />

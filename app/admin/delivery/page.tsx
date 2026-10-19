@@ -47,7 +47,7 @@ export default async function AdminDeliveryPage() {
         <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#b8964c]">Fulfillment</p>
         <h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Delivery Center</h1>
         <p className="mt-2 max-w-2xl text-sm text-[#6b6b6b]">
-          Ivoire Shop shipping remains store-calculated when that engine is on. UPS and USPS can use Shippo live test rates when you enable Shippo and set each carrier to Live Carrier API. DoorDash remains API-based when credentials exist. Postage purchasing stays off.
+          Client-managed fulfillment. Store Pickup is separate from carriers. UPS and USPS at checkout use live Shippo quotes only when Shippo is enabled and each carrier is set to Live Carrier API. Store-calculated Ivoire shipping is retired from customer checkout. Postage purchasing stays off until the owner approves it. Shippo account tokens are configured in the hosting environment by the store owner.
         </p>
       </div>
 
