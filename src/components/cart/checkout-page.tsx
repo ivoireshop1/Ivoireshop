@@ -140,13 +140,24 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
     deliveryOptionIdRef.current = deliveryOptionId;
   }, [deliveryOptionId]);
 
+  function orderTotalFromParts(shippingAmount: number, taxAmount = 0, productSubtotal = subtotal) {
+    return Number((Number(productSubtotal || 0) + Number(shippingAmount || 0) + Number(taxAmount || 0)).toFixed(2));
+  }
+
   function pinLiveSelection(option: DeliveryOption, breakdown?: { shipping: number; tax: number; total: number; taxLines?: TaxLine[] } | null) {
     if (option.rateMode !== "live_api") return;
     pinnedLiveOptionRef.current = option;
-    pinnedLiveBreakdownRef.current = breakdown ?? {
-      shipping: option.amount,
-      tax: 0,
-      total: option.amount,
+    const shippingAmount = breakdown?.shipping ?? option.amount;
+    const taxAmount = breakdown?.tax ?? 0;
+    // Never treat shipping-only as the checkout total — Stripe prepare compares full order cents.
+    const fullTotal = breakdown && breakdown.total >= shippingAmount + (quoteSubtotal ?? subtotal) - 0.001
+      ? breakdown.total
+      : orderTotalFromParts(shippingAmount, taxAmount, quoteSubtotal ?? subtotal);
+    pinnedLiveBreakdownRef.current = {
+      shipping: shippingAmount,
+      tax: taxAmount,
+      taxLines: breakdown?.taxLines,
+      total: fullTotal,
     };
     pinnedQuoteFingerprintRef.current = checkoutQuoteFingerprint(address, items);
     selectedLiveAmountRef.current = option.amount;
@@ -225,10 +236,11 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
             : null;
           if (placeholder) {
             pinnedLiveOptionRef.current = placeholder;
+            const attemptSubtotal = saved.items.reduce((sum, row) => sum + Number(row.price || 0) * Number(row.quantity || 0), 0);
             pinnedLiveBreakdownRef.current = {
               shipping: saved.request.quotedShipping,
               tax: 0,
-              total: saved.request.quotedShipping,
+              total: Number((attemptSubtotal + saved.request.quotedShipping).toFixed(2)),
             };
             pinnedQuoteFingerprintRef.current = checkoutQuoteFingerprint(
               {
@@ -245,6 +257,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
             if (pinnedLiveBreakdownRef.current) {
               setBreakdowns((current) => ({ ...current, [placeholder.id]: pinnedLiveBreakdownRef.current! }));
             }
+            if (attemptSubtotal > 0) setQuoteSubtotal(Number(attemptSubtotal.toFixed(2)));
           }
         }
         const step = saved.step ?? (saved.receipt ? "payment" : draft?.step) ?? "account";
@@ -264,6 +277,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
             : null;
           if (placeholder) {
             pinnedLiveOptionRef.current = placeholder;
+            // Subtotal is filled after cart hydration; shipping-only totals must not be sent to Stripe.
             pinnedLiveBreakdownRef.current = {
               shipping: draft.quotedShipping,
               tax: 0,
@@ -296,16 +310,25 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
     if (!current || current === nextFingerprint) {
       pinnedQuoteFingerprintRef.current = nextFingerprint;
       lastLiveQuoteFingerprintRef.current = nextFingerprint;
-      return;
+    } else {
+      // Empty-cart restore ends with "::" and no product ids — upgrade after hydration.
+      const restoredEmptyCart = current.endsWith("::");
+      const draft = readCheckoutDraft();
+      if (restoredEmptyCart || draft?.cartFingerprint === nextFingerprint) {
+        pinnedQuoteFingerprintRef.current = nextFingerprint;
+        lastLiveQuoteFingerprintRef.current = nextFingerprint;
+      }
     }
-    // Empty-cart restore ends with "::" and no product ids — upgrade after hydration.
-    const restoredEmptyCart = current.endsWith("::");
-    const draft = readCheckoutDraft();
-    if (restoredEmptyCart || draft?.cartFingerprint === nextFingerprint) {
-      pinnedQuoteFingerprintRef.current = nextFingerprint;
-      lastLiveQuoteFingerprintRef.current = nextFingerprint;
+    const pinned = pinnedLiveOptionRef.current;
+    const pinnedBreakdown = pinnedLiveBreakdownRef.current;
+    if (pinned && pinnedBreakdown && pinnedBreakdown.total <= pinnedBreakdown.shipping + 0.001) {
+      const fullTotal = orderTotalFromParts(pinnedBreakdown.shipping, pinnedBreakdown.tax ?? 0, subtotal);
+      const nextBreakdown = { ...pinnedBreakdown, total: fullTotal };
+      pinnedLiveBreakdownRef.current = nextBreakdown;
+      setBreakdowns((current) => ({ ...current, [pinned.id]: nextBreakdown }));
+      setQuoteSubtotal(subtotal);
     }
-  }, [sessionReady, isLoaded, address, items]);
+  }, [sessionReady, isLoaded, address, items, subtotal]);
 
   // Persist non-sensitive checkout progress for refresh / back-forward (never card data).
   useEffect(() => {
@@ -685,8 +708,18 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
         setError(prepared.error);
         setClientSecret(null);
         if (prepared.totalsChanged) {
-          if (prepared.total != null) setQuoteSubtotal(prepared.subtotal ?? null);
+          if (prepared.subtotal != null) setQuoteSubtotal(prepared.subtotal);
           if (prepared.shipping != null) selectedLiveAmountRef.current = prepared.shipping;
+          const selectedId = deliveryOptionIdRef.current;
+          if (selectedId && prepared.shipping != null && prepared.total != null) {
+            const nextBreakdown = {
+              shipping: prepared.shipping,
+              tax: prepared.tax ?? 0,
+              total: prepared.total,
+            };
+            pinnedLiveBreakdownRef.current = nextBreakdown;
+            setBreakdowns((current) => ({ ...current, [selectedId]: nextBreakdown }));
+          }
           const busy = /briefly busy|too many requests|10429/i.test(prepared.error || "");
           setQuoteMessage(
             prepared.shipping != null
@@ -779,9 +812,22 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
   const breakdown = selectedOption ? breakdowns[selectedOption.id] : undefined;
   const summaryItems = attempt?.items ?? items;
   const displaySubtotal = attempt?.receipt?.subtotal ?? quoteSubtotal ?? subtotal;
-  const displayShipping = attempt?.receipt?.shipping_cost ?? breakdown?.shipping ?? null;
+  const displayShipping = attempt?.receipt?.shipping_cost
+    ?? breakdown?.shipping
+    ?? selectedLiveAmountRef.current
+    ?? (selectedOption?.rateMode === "live_api" ? selectedOption.amount : null);
   const displayTax = attempt?.receipt?.tax_amount ?? breakdown?.tax ?? null;
-  const displayTotal = attempt?.receipt?.total ?? breakdown?.total ?? null;
+  // Prefer composed cart+shipping totals. Pinned placeholders historically stored shipping-only in breakdown.total.
+  const composedTotal = displaySubtotal != null && displayShipping != null
+    ? Number((Number(displaySubtotal) + Number(displayShipping) + Number(displayTax ?? 0)).toFixed(2))
+    : null;
+  const breakdownLooksComplete = breakdown != null
+    && displaySubtotal != null
+    && breakdown.total + 0.001 >= Number(displaySubtotal) + Number(breakdown.shipping) - 0.001;
+  const displayTotal = attempt?.receipt?.total
+    ?? (breakdownLooksComplete ? breakdown.total : null)
+    ?? composedTotal
+    ?? null;
   const taxLabel = taxSettings ? taxDisplayLabel(taxSettings) : "Tax";
 
   async function submitDemoOrder(expectedTotal: number | null) {
