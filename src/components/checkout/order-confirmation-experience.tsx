@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CopyConfirmationButton } from "./copy-confirmation-button";
+import { RememberGuestOrder } from "./remember-guest-order";
 import type { CheckoutReceipt } from "@/src/lib/checkout/checkout-validation";
 import { maskEmail } from "@/src/lib/customer/mask-email";
 import { paymentProviderLabel, paymentStatusLabel } from "@/src/lib/orders/status";
@@ -42,6 +43,9 @@ export function OrderConfirmationExperience({
 
   return (
     <section className="order-confirm-stage overflow-hidden rounded-[28px] bg-[#f5f0e6] p-6 sm:p-10">
+      {receipt.guest_access_token && receipt.account_order !== true ? (
+        <RememberGuestOrder token={receipt.guest_access_token} />
+      ) : null}
       <div className={`order-confirm-check mx-auto flex h-20 w-20 items-center justify-center rounded-full ${confirmed ? "bg-forest-green text-white" : "bg-white text-forest-green"}`}>
         <span aria-hidden="true" className="text-4xl">{confirmed ? "✓" : "•"}</span>
       </div>
@@ -93,8 +97,13 @@ export function OrderConfirmationExperience({
       </p>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
         {viewHref ? (
-          <Link className="min-h-11 rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white" href={viewHref}>
+          <Link className="min-h-11 rounded-lg bg-forest-green px-5 py-3 text-sm font-semibold text-white" href={viewHref} referrerPolicy="no-referrer">
             View Order
+          </Link>
+        ) : null}
+        {receipt.guest_access_token && receipt.account_order !== true ? (
+          <Link className="min-h-11 rounded-lg border border-forest-green/20 px-5 py-3 text-sm font-semibold text-forest-green" href="/orders">
+            Track My Order
           </Link>
         ) : null}
         <Link className="min-h-11 rounded-lg border border-forest-green/20 px-5 py-3 text-sm font-semibold text-forest-green" href="/shop" onClick={onContinue}>
