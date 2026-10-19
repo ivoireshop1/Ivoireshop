@@ -1,6 +1,5 @@
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { activateCategory, createCategory, deactivateCategory, deleteCategory, mergeOrReassignCategory, updateCategory } from "@/src/lib/catalog/actions";
-import { isCanonicalSlug } from "@/src/lib/catalog/canonical-categories";
 import { CategoryCreateForm, CategoryReassignForm, CategoryTreeManager } from "@/src/components/admin/category-forms";
 import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 
@@ -86,7 +85,6 @@ export default async function AdminCategoriesPage({
         createAction={createCategory}
         deactivateAction={deactivateCategory}
         deleteAction={deleteCategory}
-        isCanonicalSlug={isCanonicalSlug}
         productActives={actives}
         productTotals={totals}
         updateAction={updateCategory}
