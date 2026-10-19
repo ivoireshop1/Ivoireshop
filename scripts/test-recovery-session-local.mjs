@@ -134,6 +134,13 @@ await test("dedicated recovery callback always finishes on set-password or inval
   assert.doesNotMatch(source, /resolvePostLoginPath|\/login\?/);
 });
 
+await test("proxy does not rewrite recovery callback codes into the generic callback", () => {
+  const source = fs.readFileSync("proxy.ts", "utf8");
+  assert.match(source, /RECOVERY_CALLBACK_PATH/);
+  assert.match(source, /recoveryIntent/);
+  assert.match(source, /isPasswordRecoveryPath/);
+});
+
 await test("the reset page consumes the fragment before rendering the invalid state", () => {
   const source = fs.readFileSync("src/components/auth/password-recovery-experience.tsx", "utf8");
   assert.match(source, /setSession\(\{/);

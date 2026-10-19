@@ -80,9 +80,9 @@ export async function GET(request: NextRequest) {
       if (recovered) {
         return redirect(sitePath(request, RECOVERY_INVALID_PATH));
       }
-      // Vercel SSO often consumes `code` before this route runs. The account
-      // is typically already confirmed; send the customer to sign in.
-      return redirect(sitePath(request, `/login?error=already_confirmed&next=${encodeURIComponent("/account")}`));
+      // Failed / consumed auth codes must not dump users into a silent login
+      // success state — especially when the code was meant for password recovery.
+      return redirect(sitePath(request, "/auth/verify-failed"));
     }
   } else if (recovered) {
     // Fragment tokens never reach this route handler. Do not force stage=set —
