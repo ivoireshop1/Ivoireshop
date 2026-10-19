@@ -45,6 +45,8 @@ export default async function GuestOrderConfirmationPage({ params }: { params: P
             status: String(order.status),
             total: Number(order.total),
             confirmation_code: String(order.confirmation_code),
+            guest_access_token: token,
+            account_order: accountOrder,
             payment_status: String(order.payment_status),
             fulfillment_method: String(order.fulfillment_method),
             fulfillment_provider: order.fulfillment_provider ? String(order.fulfillment_provider) : undefined,
