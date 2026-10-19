@@ -34,3 +34,17 @@ test("neither tax collects zero", () => {
   });
   assert.equal(computeTaxCents({ subtotalCents: 5000, discountCents: 0, shippingCents: 800, tax }), 0);
 });
+
+test("dual-tax false columns keep explicit not_configured", () => {
+  const tax = taxSettingsFromRow({
+    tax_mode: "not_configured",
+    tax_rate_percent: null,
+    tax_1_enabled: false,
+    tax_1_rate_percent: null,
+    tax_2_enabled: false,
+    tax_2_rate_percent: null,
+  });
+  assert.equal(tax.tax_mode, "not_configured");
+  assert.equal(tax.rules?.[0]?.rate_percent, null);
+  assert.equal(tax.rules?.[1]?.rate_percent, null);
+});

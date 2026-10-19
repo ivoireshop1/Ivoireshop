@@ -27,6 +27,7 @@ export type TaxSettings = {
 };
 
 function parseRate(value: unknown) {
+  if (value == null || value === "") return null;
   const rate = Number(value);
   return Number.isFinite(rate) && rate >= 0 ? rate : null;
 }
@@ -81,9 +82,11 @@ export function taxSettingsFromRow(row: Record<string, unknown> | null | undefin
   const tax2 = ruleFromRow(row, "tax2", "tax_2_enabled", "tax_2_name", "tax_2_rate_percent", "tax_2_applies_to_shipping", "Tax 2", null, legacyShipping);
   const enabled = [tax1, tax2].filter((rule) => rule.enabled && rule.rate_percent != null);
   const primary = enabled[0];
+  // Respect explicit not_configured even when dual-tax columns exist as false/null.
+  // Previously `tax_1_enabled == null` forced no_tax whenever the boolean was false.
   let tax_mode: TaxMode = "no_tax";
   if (enabled.length) tax_mode = "manual_rate";
-  else if (legacyMode === "not_configured" && !tax1.enabled && !tax2.enabled && row.tax_1_enabled == null) tax_mode = "not_configured";
+  else if (legacyMode === "not_configured") tax_mode = "not_configured";
   return {
     tax_mode,
     tax_rate_percent: primary?.rate_percent ?? null,
