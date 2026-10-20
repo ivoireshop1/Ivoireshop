@@ -8,6 +8,7 @@ import { parseCharge, manualCarrierOptions, parseRateMode } from "./manual";
 import { destinationReadyForCarrierQuotes, destinationReadyForLocalDelivery, incompleteCarrierQuoteMessage } from "./destination";
 import { taxSettingsFromRow, computeTaxLines, computeOrderTotalCents, moneyFromCents, safeUsdToCents, type TaxLine } from "@/src/lib/tax/totals";
 import { quoteLiveCarrierOptions } from "@/src/lib/shipping/live-quotes";
+import { liveCarrierApiEnabled } from "@/src/lib/shipping/provider";
 import { isCheckoutEligibleShippingOption } from "./checkout-eligibility";
 
 function logDelivery(provider: string, operation: string, success: boolean, message?: string) {
@@ -76,7 +77,7 @@ export async function collectCheckoutOptions(input: {
     return sum + Math.round(price * qty * 100);
   }, 0);
   const row = (settings ?? {}) as Record<string, unknown>;
-  const liveCarriersWanted = row.shippo_enabled === true && (["ups", "usps"] as const).some((carrier) => (
+  const liveCarriersWanted = liveCarrierApiEnabled(row) && (["ups", "usps"] as const).some((carrier) => (
     Boolean(row[`${carrier}_enabled`])
     && row[`${carrier}_show_at_checkout`] !== false
     && parseRateMode(row[`${carrier}_rate_mode`]) === "live_api"
@@ -91,7 +92,7 @@ export async function collectCheckoutOptions(input: {
   options.push(...manualCarrierOptions(settings as Record<string, unknown> | null, quoteCountry, moneyFromCents(subtotalCents)));
   const settingsRow = (settings ?? {}) as Record<string, unknown>;
   const expectedFromSettings = (["ups", "usps"] as const).filter((carrier) => (
-    settingsRow.shippo_enabled === true
+    liveCarrierApiEnabled(settingsRow)
     && Boolean(settingsRow[`${carrier}_enabled`])
     && settingsRow[`${carrier}_show_at_checkout`] !== false
     && parseRateMode(settingsRow[`${carrier}_rate_mode`]) === "live_api"

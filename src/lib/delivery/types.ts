@@ -13,6 +13,9 @@ export type DeliveryOption = {
   usedFallback?: boolean;
   billableWeightLb?: number;
   shippoRateId?: string | null;
+  easypostRateId?: string | null;
+  easypostShipmentId?: string | null;
+  quoteSource?: "shippo" | "easypost";
   testRate?: boolean;
   etaDays?: number | null;
 };

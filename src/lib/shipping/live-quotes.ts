@@ -16,6 +16,8 @@ import {
   quoteShippoShipment,
   shippoCredentials,
 } from "./shippo";
+import { easypostCredentials, quoteEasyPostShipment } from "./easypost";
+import { customerFacingEasyPostAllowed, liveCarrierApiEnabled, parseShippingProvider } from "./provider";
 import { recordShippingMonitorEvent } from "./monitor";
 
 export type LiveCarrier = "ups" | "usps";
@@ -168,9 +170,10 @@ export async function quoteLiveCarrierOptions(input: {
   products: Parameters<typeof cartParcel>[0];
 }): Promise<LiveQuoteResult> {
   const settings = input.settings ?? {};
-  const shippoOn = settings.shippo_enabled === true;
+  const provider = parseShippingProvider(settings.shipping_provider);
+  const liveOn = liveCarrierApiEnabled(settings);
   const liveCarriers = (["ups", "usps"] as const).filter((carrier) => {
-    return shippoOn
+    return liveOn
       && Boolean(settings[`${carrier}_enabled`])
       && settings[`${carrier}_show_at_checkout`] !== false
       && parseRateMode(settings[`${carrier}_rate_mode`]) === "live_api";
@@ -191,22 +194,46 @@ export async function quoteLiveCarrierOptions(input: {
   ));
   if (!remaining.length) return { options: [], expectedLiveCarriers: liveCarriers };
 
-  const creds = shippoCredentials();
-  if (!creds.configured) {
-    await recordShippingMonitorEvent("quote_failure", { reason: "not_configured", carriers: remaining });
-    return {
-      options: [],
-      expectedLiveCarriers: remaining,
-      message: "Live UPS/USPS quotes are enabled, but Shippo is not configured on this environment.",
-    };
-  }
-  if (creds.isLive) {
-    await recordShippingMonitorEvent("quote_failure", { reason: "live_token_blocked" });
-    return {
-      options: [],
-      expectedLiveCarriers: remaining,
-      message: "A live Shippo token is present. Checkout will not request live postage quotes until the founder approves production shipping.",
-    };
+  const shippo = shippoCredentials();
+  const easypost = easypostCredentials();
+  if (provider === "easypost") {
+    if (!easypost.configured) {
+      await recordShippingMonitorEvent("quote_failure", { reason: "easypost_not_configured", carriers: remaining });
+      return {
+        options: [],
+        expectedLiveCarriers: remaining,
+        message: "Live UPS/USPS quotes are enabled, but EasyPost is not configured on this environment.",
+      };
+    }
+    if (!customerFacingEasyPostAllowed({
+      provider,
+      isTest: easypost.isTest,
+      customerRatesEnabled: settings.easypost_customer_rates_enabled === true,
+    })) {
+      await recordShippingMonitorEvent("quote_failure", { reason: "easypost_customer_rates_locked", carriers: remaining });
+      return {
+        options: [],
+        expectedLiveCarriers: remaining,
+        message: "EasyPost production quotes stay off at checkout until the founder enables customer-facing live rates after a verified production quote. Store Pickup remains available.",
+      };
+    }
+  } else {
+    if (!shippo.configured) {
+      await recordShippingMonitorEvent("quote_failure", { reason: "not_configured", carriers: remaining });
+      return {
+        options: [],
+        expectedLiveCarriers: remaining,
+        message: "Live UPS/USPS quotes are enabled, but Shippo is not configured on this environment.",
+      };
+    }
+    if (shippo.isLive) {
+      await recordShippingMonitorEvent("quote_failure", { reason: "live_token_blocked" });
+      return {
+        options: [],
+        expectedLiveCarriers: remaining,
+        message: "A live Shippo token is present. Checkout will not request live postage quotes until the founder approves production shipping.",
+      };
+    }
   }
   if (!originIsComplete(input.origin) || !destinationReadyForCarrierQuotes(input.destination)) {
     return {
@@ -235,16 +262,100 @@ export async function quoteLiveCarrierOptions(input: {
 
   const allowedServices = parseAllowedServices(settings.shippo_allowed_services);
   const margin = Number(settings.shippo_margin_percent ?? 0);
-  const cacheKey = liveQuoteCacheKey({
+  const cacheKey = `${provider}::${liveQuoteCacheKey({
     origin: input.origin,
     destination: input.destination,
     parcel: packed.parcel,
     carriers: remaining,
     allowedServices,
     margin,
-  });
+  })}`;
   const cached = readLiveQuoteCache(cacheKey);
   if (cached) return cached;
+
+  if (provider === "easypost") {
+    const quoted = await quoteEasyPostShipment({
+      origin: input.origin,
+      destination: input.destination,
+      parcel: packed.parcel,
+      allowedServices,
+    });
+    if (!quoted.ok) {
+      await recordShippingMonitorEvent("quote_failure", {
+        reason: quoted.rateLimited ? "easypost_rate_limited" : "easypost_error",
+        carriers: remaining,
+        status: quoted.status ?? null,
+      });
+      if (quoted.rateLimited) {
+        return temporaryBusyResult({
+          options: [],
+          remaining,
+          busyCarriers: remaining,
+          reason: "rate_limit",
+        });
+      }
+      return {
+        options: [],
+        expectedLiveCarriers: remaining,
+        message: "EasyPost could not return UPS/USPS rates for this destination. The checkout did not substitute a manual estimate.",
+      };
+    }
+    const options = assignUniqueLiveOptionIds(quoted.rates
+      .filter((rate) => remaining.includes(rate.provider))
+      .map((rate) => {
+        const eta = rate.estimatedDays != null
+          ? `${rate.estimatedDays} business day${rate.estimatedDays === 1 ? "" : "s"}`
+          : rate.durationTerms;
+        return {
+          id: liveOptionId(rate.provider, rate.service, { token: rate.serviceToken, days: rate.estimatedDays }),
+          provider: rate.provider,
+          fulfillmentMethod: "delivery" as const,
+          label: `${rate.provider.toUpperCase()} · ${rate.service}`,
+          amount: applyShippingMargin(rate.amount, margin),
+          serviceCode: rate.service || rate.serviceToken,
+          serviceToken: rate.serviceToken || undefined,
+          estimate: [
+            eta,
+            easypost.isTest || rate.test ? "EasyPost TEST rate — not a production quote" : "EasyPost carrier rate",
+          ].filter(Boolean).join(" · "),
+          mode: "api" as const,
+          zone: international ? "international" as const : "domestic" as const,
+          rateMode: "live_api" as const,
+          billableWeightLb: packed.parcel!.weightLb,
+          easypostRateId: rate.objectId,
+          easypostShipmentId: rate.shipmentId,
+          quoteSource: "easypost" as const,
+          testRate: easypost.isTest || rate.test,
+          etaDays: rate.estimatedDays,
+        };
+      }));
+    await recordShippingMonitorEvent("checkout_quote", {
+      provider: "easypost",
+      rates: options.length,
+      upsRates: options.filter((option) => option.provider === "ups").length,
+      uspsRates: options.filter((option) => option.provider === "usps").length,
+      test: easypost.isTest,
+      country: String(input.destination.country || "").slice(0, 2).toUpperCase(),
+      weightLb: packed.parcel.weightLb,
+    });
+    if (!options.length) {
+      return {
+        options: [],
+        expectedLiveCarriers: remaining,
+        message: `EasyPost returned no eligible ${remaining.map((carrier) => carrier.toUpperCase()).join(" and ")} services for this destination and parcel. No substitute rate was invented.`,
+      };
+    }
+    const missingCarriers = remaining.filter((carrier) => !options.some((option) => option.provider === carrier));
+    const success = {
+      options,
+      expectedLiveCarriers: remaining,
+      message: missingCarriers.length
+        ? `${missingCarriers.map((carrier) => carrier.toUpperCase()).join(" and ")} did not return a rate for this destination and parcel. Showing available EasyPost rates only.`
+        : undefined,
+    };
+    writeLiveQuoteCache(cacheKey, success);
+    return success;
+  }
 
   const accounts = await listShippoCarrierAccounts();
   let quoted = await quoteShippoShipment({
@@ -316,14 +427,15 @@ export async function quoteLiveCarrierOptions(input: {
         serviceToken: rate.serviceToken || undefined,
         estimate: [
           eta,
-          creds.isTest || rate.test ? "Shippo test rate — not a production quote" : "Shippo carrier rate",
+          shippo.isTest || rate.test ? "Shippo test rate — not a production quote" : "Shippo carrier rate",
         ].filter(Boolean).join(" · "),
         mode: "api" as const,
         zone: international ? "international" as const : "domestic" as const,
         rateMode: "live_api" as const,
         billableWeightLb: packed.parcel!.weightLb,
         shippoRateId: rate.objectId,
-        testRate: creds.isTest || rate.test,
+        quoteSource: "shippo" as const,
+        testRate: shippo.isTest || rate.test,
         etaDays: rate.estimatedDays,
       };
     }));
@@ -341,7 +453,8 @@ export async function quoteLiveCarrierOptions(input: {
     uspsRates,
     upsAccounts: accounts.ups,
     uspsAccounts: accounts.usps,
-    test: creds.isTest,
+    provider: "shippo",
+    test: shippo.isTest,
     country: String(input.destination.country || "").slice(0, 2).toUpperCase(),
     weightLb: packed.parcel.weightLb,
     rateLimited: anyRateLimitMessage,

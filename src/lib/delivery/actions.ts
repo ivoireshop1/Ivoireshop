@@ -12,6 +12,7 @@ import { verifyDoorDash } from "./providers/doordash";
 import { sanitizeProviderError } from "./types";
 import { parseAdminMiles, parseAdminMoney, parseRateMode } from "./manual";
 import { canPrepareShippoLabel, createShippoTestTransaction, listShippoCarrierAccounts, shippoCredentials } from "@/src/lib/shipping/shippo";
+import { easypostCredentials } from "@/src/lib/shipping/easypost";
 import { quoteLiveCarrierOptions } from "@/src/lib/shipping/live-quotes";
 import { recordShippingMonitorEvent } from "@/src/lib/shipping/monitor";
 import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
@@ -283,6 +284,24 @@ export async function saveShippoSettings(_prev: { error?: string; saved?: boolea
     updated_at: new Date().toISOString(),
   }, "shippo_settings");
   if (!saved) return { error: "Couldn’t save Shippo settings. Confirm the shipping schema is applied.", saved: false };
+  revalidateFulfillment();
+  return { saved: true };
+}
+
+export async function saveShippingProviderSettings(_prev: { error?: string; saved?: boolean } | null, formData: FormData) {
+  const { supabase } = await requireAdmin();
+  const provider = String(formData.get("shipping_provider") ?? "").trim() === "easypost" ? "easypost" : "shippo";
+  if (formData.get("postage_purchases_enabled") === "on") {
+    return { error: "Live postage purchasing is disabled in this phase and requires founder approval.", saved: false };
+  }
+  const saved = await persistStoreSettings(supabase, {
+    shipping_provider: provider,
+    easypost_enabled: formData.get("easypost_enabled") === "on",
+    easypost_customer_rates_enabled: formData.get("easypost_customer_rates_enabled") === "on",
+    postage_purchases_enabled: false,
+    updated_at: new Date().toISOString(),
+  }, "shipping_provider");
+  if (!saved) return { error: "Couldn’t save the shipping provider. Confirm the shipping schema is applied.", saved: false };
   revalidateFulfillment();
   return { saved: true };
 }
@@ -612,6 +631,18 @@ export async function checkDeliveryProviders(): Promise<void> {
     status: !shippo.configured ? "not_configured" : accounts.ok ? "connected" : "error",
     last_check_at: new Date().toISOString(),
     last_error: accounts.ok ? null : "Shippo carrier account check failed",
+    updated_at: new Date().toISOString(),
+  });
+  const easypost = easypostCredentials();
+  await supabase.from("delivery_provider_health").upsert({
+    provider: "easypost",
+    status: !easypost.configured ? "not_configured" : easypost.mode === "unknown" ? "error" : "connected",
+    last_check_at: new Date().toISOString(),
+    last_error: !easypost.configured
+      ? "EASYPOST_API_KEY is not set on this environment"
+      : easypost.mode === "unknown"
+        ? "EasyPost key format is unrecognized (expect EZTK test or EZAK production)"
+        : null,
     updated_at: new Date().toISOString(),
   });
   for (const provider of ["ups", "usps"] as const) {

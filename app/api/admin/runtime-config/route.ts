@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/src/lib/supabase/server";
 import { getStripeConfig, stripeKeyMode, STRIPE_ENV_NAMES } from "@/src/lib/payments/stripe-config";
 import { shippoCredentials } from "@/src/lib/shipping/shippo";
+import { easypostCredentials } from "@/src/lib/shipping/easypost";
 import { hasPaymentAdminClient } from "@/src/lib/payments/config";
 
 export const runtime = "nodejs";
@@ -18,6 +19,11 @@ function envMode(name: string, raw: string): string | null {
     if (raw.startsWith("shippo_test_")) return "shippo_test";
     if (raw.startsWith("shippo_live_")) return "shippo_live";
     return "shippo_other";
+  }
+  if (name === "EASYPOST_API_KEY") {
+    if (raw.startsWith("EZTK")) return "easypost_test";
+    if (raw.startsWith("EZAK")) return "easypost_live";
+    return "easypost_other";
   }
   if (name === "STRIPE_LIVE_PAYMENTS_ENABLED") {
     return raw.toLowerCase() === "true" ? "true" : "false";
@@ -46,6 +52,7 @@ export async function GET() {
 
   const stripe = getStripeConfig();
   const shippo = shippoCredentials();
+  const easypost = easypostCredentials();
   const publishableMode = stripe.publishablePresent ? stripeKeyMode(stripe.publishableKey) : null;
   const secretMode = stripe.secretPresent ? stripeKeyMode(stripe.secretKey) : null;
   const unrecognizedKeys =
@@ -99,12 +106,25 @@ export async function GET() {
             : null,
       note: "TEST tokens are accepted for quotes. LIVE tokens are intentionally blocked for checkout quotes.",
     },
+    easypost: {
+      configured: easypost.configured,
+      mode: easypost.mode,
+      isTest: easypost.isTest,
+      isLive: easypost.isLive,
+      failPath: !easypost.configured
+        ? "easypostCredentials → empty EASYPOST_API_KEY"
+        : easypost.mode === "unknown"
+          ? "easypostCredentials → key present but not EZTK/EZAK format"
+          : null,
+      note: "TEST keys (EZTK) can quote sandbox rates. Production keys stay off customer checkout until easypost_customer_rates_enabled is on. Postage buy is never called.",
+    },
     envPresence: [
       "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
       "STRIPE_SECRET_KEY",
       "STRIPE_WEBHOOK_SECRET",
       "STRIPE_LIVE_PAYMENTS_ENABLED",
       "SHIPPO_API_TOKEN",
+      "EASYPOST_API_KEY",
       "NEXT_PUBLIC_SITE_URL",
       "NEXT_PUBLIC_SUPABASE_URL",
       "NEXT_PUBLIC_SUPABASE_ANON_KEY",

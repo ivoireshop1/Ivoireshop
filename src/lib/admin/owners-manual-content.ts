@@ -191,19 +191,23 @@ export const OWNERS_MANUAL_PAGES: ManualPage[] = [
   {
     id: "delivery",
     chapter: "10",
-    title: "Delivery, Shippo, UPS & USPS",
+    title: "Delivery, Shippo, EasyPost, UPS & USPS",
     status: "awaiting_config",
     body: [
-      "Admin → Delivery is your fulfillment center: store origin address, pickup, local delivery, UPS/USPS rate modes, and Shippo.",
+      "Admin → Delivery is your fulfillment center: store origin address, pickup, local delivery, UPS/USPS rate modes, and the live-rate provider.",
+      "You can select Shippo or EasyPost. Choosing EasyPost does not delete the Shippo integration.",
+      "EasyPost Free Access (Wallet) is $0/month for rating. The first 3,000 purchased labels per month have no EasyPost label fee; additional labels are $0.08. Postage is billed separately. Rating beyond 3× labels purchased can incur $0.02 per extra rating.",
+      "Add EASYPOST_API_KEY as a Vercel Production Secret. Use the TEST key (EZTK) first. Production keys (EZAK) stay off customer checkout until a production quote is verified and you enable customer-facing live rates.",
       "Store Pickup stays available for customers even when carrier quotes are unavailable.",
-      "Keep live postage purchases turned off until you are ready to buy labels in production.",
+      "Keep live postage purchases turned off. The store never auto-buys labels.",
       "When carrier quotes are unavailable, use Store Pickup or contact BADGER GHOST — do not invent UPS or USPS prices.",
     ],
     steps: [
       "Confirm your store origin address under Delivery",
-      "Keep UPS and USPS on Live Carrier API when Shippo is connected",
+      "Keep UPS and USPS on Live Carrier API",
+      "Choose Shippo or EasyPost under Live rate provider",
+      "For EasyPost: add a TEST key, run an Admin quote probe, then add a production key and verify one UPS and one USPS quote before enabling customer-facing production rates",
       "Keep Enable live postage purchases OFF until you approve label buying",
-      "Ask BADGER GHOST to connect Shippo, then re-test quotes from Checkout",
     ],
     links: [{ label: "Delivery Center", href: "/admin/delivery" }],
   },
@@ -292,7 +296,7 @@ export const OWNERS_MANUAL_PAGES: ManualPage[] = [
     body: [
       "Realtime off in Admin: sign out and sign back in as an admin.",
       "Card payment unavailable: open Admin → Payments and review the readiness message. Contact BADGER GHOST if keys still look incomplete.",
-      "UPS or USPS unavailable: check Delivery for Shippo status, confirm product shipping weight and dimensions, and retry with a complete destination address.",
+      "UPS or USPS unavailable: check Delivery for the selected provider (Shippo or EasyPost), confirm product shipping weight and dimensions, and retry with a complete destination address.",
       "Products missing from the shop: confirm the product is active, priced, categorized, and has an image.",
       "Order email not sending: the order can still succeed. Contact BADGER GHOST to finish email provider setup.",
     ],
@@ -303,8 +307,8 @@ export const OWNERS_MANUAL_PAGES: ManualPage[] = [
     title: "Emergencies & outages",
     body: [
       "Payment outage: Close the store from the Dashboard. Do not switch to live payments to “test.” Keep Demo Payment off unless you need a presentation-only order.",
-      "Shipping failure: Keep Store Pickup on. Do not invent carrier prices. Pause UPS or USPS in Delivery if needed.",
-      "Suspected key leak: contact BADGER GHOST immediately so Stripe, Shippo, and database credentials can be rotated and admin sessions revoked.",
+      "Shipping failure: Keep Store Pickup on. Do not invent carrier prices. Switch the live-rate provider off or pause UPS or USPS in Delivery if needed.",
+      "Suspected key leak: contact BADGER GHOST immediately so Stripe, Shippo, EasyPost, and database credentials can be rotated and admin sessions revoked.",
       "Database concerns: do not reset production data. Contact BADGER GHOST. Restores use approved backups only.",
     ],
     tips: [
