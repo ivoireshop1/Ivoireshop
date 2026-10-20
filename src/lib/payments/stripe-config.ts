@@ -11,6 +11,17 @@ function text(name: string) {
   return (process.env[name] ?? "").trim();
 }
 
+export function normalizeWebhookSecret(value: string) {
+  let next = String(value ?? "").replace(/^\uFEFF/, "").trim();
+  if (
+    (next.startsWith('"') && next.endsWith('"') && next.length >= 2) ||
+    (next.startsWith("'") && next.endsWith("'") && next.length >= 2)
+  ) {
+    next = next.slice(1, -1).replace(/^\uFEFF/, "").trim();
+  }
+  return next;
+}
+
 export type StripeMode = "test" | "live";
 
 export const STRIPE_ENV_NAMES = {
@@ -42,7 +53,7 @@ export function stripeKeyMode(value: string): StripeMode | null {
 export function getStripeConfig() {
   const secretKey = text(STRIPE_ENV_NAMES.secret);
   const publishableKey = text(STRIPE_ENV_NAMES.publishable);
-  const webhookSecret = text(STRIPE_ENV_NAMES.webhook);
+  const webhookSecret = normalizeWebhookSecret(text(STRIPE_ENV_NAMES.webhook));
   const secretPresent = Boolean(secretKey);
   const publishablePresent = Boolean(publishableKey);
   const webhookPresent = Boolean(webhookSecret);

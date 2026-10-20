@@ -2,6 +2,7 @@ import "server-only";
 
 import Stripe from "stripe";
 import { getStripeConfig } from "./stripe-config";
+import { verifyStripeWebhookPayload } from "./stripe-webhook-verify";
 
 let client: Stripe | null = null;
 
@@ -21,10 +22,11 @@ export function stripeClient() {
 
 export function verifyStripeWebhook(rawBody: string, signature: string | null) {
   const config = getStripeConfig();
-  if (!config.webhookSecret || !signature) return null;
-  try {
-    return stripeClient().webhooks.constructEvent(rawBody, signature, config.webhookSecret);
-  } catch {
-    return null;
-  }
+  const result = verifyStripeWebhookPayload(rawBody, signature, config.webhookSecret);
+  return result.ok ? result.event : null;
+}
+
+export function inspectStripeWebhook(rawBody: string, signature: string | null) {
+  const config = getStripeConfig();
+  return verifyStripeWebhookPayload(rawBody, signature, config.webhookSecret);
 }

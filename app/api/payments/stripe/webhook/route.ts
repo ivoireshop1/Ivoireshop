@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStripeConfig } from "@/src/lib/payments/stripe-config";
-import { verifyStripeWebhook } from "@/src/lib/payments/stripe-server";
+import { inspectStripeWebhook } from "@/src/lib/payments/stripe-server";
 import { markWebhookHealth } from "@/src/lib/payments/record";
 import { processStripeEvent } from "@/src/lib/payments/stripe-events";
 
@@ -13,13 +13,13 @@ export async function POST(request: Request) {
   }
   const rawBody = await request.text();
   const signature = request.headers.get("stripe-signature");
-  const event = verifyStripeWebhook(rawBody, signature);
-  if (!event) {
-    await markWebhookHealth("stripe", false, "invalid_signature").catch(() => undefined);
-    return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
+  const verified = inspectStripeWebhook(rawBody, signature);
+  if (!verified.ok) {
+    await markWebhookHealth("stripe", false, verified.error).catch(() => undefined);
+    return NextResponse.json({ error: "Invalid signature.", code: verified.error }, { status: 400 });
   }
   try {
-    await processStripeEvent(event);
+    await processStripeEvent(verified.event);
     return NextResponse.json({ received: true });
   } catch {
     return NextResponse.json({ error: "Webhook processing failed." }, { status: 500 });
