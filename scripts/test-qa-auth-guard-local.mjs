@@ -82,19 +82,36 @@ test("email-pattern deletes against auth.users are refused", () => {
   );
 });
 
-test("protected founder mailbox cannot be targeted", () => {
+test("protected Production admin mailbox and id cannot be targeted", () => {
+  assert.equal(isProtectedAuthEmail("ivoireshop37@gmail.com"), true);
   assert.equal(isProtectedAuthEmail("jittabadger.business@gmail.com"), true);
   assert.throws(
-    () => assertNotProtectedAuthEmail("jittabadger.business@gmail.com"),
-    /protected founder/,
+    () => assertNotProtectedAuthEmail("ivoireshop37@gmail.com"),
+    /protected Production admin mailbox/,
   );
   assert.throws(
     () =>
       assertTemporaryQaUser(
-        { id: qaId, email: "jittabadger.business@gmail.com", role: "customer" },
+        { id: qaId, email: "ivoireshop37@gmail.com", role: "customer" },
         created,
       ),
-    /protected founder/,
+    /protected Production admin mailbox/,
+  );
+  assert.throws(
+    () =>
+      assertTemporaryQaUser(
+        {
+          id: "af99b9a1-ccd4-4c1c-b63c-836691e3002d",
+          email: "qa-x@example.com",
+          role: "customer",
+        },
+        created,
+      ),
+    /protected Production admin user id/,
+  );
+  assert.throws(
+    () => assertIdScopedStatement("delete from auth.users where id = 'af99b9a1-ccd4-4c1c-b63c-836691e3002d'"),
+    /protected Production admin id/,
   );
 });
 

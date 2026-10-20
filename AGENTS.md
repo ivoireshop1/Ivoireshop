@@ -10,8 +10,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Founder authentication (permanent)
 
-- Never reset, rotate, generate, replace, or change the founder’s admin password.
-- Never use Supabase Admin API, SQL, scripts, or CLI to change founder credentials, email, MFA, role, or sessions without explicit written approval.
-- Never use the founder account for automated testing. Use `qa-*@example.com` accounts and `scripts/qa-auth-guard.mjs`.
-- Password recovery testing must not target protected founder mailboxes.
-- Steel Production authenticated verification requires founder-supervised login when needed.
+- Never reset, rotate, generate, replace, or change any Production admin password (including `ivoireshop37@gmail.com` and the BADGER GHOST support mailbox).
+- Never use Supabase Admin API, SQL, scripts, or CLI to change Production admin credentials, email, MFA, role, or sessions without explicit written approval.
+- Never use Production admin accounts for automated testing. Use `qa-*@example.com` accounts and `scripts/qa-auth-guard.mjs` / `src/lib/auth/protected-accounts.ts`.
+- Password recovery testing must not target protected Production admin mailboxes or ids.
+- Steel Production authenticated verification requires founder-supervised login when Admin access is required.

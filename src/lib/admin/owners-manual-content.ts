@@ -332,7 +332,7 @@ export const OWNERS_MANUAL_PAGES: ManualPage[] = [
       "Change passwords under Account / Security; other sessions are signed out.",
       "Never share secret API keys in chat, email, or screenshots.",
       "Live Stripe charges and postage purchases stay locked until you approve activation in writing.",
-      "Your founder admin login is private. BADGER GHOST will never reset or rotate that password without your explicit request.",
+      "Your Production admin login is private. BADGER GHOST will never reset or rotate that password, revoke your sessions, or use your account for automated tests without your explicit written request.",
     ],
     links: [{ label: "Account/Security", href: "/admin/account" }],
   },
