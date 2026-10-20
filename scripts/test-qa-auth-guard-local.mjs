@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import {
   assertIdScopedStatement,
+  assertNotPasswordMutationSql,
+  assertNotProtectedAuthEmail,
   assertTemporaryQaUser,
+  isProtectedAuthEmail,
   isQaEmail,
 } from "./qa-auth-guard.mjs";
 
@@ -76,6 +79,33 @@ test("email-pattern deletes against auth.users are refused", () => {
   assert.equal(
     assertIdScopedStatement("delete from auth.users where id = $1"),
     "delete from auth.users where id = $1",
+  );
+});
+
+test("protected founder mailbox cannot be targeted", () => {
+  assert.equal(isProtectedAuthEmail("jittabadger.business@gmail.com"), true);
+  assert.throws(
+    () => assertNotProtectedAuthEmail("jittabadger.business@gmail.com"),
+    /protected founder/,
+  );
+  assert.throws(
+    () =>
+      assertTemporaryQaUser(
+        { id: qaId, email: "jittabadger.business@gmail.com", role: "customer" },
+        created,
+      ),
+    /protected founder/,
+  );
+});
+
+test("password mutation SQL is refused", () => {
+  assert.throws(
+    () => assertNotPasswordMutationSql("update auth.users set encrypted_password = 'x' where id = $1"),
+    /mutates auth password/,
+  );
+  assert.throws(
+    () => assertIdScopedStatement("update auth.users set email = 'x' where id = $1"),
+    /refusing UPDATE against auth.users/,
   );
 });
 

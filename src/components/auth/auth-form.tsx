@@ -86,7 +86,7 @@ export default function AuthForm({
       sessionStorage.setItem(RESEND_CONFIRM_AT_KEY, String(Date.now()));
     } catch { /* cooldown is best-effort */ }
     setResendWaitMs(remainingResendMs(Date.now()));
-    setMessage("Fresh link sent! Check your inbox. ✉️");
+    setMessage("A fresh confirmation email is on its way. Check your inbox and spam folder.");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

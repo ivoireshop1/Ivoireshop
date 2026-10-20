@@ -17,7 +17,7 @@ import { RESEND_CONFIRM_AT_KEY } from "@/src/lib/auth/mask-email";
 
 const PRIVACY_MESSAGE = "If an account exists for that email, we've sent password reset instructions.";
 const MISSING_ENV_MESSAGE =
-  "This app is missing its Supabase connection settings. On Preview, redeploy with NEXT_PUBLIC_SUPABASE_URL and the public key. For local development, add them to .env.local.";
+  "Ivoire Shop cannot reach its account service right now. Please try again shortly, or contact the store if this continues.";
 const RESET_EMAIL_KEY = "ivoire_password_reset_email";
 
 function recoveryRedirectTo() {

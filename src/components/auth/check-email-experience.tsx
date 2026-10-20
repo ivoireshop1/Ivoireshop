@@ -60,7 +60,7 @@ export function CheckEmailExperience() {
     try {
       sessionStorage.setItem(RESEND_CONFIRM_AT_KEY, String(Date.now()));
     } catch { /* cooldown is best-effort */ }
-    setStatus("Fresh link sent! Check your inbox. ✉️");
+    setStatus("A fresh confirmation email is on its way. Check your inbox and spam folder.");
   }
 
   const cooldown = remainingMs > 0;
@@ -69,16 +69,12 @@ export function CheckEmailExperience() {
     <main className="mx-auto flex min-h-[70vh] w-full min-w-0 max-w-lg items-center overflow-x-hidden px-4 py-12 sm:px-6 sm:py-16">
       <section className="w-full min-w-0 rounded-2xl bg-surface p-5 shadow-sm sm:p-8">
         <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-gold">Ivoire Shop</p>
-        <h1 className="text-2xl font-semibold break-words text-forest-green sm:text-3xl">You&apos;re almost in! ✨</h1>
-        <p className="mt-4 text-lg font-medium text-forest-green">One tiny step before the good stuff.</p>
+        <h1 className="text-2xl font-semibold break-words text-forest-green sm:text-3xl">Confirm your email</h1>
         <p className="mt-4 text-sm leading-6 text-muted">
           We sent a confirmation link{email ? ` to ${maskEmail(email)}` : " to your email"}.
-          Open it, tap the link, and we&apos;ll bring you right back to Ivoire Shop.
+          Open the newest message from Ivoire Shop and tap the link to finish creating your account.
         </p>
-        <p className="mt-4 text-sm font-medium text-forest-green">
-          Check your inbox — your Ivoire Shop account is waiting for you. 🛍️
-        </p>
-        <p className="mt-3 text-sm text-muted">Open your email and confirm your account to continue.</p>
+        <p className="mt-3 text-sm text-muted">If you do not see it within a few minutes, check spam or junk folders.</p>
 
         {rateLimited ? (
           <div className="mt-6 rounded-xl border border-gold/40 bg-[#fbf7ef] p-4">
@@ -99,11 +95,11 @@ export function CheckEmailExperience() {
         {!email ? (
           <p className="mt-2 text-xs text-muted">Return to Create Account if you need to enter your email again.</p>
         ) : null}
-
-        <div className="mt-6 flex flex-wrap justify-between gap-3 text-sm text-forest-green">
-          <Link href="/login">Back to Sign In</Link>
-          <Link href="/shop">Return to Store</Link>
-        </div>
+        <p className="mt-6 text-sm">
+          <Link className="text-forest-green underline underline-offset-2" href="/login">
+            Back to Sign In
+          </Link>
+        </p>
       </section>
     </main>
   );

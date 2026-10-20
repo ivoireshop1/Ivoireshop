@@ -7,3 +7,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Founder authentication (permanent)
+
+- Never reset, rotate, generate, replace, or change the founder’s admin password.
+- Never use Supabase Admin API, SQL, scripts, or CLI to change founder credentials, email, MFA, role, or sessions without explicit written approval.
+- Never use the founder account for automated testing. Use `qa-*@example.com` accounts and `scripts/qa-auth-guard.mjs`.
+- Password recovery testing must not target protected founder mailboxes.
+- Steel Production authenticated verification requires founder-supervised login when needed.

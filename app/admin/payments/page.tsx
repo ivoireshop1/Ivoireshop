@@ -99,6 +99,13 @@ export default async function AdminPaymentsPage({
         {payment.stripe.modeMismatch ? <p className="mt-4 text-sm text-red-800">Publishable and secret keys are not the same Stripe mode.</p> : null}
         {payment.stripe.missing.length ? <p className="mt-4 text-sm text-[#7c5d1a]">Missing: {payment.stripe.missing.join(", ")}.</p> : null}
         <p className="mt-4 text-sm text-muted">Server environment names: {stripe.envNames.join(", ")}. Keys are set in the hosting project by the store owner — never paste secret keys into chat or the browser.</p>
+        <p className="mt-2 text-sm text-muted">
+          Signed-in admins can open{" "}
+          <a className="font-medium underline underline-offset-2" href="/api/admin/runtime-config">
+            /api/admin/runtime-config
+          </a>{" "}
+          for safe present/mode diagnostics (no secret values).
+        </p>
         <p className="mt-2 text-sm text-muted">Webhook endpoint: https://ivoireshop-steel.vercel.app/api/payments/stripe/webhook</p>
         <p className="mt-2 text-sm text-muted">Live card charges stay locked until the owner sets matching LIVE keys and explicitly enables STRIPE_LIVE_PAYMENTS_ENABLED.</p>
         {!payment.canRecord ? (

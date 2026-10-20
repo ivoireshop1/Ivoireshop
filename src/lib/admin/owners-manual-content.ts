@@ -332,8 +332,27 @@ export const OWNERS_MANUAL_PAGES: ManualPage[] = [
       "Change passwords under Account / Security; other sessions are signed out.",
       "Never share secret API keys in chat, email, or screenshots.",
       "Live Stripe charges and postage purchases stay locked until you approve activation in writing.",
+      "Your founder admin login is private. BADGER GHOST will never reset or rotate that password without your explicit request.",
     ],
     links: [{ label: "Account/Security", href: "/admin/account" }],
+  },
+  {
+    id: "customer-emails",
+    chapter: "19",
+    title: "Customer emails & account recovery",
+    body: [
+      "Customer account emails (confirmation, password reset, email change) are sent by the account service behind Ivoire Shop.",
+      "Store order emails (receipts, pickup ready, shipped) are separate and use the order email settings when configured.",
+      "Customers reset passwords from Sign In → Forgot password. They receive an email, open the newest link, choose a new password, then sign in again.",
+      "If a customer never receives confirmation or reset mail: ask them to check spam, wait a few minutes, then use Resend on the check-email or reset screen.",
+      "To brand account emails as “Ivoire Shop” with your logo and sender name, ask BADGER GHOST to connect a verified sender domain and apply the Ivoire Shop templates (confirmation + recovery).",
+      "Do not ask staff to paste secret keys or reset the founder admin password during routine customer support.",
+    ],
+    links: [
+      { label: "Customer Sign In", href: "/login" },
+      { label: "Password reset", href: "/reset-password" },
+      { label: "Account / Security", href: "/admin/account" },
+    ],
   },
 ];
 

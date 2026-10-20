@@ -28,7 +28,7 @@ export function mapAuthCallbackQueryError(error: string | null, errorCode: strin
   return "invalid";
 }
 
-export const RATE_LIMIT_TITLE = "That inbox has been busy 💌";
+export const RATE_LIMIT_TITLE = "Please wait before requesting another email";
 export const RATE_LIMIT_BODY =
   "We've sent several confirmation requests recently. Give it a little time before requesting another email. If you already received one, use the newest valid confirmation email in your inbox.";
 
