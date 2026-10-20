@@ -1,33 +1,40 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/src/lib/supabase/server";
-import { getStripeConfig, stripeKeyMode } from "@/src/lib/payments/stripe-config";
+import { getStripeConfig, stripeKeyMode, STRIPE_ENV_NAMES } from "@/src/lib/payments/stripe-config";
 import { shippoCredentials } from "@/src/lib/shipping/shippo";
 import { hasPaymentAdminClient } from "@/src/lib/payments/config";
 
 export const runtime = "nodejs";
 
+function envMode(name: string, raw: string): string | null {
+  if (!raw) return null;
+  if (name === "STRIPE_WEBHOOK_SECRET") {
+    return raw.startsWith("whsec_") ? "whsec" : "unrecognized";
+  }
+  if (name === STRIPE_ENV_NAMES.publishable || name === STRIPE_ENV_NAMES.secret) {
+    return stripeKeyMode(raw) ?? "unrecognized";
+  }
+  if (name === "SHIPPO_API_TOKEN") {
+    if (raw.startsWith("shippo_test_")) return "shippo_test";
+    if (raw.startsWith("shippo_live_")) return "shippo_live";
+    return "shippo_other";
+  }
+  if (name === "STRIPE_LIVE_PAYMENTS_ENABLED") {
+    return raw.toLowerCase() === "true" ? "true" : "false";
+  }
+  return "present";
+}
+
 function safeEnv(name: string) {
   const raw = (process.env[name] ?? "").trim();
-  const present = Boolean(raw);
-  let mode: string | null = null;
-  if (name.includes("STRIPE") && present) mode = stripeKeyMode(raw);
-  if (name === "SHIPPO_API_TOKEN" && present) {
-    mode = raw.startsWith("shippo_test_")
-      ? "shippo_test"
-      : raw.startsWith("shippo_live_")
-        ? "shippo_live"
-        : "shippo_other";
-  }
   return {
     name,
-    present,
-    length: present ? raw.length : 0,
-    prefix: present ? raw.slice(0, 8) : "",
-    mode,
+    present: Boolean(raw),
+    mode: envMode(name, raw),
   };
 }
 
-/** Admin-only: boolean/prefix/mode diagnostics. Never returns secret values. */
+/** Admin-only: presence/mode diagnostics. Never returns secret values, prefixes, or lengths. */
 export async function GET() {
   const supabase = await createClient();
   const {
@@ -39,6 +46,10 @@ export async function GET() {
 
   const stripe = getStripeConfig();
   const shippo = shippoCredentials();
+  const publishableMode = stripe.publishablePresent ? stripeKeyMode(stripe.publishableKey) : null;
+  const secretMode = stripe.secretPresent ? stripeKeyMode(stripe.secretKey) : null;
+  const unrecognizedKeys =
+    (stripe.publishablePresent && !publishableMode) || (stripe.secretPresent && !secretMode);
 
   return NextResponse.json({
     deployment: {
@@ -50,8 +61,8 @@ export async function GET() {
       secretPresent: stripe.secretPresent,
       publishablePresent: stripe.publishablePresent,
       webhookPresent: stripe.webhookPresent,
-      secretMode: stripe.secretPresent ? stripeKeyMode(stripe.secretKey) : null,
-      publishableMode: stripe.publishablePresent ? stripeKeyMode(stripe.publishableKey) : null,
+      secretMode,
+      publishableMode,
       modeMismatch: stripe.modeMismatch,
       mode: stripe.mode,
       livePaymentsEnabled: stripe.livePaymentsEnabled,
@@ -61,16 +72,18 @@ export async function GET() {
       canRecordOrders: hasPaymentAdminClient(),
       missingNames: stripe.missingNames,
       failPath: !stripe.publishablePresent
-        ? "getStripeConfig → publishablePresent=false → canCollect=false (client never receives pk_*)"
+        ? "getStripeConfig → publishablePresent=false → canCollect=false"
         : !stripe.secretPresent
           ? "getStripeConfig → secretPresent=false → canCollect=false"
-          : stripe.modeMismatch
-            ? "getStripeConfig → modeMismatch=true (pk_* and sk_* modes differ or unrecognized)"
-            : stripe.liveBlocked
-              ? "getStripeConfig → liveBlocked (live keys with STRIPE_LIVE_PAYMENTS_ENABLED≠true)"
-              : !stripe.webhookPresent
-                ? "getStripeConfig → webhookPresent=false → configured=false"
-                : null,
+          : unrecognizedKeys
+            ? "getStripeConfig → unrecognized Stripe key format (expect pk_test_/sk_test_ or pk_live_/sk_live_)"
+            : stripe.modeMismatch
+              ? "getStripeConfig → modeMismatch=true (publishable and secret modes differ)"
+              : stripe.liveBlocked
+                ? "getStripeConfig → liveBlocked (live keys with STRIPE_LIVE_PAYMENTS_ENABLED≠true)"
+                : !stripe.webhookPresent
+                  ? "getStripeConfig → webhookPresent=false → configured=false"
+                  : null,
     },
     shippo: {
       configured: shippo.configured,
@@ -82,9 +95,9 @@ export async function GET() {
         : shippo.isLive
           ? "live-quotes → isLive token blocked until founder approves production shipping"
           : shippo.mode === "unknown"
-            ? "shippoCredentials → token present but not shippo_test_/shippo_live_ prefix"
+            ? "shippoCredentials → token present but not shippo_test_/shippo_live_ format"
             : null,
-      note: "TEST tokens (shippo_test_) are accepted for quotes. LIVE tokens are intentionally blocked for checkout quotes.",
+      note: "TEST tokens are accepted for quotes. LIVE tokens are intentionally blocked for checkout quotes.",
     },
     envPresence: [
       "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
