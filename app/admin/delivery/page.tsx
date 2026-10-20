@@ -7,7 +7,8 @@ import { ShippoSettingsForm } from "@/src/components/admin/shippo-settings-form"
 import { ShippingProviderForm } from "@/src/components/admin/shipping-provider-form";
 import { shippoCredentials } from "@/src/lib/shipping/shippo";
 import { easypostCredentials } from "@/src/lib/shipping/easypost";
-import { parseShippingProvider } from "@/src/lib/shipping/provider";
+import { easyshipCredentials } from "@/src/lib/shipping/easyship";
+import { parseShippingProvider, shippingProviderLabel } from "@/src/lib/shipping/provider";
 import { summarizeShippingEvents } from "@/src/lib/shipping/monitor";
 import { DeliveryOriginForm } from "@/src/components/admin/delivery-origin-form";
 import { ManualShippingForm } from "@/src/components/admin/manual-shipping-form";
@@ -30,6 +31,7 @@ export default async function AdminDeliveryPage() {
   const monitor = summarizeShippingEvents((monitorRows ?? []) as Array<{ event_type: string; payload: Record<string, unknown> | null; created_at: string }>);
   const shippo = shippoCredentials();
   const easypost = easypostCredentials();
+  const easyship = easyshipCredentials();
   const shippingProvider = parseShippingProvider(settings?.shipping_provider);
   const missingParcelCount = missingParcelQuery.count;
   const carrierOrders7d = carrierOrderQuery.count;
@@ -37,6 +39,7 @@ export default async function AdminDeliveryPage() {
   const healthBy = new Map((health ?? []).map((row) => [row.provider, row]));
   const shippoHealth = healthBy.get("shippo");
   const easypostHealth = healthBy.get("easypost");
+  const easyshipHealth = healthBy.get("easyship");
   const upsHealth = healthBy.get("ups");
   const uspsHealth = healthBy.get("usps");
   const doorConfigured = doordashCredentials().configured;
@@ -56,7 +59,7 @@ export default async function AdminDeliveryPage() {
         <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#b8964c]">Fulfillment</p>
         <h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Delivery Center</h1>
         <p className="mt-2 max-w-2xl text-sm text-[#6b6b6b]">
-          Client-managed fulfillment. Store Pickup is separate from carriers. UPS and USPS at checkout use live Shippo or EasyPost quotes when that provider is selected, enabled, and each carrier is set to Live Carrier API. Store-calculated Ivoire shipping is retired from customer checkout. Postage purchasing stays off until the owner approves it. Provider tokens are configured in the hosting environment by the store owner.
+          Client-managed fulfillment. Store Pickup is separate from carriers. UPS and USPS at checkout use live Shippo, EasyPost, or Easyship quotes when that provider is selected, enabled, and each carrier is set to Live Carrier API. Store-calculated Ivoire shipping is retired from customer checkout. Postage purchasing stays off until the owner approves it. Provider tokens are configured in the hosting environment by the store owner.
         </p>
       </div>
 
@@ -78,7 +81,7 @@ export default async function AdminDeliveryPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="rounded-2xl bg-white p-5">
           <h2 className="font-semibold text-[#173f35]">UPS</h2>
-          <p className="mt-2 text-sm text-[#6b6b6b]">{parseRateMode(settings?.ups_rate_mode) === "live_api" ? `${shippingProvider === "easypost" ? "EasyPost" : "Shippo"} live rates` : "Manual Shipping"}</p>
+          <p className="mt-2 text-sm text-[#6b6b6b]">{parseRateMode(settings?.ups_rate_mode) === "live_api" ? `${shippingProviderLabel(shippingProvider)} live rates` : "Manual Shipping"}</p>
           <p className="mt-4 text-sm font-medium text-[#173f35]">{rateModeLabel(parseRateMode(settings?.ups_rate_mode))}{settings?.ups_enabled && settings?.ups_show_at_checkout !== false ? "" : " · Hidden at checkout"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">{upsHealth?.last_error || upsHealth?.status || "No connection check yet"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">Domestic: {settings?.ups_domestic_enabled ? formatCharge(settings.ups_domestic_charge) : "Off"}</p>
@@ -86,7 +89,7 @@ export default async function AdminDeliveryPage() {
         </section>
         <section className="rounded-2xl bg-white p-5">
           <h2 className="font-semibold text-[#173f35]">USPS</h2>
-          <p className="mt-2 text-sm text-[#6b6b6b]">{parseRateMode(settings?.usps_rate_mode) === "live_api" ? `${shippingProvider === "easypost" ? "EasyPost" : "Shippo"} live rates` : "Manual Shipping"}</p>
+          <p className="mt-2 text-sm text-[#6b6b6b]">{parseRateMode(settings?.usps_rate_mode) === "live_api" ? `${shippingProviderLabel(shippingProvider)} live rates` : "Manual Shipping"}</p>
           <p className="mt-4 text-sm font-medium text-[#173f35]">{rateModeLabel(parseRateMode(settings?.usps_rate_mode))}{settings?.usps_enabled && settings?.usps_show_at_checkout !== false ? "" : " · Hidden at checkout"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">{uspsHealth?.last_error || uspsHealth?.status || "No connection check yet"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">Domestic: {settings?.usps_domestic_enabled ? formatCharge(settings.usps_domestic_charge) : "Off"}</p>
@@ -115,13 +118,14 @@ export default async function AdminDeliveryPage() {
           <p className="text-sm">UPS/USPS orders (7 days): <strong>{carrierOrders7d ?? "—"}</strong></p>
           <p className="text-sm">Products missing package data: <strong>{missingParcelCount ?? "—"}</strong></p>
         </div>
-        <p className="mt-3 text-xs text-[#6b6b6b]">Checkout abandonment is the gap between quote requests and carrier orders in this window. Quote requests: {monitor.quotes}. Carrier orders (7 days): {carrierOrders7d ?? "—"}. Active provider: {shippingProvider === "easypost" ? "EasyPost" : "Shippo"}. Shippo: {shippo.configured ? (shippo.isTest ? "test token present" : "token present") : "not configured"}. EasyPost: {easypost.configured ? (easypost.isTest ? "TEST key present" : easypost.isLive ? "production key present" : "unrecognized key") : "not configured"}.</p>
+        <p className="mt-3 text-xs text-[#6b6b6b]">Checkout abandonment is the gap between quote requests and carrier orders in this window. Quote requests: {monitor.quotes}. Carrier orders (7 days): {carrierOrders7d ?? "—"}. Active provider: {shippingProviderLabel(shippingProvider)}. Shippo: {shippo.configured ? (shippo.isTest ? "test token present" : "token present") : "not configured"}. EasyPost: {easypost.configured ? (easypost.isTest ? "TEST key present" : easypost.isLive ? "production key present" : "unrecognized key") : "not configured"}. Easyship: {easyship.configured ? (easyship.isSandbox ? "sandbox key prefix present" : easyship.isProduction ? "production key prefix present" : "unrecognized key") : "not configured"}.</p>
         {monitor.lastFailureReason ? (
           <p className="mt-3 rounded-xl border border-[#b8964c]/40 bg-[#fbf7ee] p-3 text-sm text-[#7c5d1a]">
             Last live-quote failure: <strong>{monitor.lastFailureReason}</strong>
             {monitor.lastFailureAt ? ` · ${new Date(monitor.lastFailureAt).toLocaleString()}` : ""}.
             {shippoHealth?.last_error ? ` Shippo check: ${shippoHealth.last_error}.` : ""}
             {easypostHealth?.last_error ? ` EasyPost check: ${easypostHealth.last_error}.` : ""}
+            {easyshipHealth?.last_error ? ` Easyship check: ${easyshipHealth.last_error}.` : ""}
             {missingParcelCount ? ` Products missing package data: ${missingParcelCount}.` : ""}
             Checkout does not invent rates when the token or package data is missing.
           </p>
@@ -132,7 +136,7 @@ export default async function AdminDeliveryPage() {
       {!counts.ok ? <p className="text-sm text-[#7c5d1a]">Unable to load shipping counts. Delivery settings below can still be saved.</p> : null}
       <form action={checkDeliveryProviders}>
         <button className="min-h-11 rounded-xl border border-[#173f35]/20 px-4 py-2 text-sm font-medium text-[#173f35]" type="submit">
-          Check DoorDash, Shippo, and EasyPost
+          Check DoorDash, Shippo, EasyPost, and Easyship
         </button>
       </form>
 
@@ -140,6 +144,9 @@ export default async function AdminDeliveryPage() {
         easypostConfigured={easypost.configured}
         easypostLive={easypost.isLive}
         easypostTest={easypost.isTest}
+        easyshipConfigured={easyship.configured}
+        easyshipProduction={easyship.isProduction}
+        easyshipSandbox={easyship.isSandbox}
         settings={settings as Record<string, unknown> | null}
       />
       <ShippoSettingsForm

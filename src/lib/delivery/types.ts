@@ -15,7 +15,8 @@ export type DeliveryOption = {
   shippoRateId?: string | null;
   easypostRateId?: string | null;
   easypostShipmentId?: string | null;
-  quoteSource?: "shippo" | "easypost";
+  easyshipRateId?: string | null;
+  quoteSource?: "shippo" | "easypost" | "easyship";
   testRate?: boolean;
   etaDays?: number | null;
 };
@@ -24,5 +25,6 @@ export function sanitizeProviderError(raw: string) {
   return raw
     .replace(/Bearer\s+\S+/gi, "[redacted]")
     .replace(/Basic\s+\S+/gi, "[redacted]")
+    .replace(/\b(?:sand|prod)_[A-Za-z0-9+/=]+/g, "[redacted]")
     .slice(0, 180);
 }

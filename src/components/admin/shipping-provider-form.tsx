@@ -9,11 +9,17 @@ export function ShippingProviderForm({
   easypostConfigured,
   easypostTest,
   easypostLive,
+  easyshipConfigured,
+  easyshipSandbox,
+  easyshipProduction,
 }: {
   settings: Record<string, unknown> | null;
   easypostConfigured: boolean;
   easypostTest: boolean;
   easypostLive: boolean;
+  easyshipConfigured: boolean;
+  easyshipSandbox: boolean;
+  easyshipProduction: boolean;
 }) {
   const router = useRouter();
   const [state, action, pending] = useActionState(saveShippingProviderSettings, null);
@@ -22,12 +28,16 @@ export function ShippingProviderForm({
     const timer = window.setTimeout(() => router.refresh(), 1800);
     return () => window.clearTimeout(timer);
   }, [state?.saved, router]);
-  const selected = settings?.shipping_provider === "easypost" ? "easypost" : "shippo";
+  const selected = settings?.shipping_provider === "easypost"
+    ? "easypost"
+    : settings?.shipping_provider === "easyship"
+      ? "easyship"
+      : "shippo";
   return (
     <form action={action} className="min-w-0 space-y-4 overflow-x-hidden rounded-2xl bg-white p-5">
       <h2 className="font-semibold text-[#173f35]">Live rate provider</h2>
       <p className="text-sm text-[#6b6b6b]">
-        Choose who supplies UPS and USPS checkout quotes. Shippo settings stay saved when EasyPost is selected.
+        Choose who supplies UPS and USPS checkout quotes. Shippo and EasyPost settings stay saved when Easyship is selected.
         Automatic postage purchases stay off.
       </p>
       <fieldset className="space-y-2">
@@ -40,6 +50,10 @@ export function ShippingProviderForm({
           <input defaultChecked={selected === "easypost"} name="shipping_provider" type="radio" value="easypost" />
           EasyPost Free Access (Wallet UPS/USPS)
         </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input defaultChecked={selected === "easyship"} name="shipping_provider" type="radio" value="easyship" />
+          Easyship (UPS/USPS rates)
+        </label>
       </fieldset>
       <p className="text-sm text-[#6b6b6b]">
         {easypostConfigured
@@ -50,6 +64,15 @@ export function ShippingProviderForm({
               : "An EasyPost key is present but the format is unrecognized."
           : "EasyPost is not configured. Add EASYPOST_API_KEY (TEST key first) to Vercel Production as a Secret."}
       </p>
+      <p className="text-sm text-[#6b6b6b]">
+        {easyshipConfigured
+          ? easyshipSandbox
+            ? "An Easyship sandbox key prefix is configured. Sandbox rates are illustrative and labeled at checkout. Rate scope and UPS/USPS availability stay unverified until a quote is requested."
+            : easyshipProduction
+              ? "An Easyship production key prefix is configured. Customer-facing live rates stay off until you enable them after a verified production quote. Rate scope and UPS/USPS availability stay unverified until a quote is requested."
+              : "An Easyship key is present but the format is unrecognized. Expected a sand_ sandbox key or a prod_ production key."
+          : "Easyship is not configured. Add EASYSHIP_API_KEY to Vercel Production as a Secret."}
+      </p>
       <label className="flex items-center gap-2 text-sm">
         <input defaultChecked={Boolean(settings?.easypost_enabled)} name="easypost_enabled" type="checkbox" />
         Enable EasyPost quotes when EasyPost is the selected provider
@@ -57,6 +80,14 @@ export function ShippingProviderForm({
       <label className="flex items-center gap-2 text-sm">
         <input defaultChecked={Boolean(settings?.easypost_customer_rates_enabled)} name="easypost_customer_rates_enabled" type="checkbox" />
         Allow customer-facing EasyPost production rates (keep off until a production quote is verified)
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input defaultChecked={Boolean(settings?.easyship_enabled)} name="easyship_enabled" type="checkbox" />
+        Enable Easyship quotes when Easyship is the selected provider
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input defaultChecked={Boolean(settings?.easyship_customer_rates_enabled)} name="easyship_customer_rates_enabled" type="checkbox" />
+        Allow customer-facing Easyship production rates (keep off until a production quote is verified)
       </label>
       {state?.error ? <p className="text-sm text-red-800">{state.error}</p> : null}
       {state?.saved && !pending ? <p className="text-sm text-[#173f35]">Shipping provider saved.</p> : null}

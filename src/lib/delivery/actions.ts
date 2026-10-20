@@ -13,6 +13,7 @@ import { sanitizeProviderError } from "./types";
 import { parseAdminMiles, parseAdminMoney, parseRateMode } from "./manual";
 import { canPrepareShippoLabel, createShippoTestTransaction, listShippoCarrierAccounts, shippoCredentials } from "@/src/lib/shipping/shippo";
 import { easypostCredentials } from "@/src/lib/shipping/easypost";
+import { easyshipCredentials } from "@/src/lib/shipping/easyship";
 import { quoteLiveCarrierOptions } from "@/src/lib/shipping/live-quotes";
 import { parseShippingProvider } from "@/src/lib/shipping/provider";
 import { recordShippingMonitorEvent } from "@/src/lib/shipping/monitor";
@@ -291,18 +292,33 @@ export async function saveShippoSettings(_prev: { error?: string; saved?: boolea
 
 export async function saveShippingProviderSettings(_prev: { error?: string; saved?: boolean } | null, formData: FormData) {
   const { supabase } = await requireAdmin();
-  const provider = String(formData.get("shipping_provider") ?? "").trim() === "easypost" ? "easypost" : "shippo";
+  const requested = String(formData.get("shipping_provider") ?? "").trim();
+  const provider = requested === "easypost" ? "easypost" : requested === "easyship" ? "easyship" : "shippo";
   if (formData.get("postage_purchases_enabled") === "on") {
     return { error: "Live postage purchasing is disabled in this phase and requires founder approval.", saved: false };
   }
-  const saved = await persistStoreSettings(supabase, {
+  const values = {
     shipping_provider: provider,
     easypost_enabled: formData.get("easypost_enabled") === "on",
     easypost_customer_rates_enabled: formData.get("easypost_customer_rates_enabled") === "on",
+    easyship_enabled: formData.get("easyship_enabled") === "on",
+    easyship_customer_rates_enabled: formData.get("easyship_customer_rates_enabled") === "on",
     postage_purchases_enabled: false,
     updated_at: new Date().toISOString(),
-  }, "shipping_provider");
-  if (!saved) return { error: "Couldn’t save the shipping provider. Confirm the shipping schema is applied.", saved: false };
+  };
+  let saved = await persistStoreSettings(supabase, values, "shipping_provider");
+  if (!saved && provider !== "easyship") {
+    const { easyship_enabled: _enabled, easyship_customer_rates_enabled: _lock, ...legacy } = values;
+    saved = await persistStoreSettings(supabase, legacy, "shipping_provider");
+  }
+  if (!saved) {
+    return {
+      error: provider === "easyship"
+        ? "Couldn’t save Easyship. Apply the shipping provider schema first."
+        : "Couldn’t save the shipping provider. Confirm the shipping schema is applied.",
+      saved: false,
+    };
+  }
   revalidateFulfillment();
   return { saved: true };
 }
@@ -652,11 +668,31 @@ export async function checkDeliveryProviders(): Promise<void> {
         : null,
     updated_at: new Date().toISOString(),
   });
+  const easyship = easyshipCredentials();
+  await supabase.from("delivery_provider_health").upsert({
+    provider: "easyship",
+    status: !easyship.configured ? "not_configured" : easyship.mode === "unknown" ? "error" : "connected",
+    last_check_at: new Date().toISOString(),
+    last_error: !easyship.configured
+      ? "EASYSHIP_API_KEY is not set on this environment"
+      : easyship.mode === "unknown"
+        ? "Easyship key format is unrecognized (expect sand_ sandbox or prod_ production)"
+        : easyship.isSandbox
+          ? "Sandbox key prefix recognized. public.rate:read and UPS/USPS availability are unverified until a quote is requested."
+          : "Production key prefix recognized. public.rate:read and UPS/USPS availability are unverified until a quote is requested.",
+    updated_at: new Date().toISOString(),
+  });
   for (const provider of ["ups", "usps"] as const) {
     const connected = selectedProvider === "easypost"
       ? easypost.configured && easypost.mode !== "unknown"
-      : accounts.ok && accounts[provider] > 0;
-    const missingToken = selectedProvider === "easypost" ? !easypost.configured : !shippo.configured;
+      : selectedProvider === "easyship"
+        ? easyship.configured && easyship.mode !== "unknown"
+        : accounts.ok && accounts[provider] > 0;
+    const missingToken = selectedProvider === "easypost"
+      ? !easypost.configured
+      : selectedProvider === "easyship"
+        ? !easyship.configured
+        : !shippo.configured;
     await supabase.from("delivery_provider_health").upsert({
       provider,
       status: missingToken ? "not_configured" : connected ? "connected" : "error",
@@ -664,10 +700,14 @@ export async function checkDeliveryProviders(): Promise<void> {
       last_error: missingToken
         ? selectedProvider === "easypost"
           ? "Live quotes need EASYPOST_API_KEY on this environment"
-          : "Live quotes need SHIPPO_API_TOKEN on this environment"
-        : connected
-          ? null
-          : `No active ${provider.toUpperCase()} account for the selected live-rate provider`,
+          : selectedProvider === "easyship"
+            ? "Live quotes need EASYSHIP_API_KEY on this environment"
+            : "Live quotes need SHIPPO_API_TOKEN on this environment"
+        : selectedProvider === "easyship" && connected
+          ? `${provider.toUpperCase()} availability on the Easyship account is unverified until a rates quote is requested.`
+          : connected
+            ? null
+            : `No active ${provider.toUpperCase()} account for the selected live-rate provider`,
       updated_at: new Date().toISOString(),
     });
   }

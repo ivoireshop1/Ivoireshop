@@ -17,7 +17,8 @@ import {
   shippoCredentials,
 } from "./shippo";
 import { easypostCredentials, quoteEasyPostShipment } from "./easypost";
-import { customerFacingEasyPostAllowed, liveCarrierApiEnabled, parseShippingProvider } from "./provider";
+import { easyshipCredentials, easyshipQuoteErrorMessage, quoteEasyshipRates } from "./easyship";
+import { customerFacingEasyPostAllowed, customerFacingEasyShipAllowed, liveCarrierApiEnabled, parseShippingProvider } from "./provider";
 import { recordShippingMonitorEvent } from "./monitor";
 
 export type LiveCarrier = "ups" | "usps";
@@ -34,6 +35,7 @@ export function cartParcel(products: Array<{
   ship_length_in?: number | string | null;
   ship_width_in?: number | string | null;
   ship_height_in?: number | string | null;
+  price?: number | string | null;
 }>) {
   const packages = [];
   let missing = 0;
@@ -196,6 +198,7 @@ export async function quoteLiveCarrierOptions(input: {
 
   const shippo = shippoCredentials();
   const easypost = easypostCredentials();
+  const easyship = easyshipCredentials();
   if (provider === "easypost") {
     if (!easypost.configured) {
       await recordShippingMonitorEvent("quote_failure", { reason: "easypost_not_configured", carriers: remaining });
@@ -215,6 +218,35 @@ export async function quoteLiveCarrierOptions(input: {
         options: [],
         expectedLiveCarriers: remaining,
         message: "EasyPost production quotes stay off at checkout until the founder enables customer-facing live rates after a verified production quote. Store Pickup remains available.",
+      };
+    }
+  } else if (provider === "easyship") {
+    if (!easyship.configured) {
+      await recordShippingMonitorEvent("quote_failure", { reason: "easyship_not_configured", carriers: remaining });
+      return {
+        options: [],
+        expectedLiveCarriers: remaining,
+        message: easyshipQuoteErrorMessage("not_configured"),
+      };
+    }
+    if (easyship.mode === "unknown") {
+      await recordShippingMonitorEvent("quote_failure", { reason: "easyship_unrecognized_key", carriers: remaining });
+      return {
+        options: [],
+        expectedLiveCarriers: remaining,
+        message: easyshipQuoteErrorMessage("unrecognized_key"),
+      };
+    }
+    if (!customerFacingEasyShipAllowed({
+      provider,
+      isSandbox: easyship.isSandbox,
+      customerRatesEnabled: settings.easyship_customer_rates_enabled === true,
+    })) {
+      await recordShippingMonitorEvent("quote_failure", { reason: "easyship_customer_rates_locked", carriers: remaining });
+      return {
+        options: [],
+        expectedLiveCarriers: remaining,
+        message: "Easyship production quotes stay off at checkout until the founder enables customer-facing live rates after a verified production quote. Store Pickup remains available.",
       };
     }
   } else {
@@ -351,6 +383,90 @@ export async function quoteLiveCarrierOptions(input: {
       expectedLiveCarriers: remaining,
       message: missingCarriers.length
         ? `${missingCarriers.map((carrier) => carrier.toUpperCase()).join(" and ")} did not return a rate for this destination and parcel. Showing available EasyPost rates only.`
+        : undefined,
+    };
+    writeLiveQuoteCache(cacheKey, success);
+    return success;
+  }
+
+  if (provider === "easyship") {
+    const quoted = await quoteEasyshipRates({
+      origin: input.origin,
+      destination: input.destination,
+      parcel: packed.parcel,
+      products: input.products,
+      allowedServices,
+    });
+    if (!quoted.ok) {
+      await recordShippingMonitorEvent("quote_failure", {
+        reason: quoted.rateLimited ? "easyship_rate_limited" : quoted.code,
+        carriers: remaining,
+        status: quoted.status ?? null,
+      });
+      if (quoted.rateLimited) {
+        return temporaryBusyResult({
+          options: [],
+          remaining,
+          busyCarriers: remaining,
+          reason: "rate_limit",
+        });
+      }
+      return {
+        options: [],
+        expectedLiveCarriers: remaining,
+        message: quoted.error || easyshipQuoteErrorMessage("request_failed"),
+      };
+    }
+    const options = assignUniqueLiveOptionIds(quoted.rates
+      .filter((rate) => remaining.includes(rate.provider))
+      .map((rate) => {
+        const eta = rate.estimatedDays != null
+          ? `${rate.estimatedDays} business day${rate.estimatedDays === 1 ? "" : "s"}`
+          : rate.durationTerms;
+        return {
+          id: liveOptionId(rate.provider, rate.service, { token: rate.serviceToken, days: rate.estimatedDays }),
+          provider: rate.provider,
+          fulfillmentMethod: "delivery" as const,
+          label: `${rate.provider.toUpperCase()} · ${rate.service}`,
+          amount: applyShippingMargin(rate.amount, margin),
+          serviceCode: rate.service || rate.serviceToken,
+          serviceToken: rate.serviceToken || undefined,
+          estimate: [
+            eta,
+            easyship.isSandbox || rate.test ? "Easyship sandbox rate — not a production quote" : "Easyship carrier rate",
+          ].filter(Boolean).join(" · "),
+          mode: "api" as const,
+          zone: international ? "international" as const : "domestic" as const,
+          rateMode: "live_api" as const,
+          billableWeightLb: packed.parcel!.weightLb,
+          easyshipRateId: rate.objectId,
+          quoteSource: "easyship" as const,
+          testRate: easyship.isSandbox || rate.test,
+          etaDays: rate.estimatedDays,
+        };
+      }));
+    await recordShippingMonitorEvent("checkout_quote", {
+      provider: "easyship",
+      rates: options.length,
+      upsRates: options.filter((option) => option.provider === "ups").length,
+      uspsRates: options.filter((option) => option.provider === "usps").length,
+      test: easyship.isSandbox,
+      country: String(input.destination.country || "").slice(0, 2).toUpperCase(),
+      weightLb: packed.parcel.weightLb,
+    });
+    if (!options.length) {
+      return {
+        options: [],
+        expectedLiveCarriers: remaining,
+        message: `Easyship returned no eligible ${remaining.map((carrier) => carrier.toUpperCase()).join(" and ")} services for this destination and parcel. No substitute rate was invented.`,
+      };
+    }
+    const missingCarriers = remaining.filter((carrier) => !options.some((option) => option.provider === carrier));
+    const success = {
+      options,
+      expectedLiveCarriers: remaining,
+      message: missingCarriers.length
+        ? `${missingCarriers.map((carrier) => carrier.toUpperCase()).join(" and ")} did not return a rate for this destination and parcel. Showing available Easyship rates only.`
         : undefined,
     };
     writeLiveQuoteCache(cacheKey, success);
