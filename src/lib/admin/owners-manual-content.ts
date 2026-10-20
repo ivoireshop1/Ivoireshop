@@ -246,7 +246,14 @@ export const OWNERS_MANUAL_PAGES: ManualPage[] = [
     title: "Storefront, settings & handover",
     body: [
       "Storefront / Promotions controls promotional content surfaces.",
-      "Settings holds store facts plus handover tools: Owner's Manual, Launch catalog preview (10 featured), and Handover cleanup (backup-first, no deletes).",
+      "Settings → Store details is editable: Store name, Storefront URL, Default currency, Support email, and Warehouse phone.",
+      "How to edit Store details: open Admin → Settings → Edit → change fields → Save Changes (or Cancel to discard). Nothing autosaves on blur.",
+      "Saved values persist in Supabase store_settings and update the footer, Contact page, checkout pickup label, order emails, print/receipts, and related admin copy when those fields are set.",
+      "Leave Support email and Warehouse phone blank until they are real — the site will not invent placeholder contact details.",
+      "Storefront URL saves store copy only. It does not change Vercel domains or Supabase Auth redirect allowlists. After save, follow the on-screen steps if you use a custom domain.",
+      "Default currency: only USD is supported. Choosing another currency is blocked so Stripe, PayPal, Square, and historical order totals stay intact.",
+      "Store name and warehouse phone also sync with Delivery → Store origin (same database fields).",
+      "Settings also holds handover tools: Owner's Manual, Launch catalog preview (10 featured), and Handover cleanup (backup-first, no deletes).",
       "Account/Security is where admins change passwords. Password changes revoke other sessions.",
     ],
     links: [

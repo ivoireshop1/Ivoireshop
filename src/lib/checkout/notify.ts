@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@/src/lib/supabase/server";
 import { prepareOrderConfirmation, deliverOrderMessage } from "@/src/lib/communications/order-messages";
+import { getStoreEmailBrand } from "@/src/lib/store/profile";
 import type { CheckoutReceipt } from "./checkout-validation";
 
 function asItems(value: unknown): { product_name: string; product_price?: number | string; quantity: number }[] {
@@ -24,6 +25,7 @@ export async function notifyPlacedOrder(receipt: CheckoutReceipt) {
     const { data } = await supabase.rpc("get_checkout_confirmation", { p_access_token: token });
     const row = Array.isArray(data) ? data[0] : data;
     if (!row?.confirmation_code || row.payment_status === "failed") return false;
+    const brand = await getStoreEmailBrand();
     const message = prepareOrderConfirmation({
       order_number: String(row.order_number),
       confirmation_code: String(row.confirmation_code),
@@ -40,7 +42,7 @@ export async function notifyPlacedOrder(receipt: CheckoutReceipt) {
       created_at: row.created_at,
       shipping_address: row.shipping_address,
       order_items: asItems(row.items),
-    });
+    }, { brand });
     const result = await deliverOrderMessage(message);
     if (!result.sent) {
       console.error("[order-email] not sent", { orderNumber: receipt.order_number, reason: result.reason });

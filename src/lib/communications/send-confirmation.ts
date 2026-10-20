@@ -2,6 +2,7 @@ import "server-only";
 
 import { prepareOrderConfirmation, type ConfirmationOrder } from "@/src/lib/communications/order-messages";
 import { sendTransactionalEmail } from "@/src/lib/email/send";
+import { getStoreEmailBrand } from "@/src/lib/store/profile";
 
 type ConfirmationRow = {
   order_number?: string;
@@ -64,7 +65,8 @@ export async function trySendOrderConfirmation(row: ConfirmationRow) {
   try {
     const order = confirmationOrderFromRow(row);
     if (!order) return false;
-    const message = prepareOrderConfirmation(order, { event: "confirmed" });
+    const brand = await getStoreEmailBrand();
+    const message = prepareOrderConfirmation(order, { event: "confirmed", brand });
     const result = await sendTransactionalEmail(message);
     if (!result.sent) {
       console.error("[order-email] not sent", { orderNumber: order.order_number, reason: result.reason });

@@ -3,6 +3,7 @@ import "server-only";
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { prepareFulfillmentEmail, type ConfirmationOrder } from "@/src/lib/communications/order-messages";
 import { sendTransactionalEmail } from "@/src/lib/email/send";
+import { getStoreEmailBrand } from "@/src/lib/store/profile";
 
 export async function notifyFulfillmentEmail(
   supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
@@ -27,7 +28,8 @@ export async function notifyFulfillmentEmail(
       ...order,
       order_items: order.order_items ?? [],
     };
-    const message = prepareFulfillmentEmail(payload, status);
+    const brand = await getStoreEmailBrand();
+    const message = prepareFulfillmentEmail(payload, status, brand);
     if (!message) return false;
     const result = await sendTransactionalEmail(message);
     if (!result.sent) console.error("[order-email] fulfillment not sent", { orderNumber: order.order_number, reason: result.reason });

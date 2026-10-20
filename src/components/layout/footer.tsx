@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { NewsletterForm } from "./newsletter-form";
+import { getStoreProfile } from "@/src/lib/store/profile";
 
 const groups = [
   { title: "Shop", links: [["Shop All", "/shop"], ["Categories", "/categories"], ["Featured Products", "/#featured-products"], ["New Arrivals", "/shop?arrival=new"]] },
@@ -8,19 +9,56 @@ const groups = [
   { title: "Support", links: [["Track My Order", "/orders"], ["Shopping information", "/contact"]] },
 ];
 
-export function Footer() {
+export async function Footer() {
+  const profile = await getStoreProfile();
+  const year = new Date().getFullYear();
+
   return (
     <footer className="min-w-0 max-w-[100vw] overflow-x-clip border-t border-black/10 bg-forest-green text-white pb-[env(safe-area-inset-bottom,0)]">
       <div className="mx-auto grid min-w-0 max-w-7xl gap-8 px-4 py-10 sm:grid-cols-2 sm:gap-12 sm:px-5 sm:py-14 lg:grid-cols-[1.3fr_repeat(4,minmax(0,1fr))] lg:px-8">
         <div className="min-w-0">
-          <Link className="text-lg font-semibold tracking-[0.18em]" href="/">IVOIRE <span className="font-normal">SHOP</span></Link>
-          <p className="mt-4 max-w-xs text-sm leading-6 text-white/70">A thoughtful selection of African and international food products for your everyday table.</p>
+          <Link className="text-lg font-semibold tracking-[0.18em]" href="/">
+            {profile.storeName.toUpperCase().includes("IVOIRE") ? (
+              <>
+                IVOIRE <span className="font-normal">SHOP</span>
+              </>
+            ) : (
+              profile.storeName
+            )}
+          </Link>
+          <p className="mt-4 max-w-xs text-sm leading-6 text-white/70">
+            A thoughtful selection of African and international food products for your everyday table.
+          </p>
+          {(profile.supportEmail || profile.warehousePhone) && (
+            <div className="mt-4 space-y-1 text-sm text-white/75">
+              {profile.supportEmail ? (
+                <p>
+                  <a className="break-all hover:text-white" href={`mailto:${profile.supportEmail}`}>
+                    {profile.supportEmail}
+                  </a>
+                </p>
+              ) : null}
+              {profile.warehousePhone ? (
+                <p>
+                  <a className="hover:text-white" href={`tel:${profile.warehousePhone.replace(/\D/g, "")}`}>
+                    {profile.warehousePhone}
+                  </a>
+                </p>
+              ) : null}
+            </div>
+          )}
         </div>
         {groups.map((group) => (
           <div className="min-w-0" key={group.title}>
             <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">{group.title}</h2>
             <ul className="mt-4 space-y-3 text-sm text-white/75">
-              {group.links.map(([label, href]) => <li key={label}><Link className="break-words hover:text-white" href={href}>{label}</Link></li>)}
+              {group.links.map(([label, href]) => (
+                <li key={label}>
+                  <Link className="break-words hover:text-white" href={href}>
+                    {label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
         ))}
@@ -32,7 +70,9 @@ export function Footer() {
       </div>
       <div className="border-t border-white/15">
         <div className="mx-auto flex min-w-0 max-w-7xl flex-col gap-3 px-4 py-5 text-xs text-white/60 sm:flex-row sm:items-center sm:justify-between sm:px-5 lg:px-8">
-          <span>© 2026 Ivoire Shop</span>
+          <span>
+            © {year} {profile.storeName}
+          </span>
           <Link href="/contact">Shopping information</Link>
         </div>
       </div>

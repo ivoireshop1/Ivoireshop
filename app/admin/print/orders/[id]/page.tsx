@@ -28,7 +28,11 @@ export default async function AdminOrderPrintPage({
     kind === "packing-slip"
       ? supabase.from("order_internal_notes").select("body").eq("order_id", id).order("created_at", { ascending: true })
       : Promise.resolve({ data: [] as Array<{ body: string }>, error: null }),
-    supabase.from("store_settings").select("packing_slip_watermark_text, packing_slip_logo_url").eq("id", STORE_SETTINGS_ID).maybeSingle(),
+    supabase
+      .from("store_settings")
+      .select("packing_slip_watermark_text, packing_slip_logo_url, origin_name, origin_phone, support_email")
+      .eq("id", STORE_SETTINGS_ID)
+      .maybeSingle(),
   ]);
   if (error || itemsError) return <AdminLoadFailure message="Unable to load print document." title="Print" />;
   if (!order) notFound();
@@ -47,6 +51,9 @@ export default async function AdminOrderPrintPage({
       }))}
       kind={kind}
       order={order}
+      storeName={String(store?.origin_name ?? "").trim() || "Ivoire Shop"}
+      supportEmail={store?.support_email ?? null}
+      warehousePhone={store?.origin_phone ?? null}
       watermarkLogoUrl={kind === "packing-slip" ? store?.packing_slip_logo_url : null}
       watermarkText={kind === "packing-slip" ? store?.packing_slip_watermark_text : null}
     />

@@ -3,6 +3,7 @@ import "server-only";
 import { sendTransactionalEmail, type EmailPayload } from "@/src/lib/email/send";
 import { paymentProviderLabel, paymentStatusLabel } from "@/src/lib/orders/status";
 import { formatStoreDateTime } from "@/src/lib/store/timezone";
+import type { StoreEmailBrand } from "@/src/lib/store/profile-shared";
 
 type Event = "received" | "status_updated" | "fulfilled" | "cancelled";
 type MessageOrder = {
@@ -104,25 +105,34 @@ export function prepareOrderMessage(event: Event, order: MessageOrder) {
   return { to: order.customer_email, subject, text, html: `<div>${escapeHtml(text).replaceAll("\n", "<br />")}</div>` };
 }
 
-export function prepareOrderConfirmation(order: ConfirmationOrder, options?: { test?: boolean; event?: OrderEmailEvent }): EmailPayload {
+type OrderEmailOptions = { test?: boolean; event?: OrderEmailEvent; brand?: StoreEmailBrand };
+
+const DEFAULT_BRAND: StoreEmailBrand = {
+  storeName: "Ivoire Shop",
+  supportEmail: "",
+  warehousePhone: "",
+  storefrontUrl: "",
+};
+
+export function prepareOrderConfirmation(order: ConfirmationOrder, options?: OrderEmailOptions): EmailPayload {
   assertConfirmationOrder(order);
   if (order.payment_status === "failed" && options?.event !== "ready_for_pickup" && options?.event !== "shipped" && options?.event !== "delivered") {
     throw new Error("Refusing to send a paid/confirmed email for a failed payment.");
   }
-  return renderIvoireOrderEmail(order, options?.event ?? "confirmed", Boolean(options?.test));
+  return renderIvoireOrderEmail(order, options?.event ?? "confirmed", Boolean(options?.test), options?.brand ?? DEFAULT_BRAND);
 }
 
-export function preparePaidOrderConfirmation(order: ConfirmationOrder): EmailPayload {
+export function preparePaidOrderConfirmation(order: ConfirmationOrder, brand?: StoreEmailBrand): EmailPayload {
   if (order.payment_status !== "paid") throw new Error("Order is not paid.");
-  return prepareOrderConfirmation(order, { event: "confirmed" });
+  return prepareOrderConfirmation(order, { event: "confirmed", brand });
 }
 
-export function prepareOrderEmailPreview(order: ConfirmationOrder, event: OrderEmailEvent = "confirmed"): EmailPayload {
+export function prepareOrderEmailPreview(order: ConfirmationOrder, event: OrderEmailEvent = "confirmed", brand?: StoreEmailBrand): EmailPayload {
   assertConfirmationOrder(order);
-  return renderIvoireOrderEmail(order, event, false);
+  return renderIvoireOrderEmail(order, event, false, brand ?? DEFAULT_BRAND);
 }
 
-export function prepareTestOrderConfirmation(to: string): EmailPayload {
+export function prepareTestOrderConfirmation(to: string, brand?: StoreEmailBrand): EmailPayload {
   return renderIvoireOrderEmail({
     order_number: "IV-TEST",
     confirmation_code: "IVO-8K4P2",
@@ -138,23 +148,23 @@ export function prepareTestOrderConfirmation(to: string): EmailPayload {
     total: "24.00",
     created_at: new Date().toISOString(),
     order_items: [{ product_name: "Test pantry item", product_price: "12.00", quantity: 2 }],
-  }, "confirmed", true);
+  }, "confirmed", true, brand ?? DEFAULT_BRAND);
 }
 
-export function prepareFulfillmentEmail(order: ConfirmationOrder, status: string): EmailPayload | null {
-  if (status === "ready_for_pickup") return prepareOrderConfirmation(order, { event: "ready_for_pickup" });
-  if (status === "shipped") return prepareOrderConfirmation(order, { event: "shipped" });
-  if (status === "delivered") return prepareOrderConfirmation(order, { event: "delivered" });
+export function prepareFulfillmentEmail(order: ConfirmationOrder, status: string, brand?: StoreEmailBrand): EmailPayload | null {
+  if (status === "ready_for_pickup") return prepareOrderConfirmation(order, { event: "ready_for_pickup", brand });
+  if (status === "shipped") return prepareOrderConfirmation(order, { event: "shipped", brand });
+  if (status === "delivered") return prepareOrderConfirmation(order, { event: "delivered", brand });
   return null;
 }
 
-function eventCopy(event: OrderEmailEvent, pickup: boolean) {
+function eventCopy(event: OrderEmailEvent, pickup: boolean, storeName: string) {
   if (event === "ready_for_pickup") {
     return {
       eyebrow: "Ready for pickup",
       heading: "Your order is ready",
       intro: "Your order is ready for pickup.",
-      subject: "Your Ivoire Shop order is ready for pickup",
+      subject: `Your ${storeName} order is ready for pickup`,
     };
   }
   if (event === "shipped") {
@@ -162,28 +172,36 @@ function eventCopy(event: OrderEmailEvent, pickup: boolean) {
       eyebrow: "Out for delivery",
       heading: "Your order is on the way",
       intro: "We'll keep you updated as your order makes its way to you.",
-      subject: "Your Ivoire Shop order is out for delivery",
+      subject: `Your ${storeName} order is out for delivery`,
     };
   }
   if (event === "delivered") {
     return {
       eyebrow: pickup ? "Completed" : "Delivered",
       heading: pickup ? "Your order was collected" : "Your order was delivered",
-      intro: "Thank you for shopping with Ivoire Shop.",
-      subject: "Your Ivoire Shop order is complete",
+      intro: `Thank you for shopping with ${storeName}.`,
+      subject: `Your ${storeName} order is complete`,
     };
   }
   return {
     eyebrow: "Order confirmed",
     heading: "Order confirmed",
-    intro: "Thanks for shopping with Ivoire Shop.",
-    subject: "Your Ivoire Shop order is confirmed",
+    intro: `Thanks for shopping with ${storeName}.`,
+    subject: `Your ${storeName} order is confirmed`,
   };
 }
 
-function renderIvoireOrderEmail(order: ConfirmationOrder, event: OrderEmailEvent, test: boolean): EmailPayload {
+function contactFooterLines(brand: StoreEmailBrand) {
+  const lines: string[] = [];
+  if (brand.supportEmail) lines.push(`Support: ${brand.supportEmail}`);
+  if (brand.warehousePhone) lines.push(`Phone: ${brand.warehousePhone}`);
+  if (brand.storefrontUrl) lines.push(brand.storefrontUrl);
+  return lines;
+}
+
+function renderIvoireOrderEmail(order: ConfirmationOrder, event: OrderEmailEvent, test: boolean, brand: StoreEmailBrand): EmailPayload {
   const pickup = order.fulfillment_method === "local_pickup";
-  const copy = eventCopy(event, pickup);
+  const copy = eventCopy(event, pickup, brand.storeName);
   const payment = paymentStatusCopy(order.payment_status, order.payment_provider);
   const method = paymentMethodLabel(order.payment_provider, order.payment_method);
   const date = formatDate(order.created_at);
@@ -201,10 +219,11 @@ function renderIvoireOrderEmail(order: ConfirmationOrder, event: OrderEmailEvent
   const shipping = Number(order.shipping_cost ?? 0);
   const discount = Number(order.discount_amount ?? 0);
   const tax = Number(order.tax_amount ?? 0);
+  const contactLines = contactFooterLines(brand);
   const subject = `${test ? "TEST — " : ""}${copy.subject} — ${order.confirmation_code}`.replace(/[\r\n]/g, " ");
   const text = [
     test ? "TEST EMAIL — not a live customer notice." : "",
-    "IVOIRE SHOP",
+    brand.storeName.toUpperCase(),
     copy.heading,
     `Hi ${firstName(order.customer_name)},`,
     copy.intro,
@@ -231,6 +250,7 @@ function renderIvoireOrderEmail(order: ConfirmationOrder, event: OrderEmailEvent
     discount > 0 ? `Discount: -${money(discount)}` : "",
     `Tax: ${money(tax)}`,
     `Total: ${money(order.total)}`,
+    ...(contactLines.length ? ["", ...contactLines] : []),
   ].filter((line, index, lines) => line !== "" || lines[index - 1] !== "").join("\n");
 
   const itemRows = items.map((item) => `<tr>
@@ -244,7 +264,7 @@ function renderIvoireOrderEmail(order: ConfirmationOrder, event: OrderEmailEvent
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;margin:0 auto;background:#fffaf3;border:1px solid #eadfce;border-radius:24px">
     <tr><td style="padding:28px 28px 8px">
       ${test ? '<p style="margin:0 0 16px;padding:8px 12px;background:#b8964c;color:#fff;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;border-radius:999px;display:inline-block">TEST</p>' : ""}
-      <p style="margin:0;letter-spacing:0.28em;text-transform:uppercase;color:#b8964c;font-size:12px">Ivoire Shop</p>
+      <p style="margin:0;letter-spacing:0.28em;text-transform:uppercase;color:#b8964c;font-size:12px">${escapeHtml(brand.storeName)}</p>
       <h1 style="margin:12px 0 0;font-size:28px;line-height:1.2;color:#173f35">${escapeHtml(copy.heading)}</h1>
       <p style="margin:16px 0 0;font-size:16px">Hi ${escapeHtml(firstName(order.customer_name))},</p>
       <p style="margin:8px 0 0;color:#6b6b6b">${escapeHtml(copy.intro)}</p>
@@ -287,6 +307,7 @@ function renderIvoireOrderEmail(order: ConfirmationOrder, event: OrderEmailEvent
       ${discount > 0 ? `<p style="margin:6px 0 0;text-align:right">Discount -${money(discount)}</p>` : ""}
       <p style="margin:6px 0 0;text-align:right">Tax ${money(tax)}</p>
       <p style="margin:10px 0 0;text-align:right;font-size:18px;font-weight:700">Total ${money(order.total)}</p>
+      ${contactLines.length ? `<p style="margin:24px 0 0;color:#6b6b6b;font-size:13px">${contactLines.map((line) => escapeHtml(line)).join("<br />")}</p>` : ""}
     </td></tr>
   </table>
 </div>`;

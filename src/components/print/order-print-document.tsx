@@ -59,6 +59,9 @@ export function OrderPrintDocument({
   internalNotes,
   watermarkText,
   watermarkLogoUrl,
+  storeName = "Ivoire Shop",
+  supportEmail,
+  warehousePhone,
 }: {
   kind: OrderPrintKind;
   order: PrintOrder;
@@ -66,6 +69,9 @@ export function OrderPrintDocument({
   internalNotes?: string[];
   watermarkText?: string | null;
   watermarkLogoUrl?: string | null;
+  storeName?: string;
+  supportEmail?: string | null;
+  warehousePhone?: string | null;
 }) {
   const title = orderPrintTitle(kind);
   const pickupLocation = pickupLocationForOrder(order);
@@ -88,9 +94,9 @@ export function OrderPrintDocument({
           )}
         </div>
       ) : null}
-      <PrintToolbar title={`Ivoire Shop · ${title}`} />
+      <PrintToolbar title={`${storeName} · ${title}`} />
       <header className="border-b border-black pb-4">
-        <p className="text-xs uppercase tracking-[0.24em]">Ivoire Shop</p>
+        <p className="text-xs uppercase tracking-[0.24em]">{storeName}</p>
         <h1 className="mt-2 text-3xl font-semibold">{title}</h1>
         <p className="mt-2 text-sm">Order {order.order_number}</p>
         <p className="text-sm">{formatStoreDateTime(order.created_at)}</p>
@@ -226,6 +232,13 @@ export function OrderPrintDocument({
           <h2 className="font-semibold">Internal packing notes</h2>
           {internalNotes.map((note) => <p className="mt-2 whitespace-pre-wrap" key={note}>{note}</p>)}
         </section>
+      ) : null}
+
+      {supportEmail || warehousePhone ? (
+        <footer className="mt-8 border-t border-black/20 pt-3 text-xs">
+          {supportEmail ? <p className="break-all">Support: {supportEmail}</p> : null}
+          {warehousePhone ? <p>Phone: {warehousePhone}</p> : null}
+        </footer>
       ) : null}
     </article>
   );

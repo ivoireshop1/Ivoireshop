@@ -137,7 +137,7 @@ export function CheckoutShippingMethods({
                 <span className="mt-0.5 block text-sm text-muted">{copy.subtitle}</span>
                 {pickup && selected && pickupLines.length ? (
                   <span className="mt-3 block rounded-xl bg-white/80 px-3 py-2 text-sm text-forest-green">
-                    <span className="block font-semibold">Pickup at Ivoire Shop</span>
+                    <span className="block font-semibold">Pickup at {pickupOrigin?.name?.trim() || "Ivoire Shop"}</span>
                     <span className="mt-1 block whitespace-pre-line text-muted">{pickupLines.join("\n")}</span>
                   </span>
                 ) : null}

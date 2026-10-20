@@ -3,14 +3,91 @@ import { Footer } from "@/src/components/layout/footer";
 import { SiteHeader } from "@/src/components/layout/site-header";
 import { PageHero } from "@/src/components/storefront/page-hero";
 import { ContactForm } from "@/src/components/customer/contact-form";
+import { getStoreProfile } from "@/src/lib/store/profile";
 
-const faqs = [["How do I shop as a guest?", "Browse the shop and add products to your cart without creating an account."], ["Can I create an account later?", "Yes. You can create an account whenever you are ready."], ["How do I find products?", "Use the shop search, category filters, or browse our category collection."], ["How does delivery work?", "Choose delivery or local pickup at checkout. No online payment is collected when you submit an order."]];
+const faqs = [
+  ["How do I shop as a guest?", "Browse the shop and add products to your cart without creating an account."],
+  ["Can I create an account later?", "Yes. You can create an account whenever you are ready."],
+  ["How do I find products?", "Use the shop search, category filters, or browse our category collection."],
+  ["How does delivery work?", "Choose delivery or local pickup at checkout. Payment options depend on what the store has enabled."],
+];
 
 export const metadata = pageMetadata("Contact", "Shopping information and support availability at Ivoire Shop.", "/contact");
 
-export default function ContactPage() {
-  return <><SiteHeader /><main><PageHero eyebrow="Get in touch" title="We're Here To Help." description="Have a question about a product, your order, or shopping with Ivoire Shop? We're here to help." />
-    <section className="mx-auto grid max-w-7xl gap-12 px-5 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:px-8"><ContactForm /><div className="space-y-4"><h2 className="text-2xl font-semibold text-forest-green">Shopping with confidence</h2>{[["Customer Support", "We're here to help with your shopping experience."], ["Secure Shopping", "Shop with confidence through our secure checkout process."]].map(([title, copy]) => <div className="rounded-xl border border-black/10 bg-surface p-5" key={title}><h3 className="font-semibold text-forest-green">{title}</h3><p className="mt-2 text-sm leading-6 text-muted">{copy}</p></div>)}</div></section>
-    <section className="bg-[#f5f0e6]"><div className="mx-auto max-w-3xl px-5 py-16 lg:px-8"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Helpful answers</p><h2 className="mt-3 text-3xl font-semibold text-forest-green">Frequently Asked Questions</h2><div className="mt-8 divide-y divide-black/10">{faqs.map(([question, answer]) => <details className="py-4" key={question}><summary className="cursor-pointer font-semibold text-forest-green">{question}</summary><p className="mt-3 text-sm leading-6 text-muted">{answer}</p></details>)}</div></div></section>
-  </main><Footer /></>;
+export default async function ContactPage() {
+  const profile = await getStoreProfile();
+  const hasContact = Boolean(profile.supportEmail || profile.warehousePhone);
+
+  return (
+    <>
+      <SiteHeader />
+      <main>
+        <PageHero
+          eyebrow="Get in touch"
+          title="We're Here To Help."
+          description={`Have a question about a product, your order, or shopping with ${profile.storeName}? We're here to help.`}
+        />
+        <section className="mx-auto grid max-w-7xl gap-12 px-5 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:px-8">
+          <ContactForm />
+          <div className="space-y-4">
+            <h2 className="text-2xl font-semibold text-forest-green">Shopping with confidence</h2>
+            {[
+              ["Customer Support", "We're here to help with your shopping experience."],
+              ["Secure Shopping", "Shop with confidence through our secure checkout process."],
+            ].map(([title, copy]) => (
+              <div className="rounded-xl border border-black/10 bg-surface p-5" key={title}>
+                <h3 className="font-semibold text-forest-green">{title}</h3>
+                <p className="mt-2 text-sm leading-6 text-muted">{copy}</p>
+              </div>
+            ))}
+            <div className="rounded-xl border border-black/10 bg-surface p-5">
+              <h3 className="font-semibold text-forest-green">Store contact</h3>
+              {hasContact ? (
+                <div className="mt-2 space-y-1 text-sm leading-6 text-muted">
+                  {profile.supportEmail ? (
+                    <p>
+                      Email:{" "}
+                      <a className="font-medium text-forest-green underline underline-offset-2" href={`mailto:${profile.supportEmail}`}>
+                        {profile.supportEmail}
+                      </a>
+                    </p>
+                  ) : null}
+                  {profile.warehousePhone ? (
+                    <p>
+                      Phone:{" "}
+                      <a
+                        className="font-medium text-forest-green underline underline-offset-2"
+                        href={`tel:${profile.warehousePhone.replace(/\D/g, "")}`}
+                      >
+                        {profile.warehousePhone}
+                      </a>
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm leading-6 text-muted">
+                  Use the form on this page. Direct phone and email will appear here once the store owner saves them under Admin → Settings → Store details.
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+        <section className="bg-[#f5f0e6]">
+          <div className="mx-auto max-w-3xl px-5 py-16 lg:px-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Helpful answers</p>
+            <h2 className="mt-3 text-3xl font-semibold text-forest-green">Frequently Asked Questions</h2>
+            <div className="mt-8 divide-y divide-black/10">
+              {faqs.map(([question, answer]) => (
+                <details className="py-4" key={question}>
+                  <summary className="cursor-pointer font-semibold text-forest-green">{question}</summary>
+                  <p className="mt-3 text-sm leading-6 text-muted">{answer}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </>
+  );
 }

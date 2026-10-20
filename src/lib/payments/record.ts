@@ -4,6 +4,8 @@ import { createAdminClient } from "@/src/lib/supabase/admin";
 import { preparePaidOrderConfirmation, type PaidConfirmationOrder } from "@/src/lib/communications/order-messages";
 import { sendTransactionalEmail } from "@/src/lib/email/send";
 import { recordPaymentNotification } from "@/src/lib/notifications/record";
+import { emailBrandFromProfile, profileFromSettingsRow } from "@/src/lib/store/profile-shared";
+import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
 import { usdToCents } from "./money";
 import { isDemoOrder } from "./demo";
 
@@ -236,14 +238,22 @@ export async function sendPaidConfirmation(order: RecordedOrder) {
   try {
     const supabase = requireAdminClient();
     await supabase.from("orders").update({ email_attempted_at: new Date().toISOString() }).eq("id", order.id);
-    const { data: items } = await supabase
-      .from("order_items")
-      .select("product_name, product_price, quantity")
-      .eq("order_id", order.id);
-    const message = preparePaidOrderConfirmation({
-      ...order,
-      order_items: items ?? [],
-    });
+    const [{ data: items }, { data: store }] = await Promise.all([
+      supabase.from("order_items").select("product_name, product_price, quantity").eq("order_id", order.id),
+      supabase
+        .from("store_settings")
+        .select("origin_name, origin_phone, support_email, storefront_url, default_currency")
+        .eq("id", STORE_SETTINGS_ID)
+        .maybeSingle(),
+    ]);
+    const brand = emailBrandFromProfile(profileFromSettingsRow(store as Record<string, unknown> | null));
+    const message = preparePaidOrderConfirmation(
+      {
+        ...order,
+        order_items: items ?? [],
+      },
+      brand,
+    );
     const result = await sendTransactionalEmail(message);
     if (result.sent) {
       await supabase.from("orders").update({ email_sent_at: new Date().toISOString() }).eq("id", order.id);
