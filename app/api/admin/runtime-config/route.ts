@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/src/lib/supabase/server";
-import { getStripeConfig, stripeKeyMode, STRIPE_ENV_NAMES } from "@/src/lib/payments/stripe-config";
+import { getStripeConfig, stripePublishableKeyMode, stripeSecretKeyMode, STRIPE_ENV_NAMES } from "@/src/lib/payments/stripe-config";
 import { shippoCredentials } from "@/src/lib/shipping/shippo";
 import { easypostCredentials } from "@/src/lib/shipping/easypost";
 import { hasPaymentAdminClient } from "@/src/lib/payments/config";
@@ -12,8 +12,11 @@ function envMode(name: string, raw: string): string | null {
   if (name === "STRIPE_WEBHOOK_SECRET") {
     return raw.startsWith("whsec_") ? "whsec" : "unrecognized";
   }
-  if (name === STRIPE_ENV_NAMES.publishable || name === STRIPE_ENV_NAMES.secret) {
-    return stripeKeyMode(raw) ?? "unrecognized";
+  if (name === STRIPE_ENV_NAMES.publishable) {
+    return stripePublishableKeyMode(raw) ?? "unrecognized";
+  }
+  if (name === STRIPE_ENV_NAMES.secret) {
+    return stripeSecretKeyMode(raw) ?? "unrecognized";
   }
   if (name === "SHIPPO_API_TOKEN") {
     if (raw.startsWith("shippo_test_")) return "shippo_test";
@@ -53,10 +56,9 @@ export async function GET() {
   const stripe = getStripeConfig();
   const shippo = shippoCredentials();
   const easypost = easypostCredentials();
-  const publishableMode = stripe.publishablePresent ? stripeKeyMode(stripe.publishableKey) : null;
-  const secretMode = stripe.secretPresent ? stripeKeyMode(stripe.secretKey) : null;
-  const unrecognizedKeys =
-    (stripe.publishablePresent && !publishableMode) || (stripe.secretPresent && !secretMode);
+  const publishableMode = stripe.publishablePresent ? stripePublishableKeyMode(stripe.publishableKey) : null;
+  const secretMode = stripe.secretPresent ? stripeSecretKeyMode(stripe.secretKey) : null;
+  const unrecognizedKeys = stripe.invalidKeyType;
 
   return NextResponse.json({
     deployment: {
@@ -70,6 +72,7 @@ export async function GET() {
       webhookPresent: stripe.webhookPresent,
       secretMode,
       publishableMode,
+      invalidKeyType: stripe.invalidKeyType,
       modeMismatch: stripe.modeMismatch,
       mode: stripe.mode,
       livePaymentsEnabled: stripe.livePaymentsEnabled,
@@ -83,7 +86,7 @@ export async function GET() {
         : !stripe.secretPresent
           ? "getStripeConfig → secretPresent=false → canCollect=false"
           : unrecognizedKeys
-            ? "getStripeConfig → unrecognized Stripe key format (expect pk_test_/sk_test_ or pk_live_/sk_live_)"
+            ? "getStripeConfig → invalid key type (STRIPE_SECRET_KEY must be sk_test_/sk_live_; NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY must be pk_test_/pk_live_)"
             : stripe.modeMismatch
               ? "getStripeConfig → modeMismatch=true (publishable and secret modes differ)"
               : stripe.liveBlocked

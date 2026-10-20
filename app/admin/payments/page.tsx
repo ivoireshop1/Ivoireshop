@@ -50,6 +50,7 @@ export default async function AdminPaymentsPage({
   const attention: string[] = [];
   if (payment.taxBlocked) attention.push(TAX_PAYMENT_BLOCKED_MESSAGE);
   if (!payment.canRecord) attention.push("Add SUPABASE_SERVICE_ROLE_KEY in Vercel Production so Stripe webhooks can mark orders paid.");
+  if (payment.stripe.invalidKeyType) attention.push("Stripe keys are present but not the correct key types for their environment names.");
   if (payment.stripe.missing.length) attention.push(`Stripe is waiting for: ${payment.stripe.missing.join(", ")}.`);
   if (payment.stripe.liveBlocked) attention.push("Live Stripe keys are present but live charges stay locked until founder approval.");
   if (health?.last_error_at && (!health.last_success_at || health.last_error_at > health.last_success_at)) {
@@ -96,7 +97,8 @@ export default async function AdminPaymentsPage({
           <div><dt className="text-[#6b6b6b]">Webhook</dt><dd className="font-semibold text-[#173f35]">{!payment.stripe.webhook || payment.stripe.webhook === "missing" ? "Missing" : health?.last_error_at && (!health.last_success_at || health.last_error_at > health.last_success_at) ? "Error" : health?.last_success_at ? "Configured" : "Configured"}</dd></div>
           <div><dt className="text-[#6b6b6b]">Last webhook</dt><dd className="text-[#173f35]">{health?.last_success_at ? formatStoreDateTime(health.last_success_at) : "None yet"}</dd></div>
         </dl>
-        {payment.stripe.modeMismatch ? <p className="mt-4 text-sm text-red-800">Publishable and secret keys are not the same Stripe mode.</p> : null}
+        {payment.stripe.invalidKeyType ? <p className="mt-4 text-sm text-red-800">Stripe keys are present but not the correct key types for their environment names.</p> : null}
+        {payment.stripe.modeMismatch && !payment.stripe.invalidKeyType ? <p className="mt-4 text-sm text-red-800">Publishable and secret keys are not the same Stripe mode.</p> : null}
         {payment.stripe.missing.length ? <p className="mt-4 text-sm text-[#7c5d1a]">Missing: {payment.stripe.missing.join(", ")}.</p> : null}
         <p className="mt-4 text-sm text-muted">Server environment names: {stripe.envNames.join(", ")}. Keys are set in the hosting project by the store owner — never paste secret keys into chat or the browser.</p>
         <p className="mt-2 text-sm text-muted">

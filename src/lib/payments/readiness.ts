@@ -45,6 +45,7 @@ export function getPaymentReadiness(input?: {
       server: stripe.secretPresent ? ("available" as const) : ("missing" as const),
       webhook: stripe.webhookPresent ? ("configured" as const) : ("missing" as const),
       modeMismatch: stripe.modeMismatch,
+      invalidKeyType: stripe.invalidKeyType,
       missing,
       public: stripeReady ? stripe.public : null,
     },

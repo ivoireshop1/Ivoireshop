@@ -20,10 +20,23 @@ export const STRIPE_ENV_NAMES = {
   liveEnabled: "STRIPE_LIVE_PAYMENTS_ENABLED",
 } as const;
 
-export function stripeKeyMode(value: string): StripeMode | null {
-  if (value.startsWith("sk_live") || value.startsWith("pk_live")) return "live";
-  if (value.startsWith("sk_test") || value.startsWith("pk_test")) return "test";
+/** Secret key only. A publishable key (pk_*) is invalid in STRIPE_SECRET_KEY. */
+export function stripeSecretKeyMode(value: string): StripeMode | null {
+  if (value.startsWith("sk_test_")) return "test";
+  if (value.startsWith("sk_live_")) return "live";
   return null;
+}
+
+/** Publishable key only. A secret key (sk_*) is invalid in NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY. */
+export function stripePublishableKeyMode(value: string): StripeMode | null {
+  if (value.startsWith("pk_test_")) return "test";
+  if (value.startsWith("pk_live_")) return "live";
+  return null;
+}
+
+/** Mode of a well-typed Stripe key string. Slot checks belong in getStripeConfig. */
+export function stripeKeyMode(value: string): StripeMode | null {
+  return stripeSecretKeyMode(value) ?? stripePublishableKeyMode(value);
 }
 
 export function getStripeConfig() {
@@ -33,10 +46,11 @@ export function getStripeConfig() {
   const secretPresent = Boolean(secretKey);
   const publishablePresent = Boolean(publishableKey);
   const webhookPresent = Boolean(webhookSecret);
-  const secretMode = stripeKeyMode(secretKey);
-  const publishableMode = stripeKeyMode(publishableKey);
+  const secretMode = stripeSecretKeyMode(secretKey);
+  const publishableMode = stripePublishableKeyMode(publishableKey);
+  const invalidKeyType = Boolean((secretPresent && !secretMode) || (publishablePresent && !publishableMode));
   const modeMismatch = Boolean(secretPresent && publishablePresent && (secretMode !== publishableMode || !secretMode || !publishableMode));
-  const mode = !modeMismatch && secretMode && publishableMode ? secretMode : null;
+  const mode = !invalidKeyType && !modeMismatch && secretMode && publishableMode ? secretMode : null;
   const livePaymentsEnabled = text(STRIPE_ENV_NAMES.liveEnabled).toLowerCase() === "true";
   const liveBlocked = mode === "live" && !livePaymentsEnabled;
   const canCollect = Boolean(secretPresent && publishablePresent && mode && !liveBlocked);
@@ -52,6 +66,7 @@ export function getStripeConfig() {
     secretPresent,
     publishablePresent,
     webhookPresent,
+    invalidKeyType,
     modeMismatch,
     mode,
     livePaymentsEnabled,

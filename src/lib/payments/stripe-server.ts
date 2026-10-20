@@ -8,7 +8,9 @@ let client: Stripe | null = null;
 export function stripeClient() {
   const config = getStripeConfig();
   if (config.liveBlocked) throw new Error("Live Stripe charges are locked until founder approval.");
-  if (!config.secretKey) throw new Error("Stripe is not configured.");
+  if (!config.canCollect || config.invalidKeyType || !config.secretKey) {
+    throw new Error("Stripe is not configured.");
+  }
   if (!client) {
     client = new Stripe(config.secretKey, {
       typescript: true,
