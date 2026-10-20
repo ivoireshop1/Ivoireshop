@@ -25,7 +25,7 @@ export default async function OwnersManualPrintPage() {
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#b8964c]">BADGER GHOST</p>
           <h1 className="text-3xl font-semibold">Ivoire Shop Owner&apos;s Playbook</h1>
-          <p className="mt-1 text-sm text-[#6b6b6b]">Printable edition · Steel production · Never BUBBA</p>
+          <p className="mt-1 text-sm text-[#6b6b6b]">Printable edition · Prepared by BADGER GHOST</p>
         </div>
       </header>
 

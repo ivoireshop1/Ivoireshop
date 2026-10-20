@@ -250,7 +250,7 @@ export function OwnersManual() {
               </div>
             ) : null}
 
-            <p className="mt-8 text-[11px] uppercase tracking-[0.18em] text-[#6b6b6b]">Ivoire Shop · BADGER GHOST · Never BUBBA</p>
+            <p className="mt-8 text-[11px] uppercase tracking-[0.18em] text-[#6b6b6b]">Ivoire Shop · BADGER GHOST</p>
           </article>
         </div>
       </div>
