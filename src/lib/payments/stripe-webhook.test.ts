@@ -8,6 +8,14 @@ import {
   webhookSecretLooksValid,
 } from "./stripe-webhook-verify.ts";
 import { getStripeConfig, normalizeWebhookSecret, STRIPE_ENV_NAMES } from "./stripe-config.ts";
+import {
+  createIvoireWebhookSelfSignedPayload,
+  createSignedIvoireWebhookDiagnostic,
+  isIvoireWebhookSelfSignedEvent,
+  IVOIRE_WEBHOOK_SELF_SIGNED_EVENT_TYPE,
+  steelWebhookSelfSignedTargetUrl,
+  summarizeWebhookSelfSignedResult,
+} from "./stripe-webhook-self-signed.ts";
 
 const SYNTHETIC_SECRET = "whsec_synthetic_ivoire_webhook_test";
 const SYNTHETIC_PAYLOAD = JSON.stringify({
@@ -94,7 +102,32 @@ test("stripe webhook handler covers paid, failed, canceled, and refunded events"
     "charge.refunded",
   ];
   assert.equal(handled.includes("checkout.session.completed"), false);
+  assert.equal(handled.includes(IVOIRE_WEBHOOK_SELF_SIGNED_EVENT_TYPE), false);
   assert.equal(new Set(handled).size, 4);
+});
+
+test("self-signed diagnostic payload cannot enter payment processing", () => {
+  const rawBody = createIvoireWebhookSelfSignedPayload();
+  const parsed = JSON.parse(rawBody);
+  assert.equal(parsed.type, IVOIRE_WEBHOOK_SELF_SIGNED_EVENT_TYPE);
+  assert.equal(isIvoireWebhookSelfSignedEvent(parsed.type), true);
+  assert.equal(isIvoireWebhookSelfSignedEvent("payment_intent.succeeded"), false);
+  assert.equal(parsed.data?.object?.object, "ivoire.diagnostic");
+  assert.equal(parsed.data?.object?.metadata?.order_id, undefined);
+  const signed = createSignedIvoireWebhookDiagnostic(SYNTHETIC_SECRET);
+  const verified = verifyStripeWebhookPayload(signed.rawBody, signed.header, SYNTHETIC_SECRET);
+  assert.equal(verified.ok, true);
+  if (verified.ok) {
+    assert.equal(isIvoireWebhookSelfSignedEvent(verified.event.type), true);
+  }
+});
+
+test("self-signed diagnostic summary never echoes payload or signature", () => {
+  const pass = summarizeWebhookSelfSignedResult(200, { received: true, code: "should_ignore_non_allowlist" });
+  assert.deepEqual(pass, { result: "PASS", httpStatus: 200, diagnosticCode: "verified" });
+  const fail = summarizeWebhookSelfSignedResult(400, { error: "Invalid signature.", code: "invalid_signature" });
+  assert.deepEqual(fail, { result: "FAIL", httpStatus: 400, diagnosticCode: "invalid_signature" });
+  assert.equal(steelWebhookSelfSignedTargetUrl({ VERCEL_ENV: "production" }), "https://ivoireshop-steel.vercel.app/api/payments/stripe/webhook");
 });
 
 test("receipt total must equal stripe cents", () => {

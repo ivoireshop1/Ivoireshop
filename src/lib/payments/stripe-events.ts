@@ -2,6 +2,7 @@ import "server-only";
 
 import type Stripe from "stripe";
 import { applyVerifiedPayment, applyVerifiedRefund, markWebhookHealth } from "./record";
+import { isIvoireWebhookSelfSignedEvent } from "./stripe-webhook-self-signed";
 
 function orderIdFromIntent(intent: Stripe.PaymentIntent) {
   const meta = intent.metadata?.order_id;
@@ -9,6 +10,9 @@ function orderIdFromIntent(intent: Stripe.PaymentIntent) {
 }
 
 export async function processStripeEvent(event: Stripe.Event) {
+  if (isIvoireWebhookSelfSignedEvent(event.type)) {
+    return { ok: true as const, diagnostic: true as const };
+  }
   try {
     if (event.type === "payment_intent.succeeded") {
       const intent = event.data.object as Stripe.PaymentIntent;
