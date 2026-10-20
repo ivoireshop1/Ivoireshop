@@ -14,6 +14,7 @@ import { parseAdminMiles, parseAdminMoney, parseRateMode } from "./manual";
 import { canPrepareShippoLabel, createShippoTestTransaction, listShippoCarrierAccounts, shippoCredentials } from "@/src/lib/shipping/shippo";
 import { easypostCredentials } from "@/src/lib/shipping/easypost";
 import { quoteLiveCarrierOptions } from "@/src/lib/shipping/live-quotes";
+import { parseShippingProvider } from "@/src/lib/shipping/provider";
 import { recordShippingMonitorEvent } from "@/src/lib/shipping/monitor";
 import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
 import { recordAdminIncident } from "@/src/lib/ops/incident";
@@ -624,13 +625,19 @@ export async function checkDeliveryProviders(): Promise<void> {
     success: verified.ok,
     message: last_error,
   });
+  const { data: settings } = await supabase.from("store_settings").select("shipping_provider").eq("id", STORE_SETTINGS_ID).maybeSingle();
+  const selectedProvider = parseShippingProvider(settings?.shipping_provider);
   const shippo = shippoCredentials();
   const accounts = shippo.configured ? await listShippoCarrierAccounts() : { ok: false, ups: 0, usps: 0, accountIds: [] as string[] };
   await supabase.from("delivery_provider_health").upsert({
     provider: "shippo",
     status: !shippo.configured ? "not_configured" : accounts.ok ? "connected" : "error",
     last_check_at: new Date().toISOString(),
-    last_error: accounts.ok ? null : "Shippo carrier account check failed",
+    last_error: !shippo.configured
+      ? "SHIPPO_API_TOKEN is not set on this environment"
+      : accounts.ok
+        ? null
+        : "Shippo carrier account check failed",
     updated_at: new Date().toISOString(),
   });
   const easypost = easypostCredentials();
@@ -646,12 +653,21 @@ export async function checkDeliveryProviders(): Promise<void> {
     updated_at: new Date().toISOString(),
   });
   for (const provider of ["ups", "usps"] as const) {
-    const connected = accounts.ok && accounts[provider] > 0;
+    const connected = selectedProvider === "easypost"
+      ? easypost.configured && easypost.mode !== "unknown"
+      : accounts.ok && accounts[provider] > 0;
+    const missingToken = selectedProvider === "easypost" ? !easypost.configured : !shippo.configured;
     await supabase.from("delivery_provider_health").upsert({
       provider,
-      status: connected ? "connected" : "manual",
+      status: missingToken ? "not_configured" : connected ? "connected" : "error",
       last_check_at: new Date().toISOString(),
-      last_error: null,
+      last_error: missingToken
+        ? selectedProvider === "easypost"
+          ? "Live quotes need EASYPOST_API_KEY on this environment"
+          : "Live quotes need SHIPPO_API_TOKEN on this environment"
+        : connected
+          ? null
+          : `No active ${provider.toUpperCase()} account for the selected live-rate provider`,
       updated_at: new Date().toISOString(),
     });
   }

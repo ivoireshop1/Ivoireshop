@@ -35,6 +35,10 @@ export default async function AdminDeliveryPage() {
   const carrierOrders7d = carrierOrderQuery.count;
   const origin = originFromSettings(settings);
   const healthBy = new Map((health ?? []).map((row) => [row.provider, row]));
+  const shippoHealth = healthBy.get("shippo");
+  const easypostHealth = healthBy.get("easypost");
+  const upsHealth = healthBy.get("ups");
+  const uspsHealth = healthBy.get("usps");
   const doorConfigured = doordashCredentials().configured;
   const doorHealth = healthBy.get("doordash");
   const doorTitle = !doorConfigured
@@ -76,6 +80,7 @@ export default async function AdminDeliveryPage() {
           <h2 className="font-semibold text-[#173f35]">UPS</h2>
           <p className="mt-2 text-sm text-[#6b6b6b]">{parseRateMode(settings?.ups_rate_mode) === "live_api" ? `${shippingProvider === "easypost" ? "EasyPost" : "Shippo"} live rates` : "Manual Shipping"}</p>
           <p className="mt-4 text-sm font-medium text-[#173f35]">{rateModeLabel(parseRateMode(settings?.ups_rate_mode))}{settings?.ups_enabled && settings?.ups_show_at_checkout !== false ? "" : " · Hidden at checkout"}</p>
+          <p className="mt-1 text-xs text-[#6b6b6b]">{upsHealth?.last_error || upsHealth?.status || "No connection check yet"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">Domestic: {settings?.ups_domestic_enabled ? formatCharge(settings.ups_domestic_charge) : "Off"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">International: {settings?.ups_international_enabled ? formatCharge(settings.ups_international_charge) : "Off"}</p>
         </section>
@@ -83,6 +88,7 @@ export default async function AdminDeliveryPage() {
           <h2 className="font-semibold text-[#173f35]">USPS</h2>
           <p className="mt-2 text-sm text-[#6b6b6b]">{parseRateMode(settings?.usps_rate_mode) === "live_api" ? `${shippingProvider === "easypost" ? "EasyPost" : "Shippo"} live rates` : "Manual Shipping"}</p>
           <p className="mt-4 text-sm font-medium text-[#173f35]">{rateModeLabel(parseRateMode(settings?.usps_rate_mode))}{settings?.usps_enabled && settings?.usps_show_at_checkout !== false ? "" : " · Hidden at checkout"}</p>
+          <p className="mt-1 text-xs text-[#6b6b6b]">{uspsHealth?.last_error || uspsHealth?.status || "No connection check yet"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">Domestic: {settings?.usps_domestic_enabled ? formatCharge(settings.usps_domestic_charge) : "Off"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">International: {settings?.usps_international_enabled ? formatCharge(settings.usps_international_charge) : "Off"}</p>
         </section>
@@ -110,6 +116,16 @@ export default async function AdminDeliveryPage() {
           <p className="text-sm">Products missing package data: <strong>{missingParcelCount ?? "—"}</strong></p>
         </div>
         <p className="mt-3 text-xs text-[#6b6b6b]">Checkout abandonment is the gap between quote requests and carrier orders in this window. Quote requests: {monitor.quotes}. Carrier orders (7 days): {carrierOrders7d ?? "—"}. Active provider: {shippingProvider === "easypost" ? "EasyPost" : "Shippo"}. Shippo: {shippo.configured ? (shippo.isTest ? "test token present" : "token present") : "not configured"}. EasyPost: {easypost.configured ? (easypost.isTest ? "TEST key present" : easypost.isLive ? "production key present" : "unrecognized key") : "not configured"}.</p>
+        {monitor.lastFailureReason ? (
+          <p className="mt-3 rounded-xl border border-[#b8964c]/40 bg-[#fbf7ee] p-3 text-sm text-[#7c5d1a]">
+            Last live-quote failure: <strong>{monitor.lastFailureReason}</strong>
+            {monitor.lastFailureAt ? ` · ${new Date(monitor.lastFailureAt).toLocaleString()}` : ""}.
+            {shippoHealth?.last_error ? ` Shippo check: ${shippoHealth.last_error}.` : ""}
+            {easypostHealth?.last_error ? ` EasyPost check: ${easypostHealth.last_error}.` : ""}
+            {missingParcelCount ? ` Products missing package data: ${missingParcelCount}.` : ""}
+            Checkout does not invent rates when the token or package data is missing.
+          </p>
+        ) : null}
         <Link className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-[#173f35] underline" href="/admin/products?inventory=needs_shipping">Review products missing package data</Link>
       </section>
 

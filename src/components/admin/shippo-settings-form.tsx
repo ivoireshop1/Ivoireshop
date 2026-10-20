@@ -28,7 +28,7 @@ export function ShippoSettingsForm({
           ? shippoTest
             ? "A Shippo test token is configured on this environment. Rates shown at checkout are test rates, not production quotes."
             : "A Shippo token is configured. Live postage purchasing remains disabled until the founder turns it on."
-          : "Shippo is not configured on this environment. Add SHIPPO_API_TOKEN to Vercel Preview only."}
+          : "Shippo is not configured on this environment. Add a Shippo TEST token as SHIPPO_API_TOKEN on Vercel Production for Steel. Do not install a live token until production shipping is approved."}
       </p>
       <label className="flex items-center gap-2 text-sm">
         <input defaultChecked={Boolean(settings?.shippo_enabled)} name="shippo_enabled" type="checkbox" />
