@@ -3,7 +3,6 @@ import fs from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
 
-const FAILURE = "AI couldn't fill this product. You can enter the details manually or try again.";
 const FOODS = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const COSMETICS = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const MARKET = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
@@ -188,7 +187,7 @@ await test("untrusted image URLs are rejected before vision", async () => {
   products[0].product_images = [{ image_url: "https://evil.example/x.jpg", position: 0 }];
   const result = await fillProductDetailsWithAi(FOODS);
   assert.equal(result.success, false);
-  assert.match(result.error, new RegExp("^" + FAILURE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(result.error, /couldn't read this product photo/);
   assert.match(result.error, /Reference: AI-[A-F0-9]{4}/);
   assert.equal(result.code, "IMAGE_FETCH_FAILED");
   assert.equal(visionCalls.length, 0);
@@ -235,7 +234,7 @@ await test("vision failure stays in editor and does not write", async () => {
   visionError.name = "TimeoutError";
   const result = await fillProductDetailsWithAi(FOODS);
   assert.equal(result.success, false);
-  assert.match(result.error, new RegExp("^" + FAILURE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(result.error, /timed out before it finished/);
   assert.match(result.error, /Reference: AI-[A-F0-9]{4}/);
   assert.equal(result.code, "AI_TIMEOUT");
   assert.equal(products[0].name, "Palm Oil Draft");

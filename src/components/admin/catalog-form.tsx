@@ -132,6 +132,7 @@ export function ProductForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
+  const [aiFailed, setAiFailed] = useState(false);
   const [aiMessage, setAiMessage] = useState<string | null>(null);
   const [pendingAiName, setPendingAiName] = useState<string | null>(null);
 
@@ -159,6 +160,7 @@ export function ProductForm({
       isActive,
     };
     setAiBusy(true);
+    setAiFailed(false);
     setAiMessage(null);
     setPendingAiName(null);
     try {
@@ -169,6 +171,7 @@ export function ProductForm({
       setTrackInventory(preserved.trackInventory);
       setIsActive(preserved.isActive);
       if (!result.success) {
+        setAiFailed(true);
         setAiMessage(result.error);
         return;
       }
@@ -183,6 +186,7 @@ export function ProductForm({
       } else if (result.suggestions.name && result.suggestions.name !== name) {
         setPendingAiName(result.suggestions.name);
       }
+      setAiFailed(false);
       setAiMessage("Review the suggested details, edit anything that needs changing, then Save.");
     } catch {
       setCategoryId(preserved.categoryId);
@@ -190,6 +194,7 @@ export function ProductForm({
       setStockQuantity(preserved.stockQuantity);
       setTrackInventory(preserved.trackInventory);
       setIsActive(preserved.isActive);
+      setAiFailed(true);
       setAiMessage("AI couldn't fill this product. You can enter the details manually or try again. Reference: AI-NET");
     } finally {
       setAiBusy(false);
@@ -439,7 +444,7 @@ export function ProductForm({
                 {aiMessage ? (
                   <p aria-live="polite" className="text-sm text-[#173f35]">
                     {aiMessage}{" "}
-                    {aiMessage.includes("couldn't fill") ? (
+                    {aiFailed ? (
                       <button className="font-semibold underline underline-offset-2" disabled={aiBusy} onClick={() => void handleFillWithAi()} type="button">
                         Try Again
                       </button>
@@ -455,7 +460,11 @@ export function ProductForm({
                   </p>
                 ) : null}
               </div>
-            ) : null}
+            ) : (
+              <p className="rounded-xl border border-[#173f35]/15 bg-white px-4 py-3 text-sm text-[#173f35]">
+                Save this product with a photo first, then use Fill with AI. AI does not run on unsaved new products.
+              </p>
+            )}
 
             <label className="block text-sm font-medium text-[#173f35]">
               Product Name <span className="text-red-600">*</span>

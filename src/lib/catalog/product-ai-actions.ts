@@ -36,7 +36,7 @@ function deploymentLabel() {
 
 function fail(code: ProductAiFailureCode, reference: string, extra?: string): FillProductAiResult {
   logProductAiEvent({ reference, step: "fail", code, extra });
-  return { success: false, error: productAiFailureMessage(reference), code, reference };
+  return { success: false, error: productAiFailureMessage(reference, code), code, reference };
 }
 
 function providerStatus(error: unknown) {

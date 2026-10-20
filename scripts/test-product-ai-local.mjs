@@ -28,7 +28,7 @@ const { isTrustedProductImageUrl } = load("src/lib/catalog/trusted-product-image
 const { sanitizeProductAiSuggestion, parseProductAiJson, suggestionHasContent, productAiSystemPrompt } = load(
   "src/lib/catalog/product-ai.ts",
 );
-const { publicImageDiskPath } = load("src/lib/catalog/product-ai-image.ts");
+const { publicImageDiskPath, publicImageOrigins, publicImageHttpUrl } = load("src/lib/catalog/product-ai-image.ts");
 
 let n = 0;
 function test(name, fn) {
@@ -126,13 +126,32 @@ test("empty or broken AI JSON is treated as failure content", () => {
 });
 
 test("failure codes distinguish image fetch from AI auth and timeouts", () => {
-  const { classifyProductAiError, productAiGatewayReady } = load("src/lib/catalog/product-ai-errors.ts");
+  const { classifyProductAiError, productAiFailureMessage, productAiGatewayReady } = load("src/lib/catalog/product-ai-errors.ts");
   const timeout = new Error("aborted");
   timeout.name = "TimeoutError";
   assert.equal(classifyProductAiError(timeout), "AI_TIMEOUT");
   assert.equal(classifyProductAiError({ statusCode: 401 }), "AI_AUTH_FAILED");
   assert.equal(classifyProductAiError({ statusCode: 429 }), "AI_RATE_LIMITED");
+  assert.equal(classifyProductAiError({ cause: { name: "GatewayAuthenticationError" } }), "AI_AUTH_FAILED");
+  assert.match(productAiFailureMessage("AI-AB12", "IMAGE_FETCH_FAILED"), /couldn't read this product photo/);
   assert.equal(productAiGatewayReady(), Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL === "1"));
+});
+
+test("production AI image fetch prefers the public Steel origin over VERCEL_URL", () => {
+  const origins = publicImageOrigins({
+    VERCEL: "1",
+    VERCEL_ENV: "production",
+    VERCEL_URL: "ivoire-shop-unique.vercel.app",
+  });
+  assert.equal(origins[0], "https://ivoireshop-steel.vercel.app");
+  assert.equal(
+    publicImageHttpUrl("/images/Foods%2012-22-25/Foods%2012-22-25/golden-tropics-plantain-fufu-680g.jpeg", {
+      VERCEL: "1",
+      VERCEL_ENV: "production",
+      VERCEL_URL: "ivoire-shop-unique.vercel.app",
+    }),
+    "https://ivoireshop-steel.vercel.app/images/Foods%2012-22-25/Foods%2012-22-25/golden-tropics-plantain-fufu-680g.jpeg",
+  );
 });
 
 test("prompt locks category and writes English copy without invented claims", () => {
@@ -167,6 +186,8 @@ test("AI keys are not exposed to the browser bundle of the form", () => {
   assert.doesNotMatch(form, /AI_GATEWAY|OPENAI_API_KEY|ANTHROPIC_API_KEY/);
   assert.match(form, /fillProductDetailsWithAi/);
   assert.match(form, /Reference: AI-NET/);
+  assert.match(form, /aiFailed/);
+  assert.match(form, /Save this product with a photo first/);
 });
 
 test("Fill with AI preserves category price quantity and status in the editor", () => {

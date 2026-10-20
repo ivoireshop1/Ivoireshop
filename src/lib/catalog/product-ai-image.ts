@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { resolve, sep } from "node:path";
-import { resolvePublicSiteUrl } from "@/src/lib/site";
+import { CANONICAL_PRODUCTION_ORIGIN, resolvePublicSiteUrl } from "@/src/lib/site";
 import { isTrustedProductImageUrl } from "@/src/lib/catalog/trusted-product-image";
 
 const MEDIA_TYPES: Record<string, string> = {
@@ -36,21 +36,40 @@ export function encodePublicImagePath(imageUrl: string) {
   }
 }
 
-export function publicImageOrigin() {
-  const vercelHost = (process.env.VERCEL_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || "")
+export function publicImageOrigins(env: NodeJS.ProcessEnv = process.env) {
+  const origins: string[] = [];
+  const push = (value: string) => {
+    const origin = value.trim().replace(/\/$/, "");
+    if (!origin || origins.includes(origin)) return;
+    origins.push(origin);
+  };
+
+  // Production serverless functions must not self-fetch VERCEL_URL first.
+  // Unique deployment hosts are often protected; catalog images already load on Steel.
+  if (env.VERCEL_ENV === "production") push(CANONICAL_PRODUCTION_ORIGIN);
+
+  const vercelHost = (env.VERCEL_URL || env.VERCEL_PROJECT_PRODUCTION_URL || "")
     .replace(/^https?:\/\//, "")
     .replace(/\/$/, "");
-  if (process.env.VERCEL && vercelHost) return `https://${vercelHost}`;
-  const site = resolvePublicSiteUrl(process.env).replace(/\/$/, "");
-  if (site && !/localhost|127\.0\.0\.1/i.test(site)) return site;
-  return site;
+  if (env.VERCEL && vercelHost) push(`https://${vercelHost}`);
+
+  const site = resolvePublicSiteUrl(env).replace(/\/$/, "");
+  if (site) push(site);
+  return origins;
 }
 
-export function publicImageHttpUrl(imageUrl: string) {
+export function publicImageOrigin(env: NodeJS.ProcessEnv = process.env) {
+  return publicImageOrigins(env)[0] ?? "";
+}
+
+export function publicImageHttpUrls(imageUrl: string, env: NodeJS.ProcessEnv = process.env) {
   const encodedPath = encodePublicImagePath(imageUrl);
-  const origin = publicImageOrigin();
-  if (!encodedPath || !origin) return null;
-  return `${origin}${encodedPath}`;
+  if (!encodedPath) return [];
+  return publicImageOrigins(env).map((origin) => `${origin}${encodedPath}`);
+}
+
+export function publicImageHttpUrl(imageUrl: string, env: NodeJS.ProcessEnv = process.env) {
+  return publicImageHttpUrls(imageUrl, env)[0] ?? null;
 }
 
 export function publicImageDiskPath(imageUrl: string) {
@@ -101,33 +120,35 @@ export async function readTrustedProductImage(imageUrl: string) {
         // Serverless runtimes serve /images from the CDN, not the function disk.
       }
     }
-    const httpUrl = publicImageHttpUrl(imageUrl);
-    if (!httpUrl || !isTrustedProductImageUrl(new URL(httpUrl).pathname)) {
+    const httpUrls = publicImageHttpUrls(imageUrl);
+    if (!httpUrls.length) {
       return { ok: false as const, status: 0, contentType: null, bytes: 0, source: "http" as const };
     }
-    try {
-      const response = await fetch(httpUrl, { redirect: "error" });
-      const parsed = await bytesFromResponse(response, mediaType);
-      if (!parsed) {
-        return {
-          ok: false as const,
-          status: response.status,
-          contentType: response.headers.get("content-type"),
-          bytes: 0,
-          source: "http" as const,
-        };
+    let lastStatus = 0;
+    let lastType: string | null = null;
+    for (const httpUrl of httpUrls) {
+      if (!isTrustedProductImageUrl(new URL(httpUrl).pathname)) continue;
+      try {
+        const response = await fetch(httpUrl, { redirect: "error" });
+        const parsed = await bytesFromResponse(response, mediaType);
+        if (parsed) {
+          return {
+            ok: true as const,
+            bytes: parsed.bytes,
+            mediaType: parsed.mediaType,
+            status: response.status,
+            contentType: parsed.mediaType,
+            source: "http" as const,
+          };
+        }
+        lastStatus = response.status;
+        lastType = response.headers.get("content-type");
+      } catch {
+        lastStatus = 0;
+        lastType = null;
       }
-      return {
-        ok: true as const,
-        bytes: parsed.bytes,
-        mediaType: parsed.mediaType,
-        status: response.status,
-        contentType: parsed.mediaType,
-        source: "http" as const,
-      };
-    } catch {
-      return { ok: false as const, status: 0, contentType: null, bytes: 0, source: "http" as const };
     }
+    return { ok: false as const, status: lastStatus, contentType: lastType, bytes: 0, source: "http" as const };
   }
   try {
     const response = await fetch(imageUrl, { redirect: "error" });

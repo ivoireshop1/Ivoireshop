@@ -20,8 +20,19 @@ export function newAiAssistReference() {
   return `AI-${Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("").toUpperCase()}`;
 }
 
-export function productAiFailureMessage(reference: string) {
-  return `${PRODUCT_AI_FAILURE} Reference: ${reference}`;
+const PRODUCT_AI_FAILURE_BY_CODE: Record<ProductAiFailureCode, string> = {
+  IMAGE_FETCH_FAILED: "AI couldn't read this product photo. Confirm the saved image is visible in Admin, then try again.",
+  AI_NOT_CONFIGURED: "AI filling is not configured on this environment.",
+  AI_AUTH_FAILED: "AI filling could not authenticate with the AI Gateway.",
+  AI_RATE_LIMITED: "AI filling is temporarily rate-limited. Wait a minute and try again.",
+  AI_TIMEOUT: "AI filling timed out before it finished. Try again.",
+  AI_RESPONSE_INVALID: "AI returned details that could not be used. Try again or enter them manually.",
+  UNKNOWN: PRODUCT_AI_FAILURE,
+};
+
+export function productAiFailureMessage(reference: string, code?: ProductAiFailureCode) {
+  const detail = (code && PRODUCT_AI_FAILURE_BY_CODE[code]) || PRODUCT_AI_FAILURE;
+  return `${detail} Reference: ${reference}`;
 }
 
 export function productAiGatewayReady() {
@@ -29,19 +40,22 @@ export function productAiGatewayReady() {
 }
 
 export function classifyProductAiError(error: unknown): ProductAiFailureCode {
-  const record = error && typeof error === "object" ? (error as { name?: unknown; statusCode?: unknown }) : null;
-  const name = typeof record?.name === "string" ? record.name : "";
-  const status = Number(record?.statusCode);
+  const record = error && typeof error === "object" ? (error as Record<string, unknown>) : {};
+  const cause = record.cause && typeof record.cause === "object" ? (record.cause as Record<string, unknown>) : {};
+  const name = [record.name, cause.name].filter((value) => typeof value === "string").join(" ");
+  const status = Number(record.statusCode ?? record.status ?? cause.statusCode ?? cause.status);
+  const message = [record.message, cause.message].filter((value) => typeof value === "string").join(" ");
 
-  if (name === "TimeoutError" || name === "AbortError") return "AI_TIMEOUT";
+  if (/TimeoutError|AbortError/i.test(name) || /timed out|aborted/i.test(message)) return "AI_TIMEOUT";
   if (Number.isFinite(status)) {
-    if (status === 401 || status === 403) return "AI_AUTH_FAILED";
+    if (status === 401 || status === 403 || status === 402) return "AI_AUTH_FAILED";
     if (status === 429) return "AI_RATE_LIMITED";
     if (status === 408 || status === 504) return "AI_TIMEOUT";
-    if (status === 402) return "AI_AUTH_FAILED";
   }
-  if (name === "AI_LoadAPIKeyError" || name === "LoadAPIKeyError") return "AI_NOT_CONFIGURED";
-  if (name === "ProductAiResponseInvalid") return "AI_RESPONSE_INVALID";
+  if (/LoadAPIKeyError|AI_LoadAPIKeyError/i.test(name) || message === "AI_NOT_CONFIGURED") return "AI_NOT_CONFIGURED";
+  if (/GatewayAuthenticationError|AI_GatewayAuthenticationError/i.test(name)) return "AI_AUTH_FAILED";
+  if (/ProductAiResponseInvalid/i.test(name)) return "AI_RESPONSE_INVALID";
+  if (/unauthorized|invalid api key|authentication/i.test(message)) return "AI_AUTH_FAILED";
   return "UNKNOWN";
 }
 
