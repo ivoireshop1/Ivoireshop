@@ -29,10 +29,28 @@ export function parseCountryList(raw: unknown) {
 }
 
 export function internationalDestinationAllowed(country: string | null | undefined, allowlist: string[]) {
+  return internationalEligibility(country, allowlist).allowed;
+}
+
+export function internationalEligibility(country: string | null | undefined, allowlist: string[]) {
   const code = (country ?? "").trim().toUpperCase();
-  if (!code || code === "US" || code === "USA") return true;
-  if (!allowlist.length) return true;
-  return allowlist.includes(code === "USA" ? "US" : code);
+  const normalized = code === "USA" || code === "UNITED STATES" || code === "UNITED STATES OF AMERICA" ? "US" : code;
+  if (!normalized || normalized === "US") return { allowed: true as const, reason: null };
+  if (!allowlist.length) {
+    return {
+      allowed: false as const,
+      reason: "not_configured" as const,
+      message: "International delivery eligibility is not configured yet. Store Pickup remains available.",
+    };
+  }
+  if (!allowlist.includes(normalized)) {
+    return {
+      allowed: false as const,
+      reason: "not_listed" as const,
+      message: "This destination is not on the founder international shipping list. Store Pickup remains available.",
+    };
+  }
+  return { allowed: true as const, reason: null };
 }
 
 export function parseAllowedServices(raw: unknown) {

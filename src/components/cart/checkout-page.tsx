@@ -6,6 +6,7 @@ import { SmartBackButton } from "@/src/components/navigation/smart-back-button";
 import { useCart } from "@/src/lib/cart/cart-context";
 import { useRouter } from "next/navigation";
 import { validateCheckout, type CheckoutReceipt } from "@/src/lib/checkout/checkout-validation";
+import { checkoutItemsFromCart } from "@/src/lib/catalog/weight-option-checkout";
 import {
   readCheckoutAttempt,
   storeCheckoutAttempt,
@@ -34,6 +35,8 @@ import type { PublicPaymentConfig } from "@/src/lib/payments/readiness";
 import type { StoreOrigin } from "@/src/lib/delivery/origin";
 import { PickupLocationBlock } from "@/src/components/store/pickup-location-block";
 import { liveIdentityFromOptionId, liveServiceKey, liveServiceKeyFromOptionId } from "@/src/lib/shipping/shippo";
+import { destinationReadyForCarrierQuotes } from "@/src/lib/delivery/destination";
+import { checkoutQuoteFingerprint, quoteResponseIsCurrent } from "@/src/lib/shipping/quote-freshness";
 
 function markCheckout(step: string, detail?: Record<string, unknown>) {
   const payload = { t: performance.now(), step, ...detail };
@@ -55,24 +58,6 @@ function liveCarrierFromOptionId(id: string): "ups" | "usps" | null {
   return null;
 }
 
-/** Fingerprint of destination + cart — only this changing should force a new Shippo quote. */
-function checkoutQuoteFingerprint(
-  address: { addressLine1: string; city: string; state: string; postalCode: string; country: string },
-  items: Array<{ productId: string; quantity: number }>,
-) {
-  const cart = items
-    .map((item) => `${item.productId}:${Number(item.quantity)}`)
-    .sort()
-    .join("|");
-  return [
-    address.addressLine1.trim().toLowerCase(),
-    address.city.trim().toLowerCase(),
-    address.state.trim().toUpperCase(),
-    address.postalCode.trim(),
-    address.country.trim().toUpperCase(),
-    cart,
-  ].join("::");
-}
 
 function placeholderLiveOption(id: string, amount: number): DeliveryOption | null {
   const provider = liveCarrierFromOptionId(id);
@@ -113,6 +98,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
   const [liveQuoteBusy, setLiveQuoteBusy] = useState(false);
   const [quoteMessage, setQuoteMessage] = useState("");
   const [expectedLiveCarriers, setExpectedLiveCarriers] = useState<Array<"ups" | "usps">>([]);
+  const [quoteProvider, setQuoteProvider] = useState<"shippo" | "easypost" | "easyship">("shippo");
   const [attempt, setAttempt] = useState<CheckoutAttempt | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -250,7 +236,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
                 postalCode: saved.request.address.postal_code ?? "",
                 country: saved.request.address.country || "US",
               },
-              saved.request.items.map((item) => ({ productId: item.product_id, quantity: item.quantity })),
+              saved.request.items.map((item) => ({ productId: item.product_id, quantity: item.quantity, weightOptionId: item.weight_option_id })),
             );
             lastLiveQuoteFingerprintRef.current = pinnedQuoteFingerprintRef.current;
             setOptions((current) => (current.some((row) => row.id === placeholder.id) ? current : [...current, placeholder]));
@@ -288,7 +274,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
             pinnedQuoteFingerprintRef.current = draft.cartFingerprint
               || checkoutQuoteFingerprint(
                 draft.address,
-                items.map(({ productId, quantity }) => ({ productId, quantity })),
+                items.map(({ productId, quantity, weightOptionId }) => ({ productId, quantity, weightOptionId })),
               );
             lastLiveQuoteFingerprintRef.current = pinnedQuoteFingerprintRef.current;
             setOptions((current) => (current.some((row) => row.id === placeholder.id) ? current : [...current, placeholder]));
@@ -365,7 +351,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
     const seq = ++baseQuoteSeq.current;
     const timer = window.setTimeout(() => {
       const started = performance.now();
-      const cartItems = items.map(({ productId, quantity }) => ({ product_id: productId, quantity }));
+      const cartItems = checkoutItemsFromCart(items);
       setQuoteBusy(true);
       markCheckout("base-quote:start", { seq });
       void getCheckoutDeliveryOptions({
@@ -401,6 +387,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
         setTaxSettings(result.tax ?? null);
         if (result.origin) setLivePickupOrigin(result.origin);
         setExpectedLiveCarriers(Array.isArray(result.expectedLiveCarriers) ? result.expectedLiveCarriers : []);
+        if (result.quoteProvider) setQuoteProvider(result.quoteProvider);
         setDeliveryOptionId((current) => {
           if (current && (result.options.some((option) => option.id === current) || isLiveOptionId(current) || current.includes(":manual:"))) {
             return current;
@@ -429,12 +416,13 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
       setLiveQuoteBusy(false);
       return;
     }
-    const destReady = Boolean(
-      address.addressLine1.trim()
-      && address.city.trim()
-      && address.postalCode.trim().length >= 5
-      && address.country.trim(),
-    );
+    const destReady = destinationReadyForCarrierQuotes({
+      address_line_1: address.addressLine1,
+      city: address.city,
+      state: address.state,
+      postal_code: address.postalCode,
+      country: address.country,
+    });
     if (!destReady || !items.length) {
       setLiveQuoteBusy(false);
       return;
@@ -467,7 +455,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
     const timer = window.setTimeout(() => {
       if (inFlightLiveFingerprintRef.current === fingerprint) return;
       const started = performance.now();
-      const cartItems = items.map(({ productId, quantity }) => ({ product_id: productId, quantity }));
+      const cartItems = checkoutItemsFromCart(items);
       inFlightLiveFingerprintRef.current = fingerprint;
       setLiveQuoteBusy(true);
       markCheckout("live-quote:start", { seq, fingerprint });
@@ -482,7 +470,8 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
         items: cartItems,
       }).then((live) => {
         if (seq === liveQuoteSeq.current) inFlightLiveFingerprintRef.current = null;
-        if (seq !== liveQuoteSeq.current) return;
+        const latestFingerprint = checkoutQuoteFingerprint(address, items);
+        if (!quoteResponseIsCurrent({ seq, fingerprint }, { seq: liveQuoteSeq.current, fingerprint: latestFingerprint })) return;
         markCheckout("live-quote:done", {
           seq,
           ms: Math.round(performance.now() - started),
@@ -491,6 +480,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
         });
         lastLiveQuoteFingerprintRef.current = fingerprint;
         setExpectedLiveCarriers(live.expectedLiveCarriers ?? []);
+        if (live.quoteProvider) setQuoteProvider(live.quoteProvider);
         const busyCarriers = live.rateLimitedCarriers ?? (live.temporaryBusy ? (["ups", "usps"] as const).filter((c) => (live.expectedLiveCarriers ?? []).includes(c)) : []);
         setTemporaryBusyCarriers([...busyCarriers]);
 
@@ -651,7 +641,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
       ?? undefined;
     if (selected?.rateMode === "live_api") selectedLiveAmountRef.current = selected.amount;
     return {
-      items: items.map(({ productId, quantity }) => ({ product_id: productId, quantity })),
+      items: checkoutItemsFromCart(items),
       customerName: contact.customerName,
       customerEmail: contact.customerEmail,
       customerPhone: contact.customerPhone,
@@ -688,8 +678,8 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
       idempotencyKeyRef.current = request.idempotencyKey;
       const pending: CheckoutAttempt = {
         request,
-        items: attempt?.items ?? items.map(({ productId, name, quantity, price, image, sellingMethod, sellingUnit }) => ({
-          productId, name, quantity, price, image, sellingMethod, sellingUnit,
+        items: attempt?.items ?? items.map(({ productId, name, quantity, price, image, sellingMethod, sellingUnit, weightOptionId, weightOptionLabel }) => ({
+          productId, name, quantity, price, image, sellingMethod, sellingUnit, weightOptionId, weightOptionLabel,
         })),
         createdAt: attempt?.createdAt ?? Date.now(),
         receipt: attempt?.receipt,
@@ -840,8 +830,8 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
       if (validated.error) { setError(validated.error); return; }
       const pending: CheckoutAttempt = attempt ?? {
         request: validated.request!,
-        items: items.map(({ productId, name, quantity, price, image, sellingMethod, sellingUnit }) => ({
-          productId, name, quantity, price, image, sellingMethod, sellingUnit,
+        items: items.map(({ productId, name, quantity, price, image, sellingMethod, sellingUnit, weightOptionId, weightOptionLabel }) => ({
+          productId, name, quantity, price, image, sellingMethod, sellingUnit, weightOptionId, weightOptionLabel,
         })),
         createdAt: Date.now(),
         step: "payment",
@@ -999,6 +989,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
               expectedLiveCarriers={expectedLiveCarriers}
               message={quoteMessage}
               options={options}
+              quoteProvider={quoteProvider}
               pickupOrigin={livePickupOrigin}
               temporaryBusyCarriers={temporaryBusyCarriers}
               value={deliveryOptionId}

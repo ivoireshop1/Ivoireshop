@@ -17,6 +17,8 @@ export type CheckoutAttempt = {
     image?: string;
     sellingMethod?: SellingMethod;
     sellingUnit?: SellingUnit;
+    weightOptionId?: string | null;
+    weightOptionLabel?: string | null;
   }[];
   createdAt: number;
   receipt?: CheckoutReceipt;

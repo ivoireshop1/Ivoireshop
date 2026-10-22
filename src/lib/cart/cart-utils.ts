@@ -1,4 +1,4 @@
-import type { CartItem } from "@/src/types/cart";
+import type { CartItem } from "../../types/cart.ts";
 import {
   lineSubtotal,
   parseSellingMethod,
@@ -7,7 +7,7 @@ import {
   roundQty,
   snapQuantity,
   type SellingSettings,
-} from "@/src/lib/catalog/selling";
+} from "../catalog/selling.ts";
 
 export function settingsFromCartItem(item: Pick<CartItem, "sellingMethod" | "sellingUnit" | "unitIncrement" | "minSellQty" | "maxSellQty">): SellingSettings {
   const sellingMethod = parseSellingMethod(item.sellingMethod);
@@ -37,6 +37,9 @@ export function normalizeCart(items: unknown): CartItem[] {
       unitIncrement: settings.unitIncrement,
       minSellQty: settings.minSellQty,
       maxSellQty: settings.maxSellQty,
+      weightOptionId: typeof item.weightOptionId === "string" ? item.weightOptionId : item.weightOptionId ?? null,
+      weightOptionLabel: typeof item.weightOptionLabel === "string" ? item.weightOptionLabel : item.weightOptionLabel ?? null,
+      netWeightLb: typeof item.netWeightLb === "number" && Number.isFinite(item.netWeightLb) ? item.netWeightLb : null,
       quantity: snapQuantity(item.quantity, settings),
     };
   });
@@ -62,18 +65,26 @@ export function subtotal(items: CartItem[]) {
   return roundMoney(items.reduce((total, item) => total + lineSubtotal(item.price, item.quantity), 0));
 }
 
-export function subtractPurchasedItems(items: CartItem[], purchased: { productId: string; quantity: number }[]) {
+export function subtractPurchasedItems(items: CartItem[], purchased: Array<{ productId: string; quantity: number; weightOptionId?: string | null }>) {
   const quantities = new Map<string, number>();
-  for (const item of purchased) quantities.set(item.productId, roundQty((quantities.get(item.productId) ?? 0) + item.quantity));
+  for (const item of purchased) {
+    const key = `${item.productId}::${item.weightOptionId ?? ""}`;
+    quantities.set(key, roundQty((quantities.get(key) ?? 0) + item.quantity));
+  }
   return items.flatMap((item) => {
-    const quantity = roundQty(item.quantity - (quantities.get(item.productId) ?? 0));
+    const key = `${item.productId}::${item.weightOptionId ?? ""}`;
+    const quantity = roundQty(item.quantity - (quantities.get(key) ?? 0));
     return quantity > 0 ? [{ ...item, quantity }] : [];
   });
 }
 
+function sameCartLine(left: Pick<CartItem, "productId" | "weightOptionId">, right: Pick<CartItem, "productId" | "weightOptionId">) {
+  return left.productId === right.productId && (left.weightOptionId ?? "") === (right.weightOptionId ?? "");
+}
+
 export function mergeItem(items: CartItem[], item: CartItem) {
   const settings = settingsFromCartItem(item);
-  const existing = items.find((entry) => entry.productId === item.productId);
+  const existing = items.find((entry) => sameCartLine(entry, item));
   if (!existing) {
     return [...items, {
       ...item,
@@ -92,7 +103,7 @@ export function mergeItem(items: CartItem[], item: CartItem) {
     minSellQty: item.minSellQty ?? existing.minSellQty,
     maxSellQty: item.maxSellQty !== undefined ? item.maxSellQty : existing.maxSellQty,
   });
-  return items.map((entry) => entry.productId === item.productId
+  return items.map((entry) => sameCartLine(entry, item)
     ? {
         ...entry,
         ...item,

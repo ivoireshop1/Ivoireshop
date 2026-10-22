@@ -6,6 +6,7 @@ import {
   canPrepareShippoLabel,
   identifyShippoProvider,
   internationalDestinationAllowed,
+  internationalEligibility,
   liveIdentityFromOptionId,
   liveOptionId,
   mapShippoRates,
@@ -36,7 +37,13 @@ test("international allowlist and service filters stay explicit", () => {
   assert.deepEqual(parseCountryList("CA, GB"), ["CA", "GB"]);
   assert.equal(internationalDestinationAllowed("CA", ["CA", "GB"]), true);
   assert.equal(internationalDestinationAllowed("FR", ["CA", "GB"]), false);
+  assert.equal(internationalDestinationAllowed("FR", []), false);
+  assert.equal(internationalDestinationAllowed("US", []), true);
   assert.equal(internationalDestinationAllowed("US", ["CA"]), true);
+  assert.equal(internationalEligibility("CA", []).reason, "not_configured");
+  assert.match(internationalEligibility("CA", []).message ?? "", /not configured/);
+  assert.doesNotMatch(internationalEligibility("CA", []).message ?? "", /unsupported/);
+  assert.equal(internationalEligibility("FR", ["CA", "GB"]).reason, "not_listed");
   const filtered = mapShippoRates({
     rates: [
       { object_id: "r1", provider: "ups", servicelevel_name: "Ground", servicelevel_token: "ups_ground", amount: "8.00" },

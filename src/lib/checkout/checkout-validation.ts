@@ -1,5 +1,5 @@
 ﻿export type CheckoutRequest = {
-  items: { product_id: string; quantity: number }[];
+  items: { product_id: string; quantity: number; weight_option_id?: string | null }[];
   customerName: string;
   customerEmail: string;
   customerPhone: string;
@@ -66,15 +66,17 @@ export function validateCheckout(input: unknown): { request: CheckoutRequest; er
   if (fulfillmentMethod === "delivery" && (!address.address_line_1 || !address.city || !address.country)) return { error: "Complete your delivery address, city, and country." };
   if (!uuid.test(text("idempotencyKey", 36))) return { error: "Refresh checkout before trying again." };
   if (!Array.isArray(value.items) || value.items.length === 0 || value.items.length > 100) return { error: "Your cart must contain between 1 and 100 products." };
-  const quantities = new Map<string, number>();
+  const quantities = new Map<string, { product_id: string; quantity: number; weight_option_id?: string }>();
   for (const item of value.items) {
     if (!item || typeof item !== "object") return { error: "Your cart contains an invalid item or quantity. Please review it." };
-    const row = item as { product_id?: unknown; quantity?: unknown };
+    const row = item as { product_id?: unknown; quantity?: unknown; weight_option_id?: unknown };
     const quantityRaw = typeof row.quantity === "number" ? row.quantity : Number(row.quantity);
     const quantityRounded = Math.round(quantityRaw * 1000) / 1000;
+    const optionRaw = typeof row.weight_option_id === "string" ? row.weight_option_id.trim() : "";
     if (
       typeof row.product_id !== "string"
       || !uuid.test(row.product_id)
+      || (optionRaw && !uuid.test(optionRaw))
       || !Number.isFinite(quantityRounded)
       || quantityRounded <= 0
       || quantityRounded > 2147483647
@@ -82,11 +84,20 @@ export function validateCheckout(input: unknown): { request: CheckoutRequest; er
     ) {
       return { error: "Your cart contains an invalid item or quantity. Please review it." };
     }
-    const quantity = Math.round(((quantities.get(row.product_id) ?? 0) + quantityRounded) * 1000) / 1000;
+    const lineKey = optionRaw ? `${row.product_id}::${optionRaw}` : row.product_id;
+    const quantity = Math.round(((quantities.get(lineKey)?.quantity ?? 0) + quantityRounded) * 1000) / 1000;
     if (quantity > 2147483647) return { error: "The requested quantity is too large." };
-    quantities.set(row.product_id, quantity);
+    quantities.set(lineKey, {
+      product_id: row.product_id,
+      quantity,
+      ...(optionRaw ? { weight_option_id: optionRaw } : {}),
+    });
   }
-  return { request: { customerName, customerEmail, customerPhone, address, fulfillmentMethod, deliveryOptionId: deliveryOptionId || undefined, quotedShipping: quotedShipping != null && Number.isFinite(quotedShipping) ? Number(quotedShipping) : undefined, idempotencyKey: text("idempotencyKey", 36), items: [...quantities].sort(([a], [b]) => a.localeCompare(b)).map(([product_id, quantity]) => ({ product_id, quantity })) } };
+  return { request: { customerName, customerEmail, customerPhone, address, fulfillmentMethod, deliveryOptionId: deliveryOptionId || undefined, quotedShipping: quotedShipping != null && Number.isFinite(quotedShipping) ? Number(quotedShipping) : undefined, idempotencyKey: text("idempotencyKey", 36), items: [...quantities.values()].sort((a, b) => {
+    const product = a.product_id.localeCompare(b.product_id);
+    if (product) return product;
+    return (a.weight_option_id ?? "").localeCompare(b.weight_option_id ?? "");
+  }) } };
 }
 
 export function logCheckoutFailure(stage: string, error?: { code?: string; message?: string } | unknown) {

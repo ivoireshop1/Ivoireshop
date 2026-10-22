@@ -12,6 +12,14 @@ export function shippingProviderLabel(provider: ShippingProvider) {
   return "Shippo";
 }
 
+export function carrierUnavailableCopy(carrier: "ups" | "usps", provider: ShippingProvider) {
+  const name = shippingProviderLabel(provider);
+  if (carrier === "ups") {
+    return `UPS is unavailable for this destination and parcel. ${name} did not return a UPS rate. USPS and store options below are still available when listed.`;
+  }
+  return `USPS is unavailable for this destination and parcel. ${name} did not return a USPS rate.`;
+}
+
 /** Live UPS/USPS API quotes are requested only when the selected provider is enabled. */
 export function liveCarrierApiEnabled(settings: Record<string, unknown> | null | undefined): boolean {
   const row = settings ?? {};

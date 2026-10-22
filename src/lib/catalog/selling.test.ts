@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  customerWeightSelectionAllowed,
   formatSellQuantity,
   lineShipWeightLb,
   lineSubtotal,
@@ -63,5 +64,13 @@ describe("selling helpers", () => {
     const settings = sellingSettingsFromProduct({});
     assert.equal(settings.sellingMethod, "each");
     assert.equal(settings.unitIncrement, 1);
+  });
+
+  it("allows customer weight choices only for by-weight products", () => {
+    assert.equal(customerWeightSelectionAllowed("weight"), true);
+    assert.equal(customerWeightSelectionAllowed("each"), false);
+    assert.equal(customerWeightSelectionAllowed("fixed_package"), false);
+    assert.equal(customerWeightSelectionAllowed(null), false);
+    assert.equal(customerWeightSelectionAllowed("50LB"), false);
   });
 });

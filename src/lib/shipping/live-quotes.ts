@@ -1,13 +1,11 @@
 import type { DeliveryOption } from "@/src/lib/delivery/types";
-import { combinePackages, packageFromProduct, parsePositive } from "@/src/lib/delivery/package";
+import { parcelFailureMessage, resolveCartParcel, type ShippingPackagePreset } from "@/src/lib/shipping/packages";
 import { isDomesticCountry, parseRateMode } from "@/src/lib/delivery/manual";
 import { originIsComplete, type StoreOrigin } from "@/src/lib/delivery/origin";
 import { destinationReadyForCarrierQuotes } from "@/src/lib/delivery/destination";
-import { lineShipWeightLb, sellingSettingsFromProduct } from "@/src/lib/catalog/selling";
 import {
   applyShippingMargin,
   assignUniqueLiveOptionIds,
-  internationalDestinationAllowed,
   isShippoRateLimitStatus,
   listShippoCarrierAccounts,
   liveOptionId,
@@ -15,11 +13,14 @@ import {
   parseCountryList,
   quoteShippoShipment,
   shippoCredentials,
+  internationalEligibility,
 } from "./shippo";
 import { easypostCredentials, quoteEasyPostShipment } from "./easypost";
-import { easyshipCredentials, easyshipQuoteErrorMessage, quoteEasyshipRates } from "./easyship";
+import { easyshipCredentials, easyshipQuoteErrorMessage, easyshipQuoteItems, quoteEasyshipRates } from "./easyship";
 import { customerFacingEasyPostAllowed, customerFacingEasyShipAllowed, liveCarrierApiEnabled, parseShippingProvider } from "./provider";
-import { recordShippingMonitorEvent } from "./monitor";
+import { cartUsesEstimatedWeight, recordShippingMonitorEvent, recordShippingQuoteLog } from "./monitor";
+import { shippingLiveRatesEnabled, LIVE_RATES_DISABLED_MESSAGE } from "./live-rates-switch";
+import { cartCustomsReady } from "./customs";
 
 export type LiveCarrier = "ups" | "usps";
 
@@ -35,43 +36,29 @@ export function cartParcel(products: Array<{
   ship_length_in?: number | string | null;
   ship_width_in?: number | string | null;
   ship_height_in?: number | string | null;
+  item_weight_lb?: number | string | null;
+  shipping_package_id?: string | null;
+  weight_oz?: number | string | null;
+  packaging_weight_oz?: number | string | null;
+  weight_source?: string | null;
+  dims?: unknown;
+  id?: string;
+  name?: string | null;
+  description?: string | null;
+  short_description?: string | null;
   price?: number | string | null;
-}>) {
-  const packages = [];
-  let missing = 0;
-  for (const product of products) {
-    const settings = sellingSettingsFromProduct(product);
-    const lengthIn = parsePositive(product.ship_length_in);
-    const widthIn = parsePositive(product.ship_width_in);
-    const heightIn = parsePositive(product.ship_height_in);
-    if (!lengthIn || !widthIn || !heightIn) {
-      missing += 1;
-      continue;
-    }
-
-    if (settings.sellingMethod === "weight") {
-      const weightLb = lineShipWeightLb({
-        settings,
-        quantity: product.quantity,
-        shipWeightLb: product.ship_weight_lb != null ? Number(product.ship_weight_lb) : null,
-      });
-      if (weightLb == null || weightLb <= 0) {
-        missing += 1;
-        continue;
-      }
-      packages.push({ weightLb, lengthIn, widthIn, heightIn });
-      continue;
-    }
-
-    const dims = packageFromProduct(product);
-    if (!dims) {
-      missing += 1;
-      continue;
-    }
-    const qty = Number.isFinite(product.quantity) && product.quantity > 0 ? Math.min(Math.ceil(product.quantity), 50) : 1;
-    for (let i = 0; i < qty; i += 1) packages.push(dims);
-  }
-  return { parcel: combinePackages(packages), missing, counted: packages.length };
+  category_slug?: string | null;
+  category?: string | null;
+  hs_code?: string | null;
+  origin_country_alpha2?: string | null;
+  origin_country?: string | null;
+  weightOption?: Parameters<typeof resolveCartParcel>[0]["products"][number]["weightOption"];
+}>, extras?: { packages?: ShippingPackagePreset[]; defaultPackageId?: string | null }) {
+  return resolveCartParcel({
+    products,
+    packages: extras?.packages,
+    defaultPackageId: extras?.defaultPackageId,
+  });
 }
 
 export type LiveQuoteResult = {
@@ -92,6 +79,7 @@ function liveQuoteCacheKey(input: {
   origin: StoreOrigin;
   destination: { address_line_1?: string; city?: string; state?: string; postal_code?: string; country?: string };
   parcel: { weightLb: number; lengthIn: number; widthIn: number; heightIn: number };
+  parcels?: Array<{ weightLb: number; lengthIn: number; widthIn: number; heightIn: number }>;
   carriers: LiveCarrier[];
   allowedServices: string[];
   margin: number;
@@ -115,12 +103,9 @@ function liveQuoteCacheKey(input: {
       dest.postal_code,
       (dest.country || "US").slice(0, 2).toUpperCase(),
     ].join("|"),
-    [
-      input.parcel.weightLb.toFixed(3),
-      input.parcel.lengthIn.toFixed(2),
-      input.parcel.widthIn.toFixed(2),
-      input.parcel.heightIn.toFixed(2),
-    ].join("x"),
+    (input.parcels?.length ? input.parcels : [input.parcel]).map((parcel) => (
+      [parcel.weightLb.toFixed(3), parcel.lengthIn.toFixed(2), parcel.widthIn.toFixed(2), parcel.heightIn.toFixed(2)].join("x")
+    )).join("+"),
   ].join("::");
 }
 
@@ -170,6 +155,8 @@ export async function quoteLiveCarrierOptions(input: {
   origin: StoreOrigin;
   destination: { address_line_1?: string; city?: string; state?: string; postal_code?: string; country?: string };
   products: Parameters<typeof cartParcel>[0];
+  packages?: ShippingPackagePreset[];
+  defaultPackageId?: string | null;
 }): Promise<LiveQuoteResult> {
   const settings = input.settings ?? {};
   const provider = parseShippingProvider(settings.shipping_provider);
@@ -181,14 +168,34 @@ export async function quoteLiveCarrierOptions(input: {
       && parseRateMode(settings[`${carrier}_rate_mode`]) === "live_api";
   });
   if (!liveCarriers.length) return { options: [], expectedLiveCarriers: [] };
-
-  const international = !isDomesticCountry(input.destination.country);
-  const allowlist = parseCountryList(settings.shippo_international_countries);
-  if (international && !internationalDestinationAllowed(input.destination.country, allowlist)) {
+  if (!shippingLiveRatesEnabled()) {
+    await recordShippingQuoteLog({
+      usedEstimatedWeight: false,
+      weightSources: input.products.map((product) => product.weight_source ?? null),
+      message: "live_rates_disabled",
+      status: "error",
+    });
     return {
       options: [],
       expectedLiveCarriers: liveCarriers,
-      message: "This destination is not on the founder international shipping list.",
+      message: LIVE_RATES_DISABLED_MESSAGE,
+    };
+  }
+
+  const international = !isDomesticCountry(input.destination.country);
+  const allowlist = parseCountryList(settings.shippo_international_countries);
+  const eligibility = internationalEligibility(input.destination.country, allowlist);
+  if (international && !eligibility.allowed) {
+    await recordShippingQuoteLog({
+      usedEstimatedWeight: false,
+      weightSources: input.products.map((product) => product.weight_source ?? null),
+      message: eligibility.reason === "not_configured" ? "international_not_configured" : "international_not_listed",
+      status: "error",
+    });
+    return {
+      options: [],
+      expectedLiveCarriers: liveCarriers,
+      message: eligibility.message,
     };
   }
   const remaining = liveCarriers.filter((carrier) => (
@@ -275,29 +282,115 @@ export async function quoteLiveCarrierOptions(input: {
     };
   }
 
-  const packed = cartParcel(input.products);
-  if (!packed.parcel || packed.missing) {
-    await recordShippingMonitorEvent("missing_parcel", { missingProducts: packed.missing, items: input.products.length });
+  const products = input.products;
+  if (international) {
+    const customs = cartCustomsReady(products, true);
+    if (!customs.ok) {
+      await recordShippingQuoteLog({
+        usedEstimatedWeight: false,
+        weightSources: products.map((product) => product.weight_source ?? null),
+        message: "missing_customs",
+        status: "error",
+      });
+      return {
+        options: [],
+        expectedLiveCarriers: remaining,
+        message: customs.message,
+      };
+    }
+  }
+  const packed = cartParcel(products, {
+    packages: input.packages,
+    defaultPackageId: input.defaultPackageId ?? (typeof settings.default_shipping_package_id === "string" ? settings.default_shipping_package_id : null),
+  });
+  const usedEstimatedWeight = packed.usedEstimatedWeight || cartUsesEstimatedWeight(products);
+  const usedEstimatedBox = Boolean(packed.usedEstimatedBox);
+  if (!packed.parcels?.length || packed.missing) {
+    await recordShippingMonitorEvent("missing_parcel", {
+      missingProducts: packed.missing,
+      items: products.length,
+      code: packed.code ?? "missing_parcel",
+      usedEstimatedWeight,
+      usedEstimatedBox,
+    });
+    await recordShippingQuoteLog({
+      usedEstimatedWeight,
+      usedEstimatedBox,
+      weightSources: products.map((product) => ({
+        id: product.id ?? null,
+        source: product.weight_source ?? packed.reviews?.find((row) => row.name === (product.name || product.description))?.source ?? null,
+        review: packed.reviews?.find((row) => row.name === (product.name || product.description))?.reason ?? null,
+      })),
+      parcel: packed.parcel,
+      message: packed.message ?? packed.code ?? "missing_parcel",
+      status: packed.code ?? "missing_parcel",
+    });
     if (settings.shippo_allow_manual_fallback === true) {
       return {
         options: [],
         expectedLiveCarriers: remaining,
-        message: "Package weight or dimensions are missing. Manual store charges are allowed as a labeled fallback only from Shipping Rate Manager, not automatically.",
+        message: `${packed.message ?? parcelFailureMessage("missing_parcel")} Manual store charges are allowed as a labeled fallback only from Shipping Rate Manager, not automatically.`,
       };
     }
     return {
       options: [],
       expectedLiveCarriers: remaining,
-      message: "Package weight and dimensions are required for UPS/USPS quotes. Missing product shipping data is never invented.",
+      message: packed.message ?? parcelFailureMessage(packed.code ?? "missing_parcel"),
     };
   }
+  const quoteParcel = packed.parcels[0];
+  const quoteWeightLb = packed.totalWeightLb ?? packed.parcels.reduce((sum, parcel) => sum + parcel.weightLb, 0);
+  if (!quoteParcel) {
+    return {
+      options: [],
+      expectedLiveCarriers: remaining,
+      message: parcelFailureMessage("missing_parcel"),
+    };
+  }
+
+  await recordShippingQuoteLog({
+    usedEstimatedWeight,
+    usedEstimatedBox,
+    weightSources: products.map((product) => ({ id: product.id ?? null, source: product.weight_source ?? null })),
+    parcel: packed.parcels.length === 1
+      ? {
+        weightLb: quoteParcel.weightLb,
+        lengthIn: quoteParcel.lengthIn,
+        widthIn: quoteParcel.widthIn,
+        heightIn: quoteParcel.heightIn,
+        estimatedBox: Boolean(quoteParcel.estimatedBox),
+        boxId: quoteParcel.boxId ?? null,
+        boxName: quoteParcel.boxName ?? null,
+        unknownItemDimensions: Boolean(quoteParcel.unknownItemDimensions),
+      }
+      : {
+        weightLb: quoteWeightLb,
+        estimatedBox: usedEstimatedBox,
+        parcels: packed.parcels.map((parcel) => ({
+          weightLb: parcel.weightLb,
+          lengthIn: parcel.lengthIn,
+          widthIn: parcel.widthIn,
+          heightIn: parcel.heightIn,
+          estimatedBox: Boolean(parcel.estimatedBox),
+          boxId: parcel.boxId ?? null,
+          boxName: parcel.boxName ?? null,
+          unknownItemDimensions: Boolean(parcel.unknownItemDimensions),
+        })),
+      },
+    message: [
+      usedEstimatedWeight ? "estimated_weight_used" : "verified_weight_used",
+      usedEstimatedBox ? "estimated_box_used" : "measured_box_used",
+    ].join("+"),
+    status: "ok",
+  });
 
   const allowedServices = parseAllowedServices(settings.shippo_allowed_services);
   const margin = Number(settings.shippo_margin_percent ?? 0);
   const cacheKey = `${provider}::${liveQuoteCacheKey({
     origin: input.origin,
     destination: input.destination,
-    parcel: packed.parcel,
+    parcel: quoteParcel,
+    parcels: packed.parcels,
     carriers: remaining,
     allowedServices,
     margin,
@@ -305,11 +398,19 @@ export async function quoteLiveCarrierOptions(input: {
   const cached = readLiveQuoteCache(cacheKey);
   if (cached) return cached;
 
+  if (packed.parcels.length > 1 && provider !== "easyship") {
+    return {
+      options: [],
+      expectedLiveCarriers: remaining,
+      message: "This cart needs more than one measured box. Multi-parcel quotes use Easyship. Store Pickup remains available.",
+    };
+  }
+
   if (provider === "easypost") {
     const quoted = await quoteEasyPostShipment({
       origin: input.origin,
       destination: input.destination,
-      parcel: packed.parcel,
+      parcel: quoteParcel,
       allowedServices,
     });
     if (!quoted.ok) {
@@ -353,7 +454,7 @@ export async function quoteLiveCarrierOptions(input: {
           mode: "api" as const,
           zone: international ? "international" as const : "domestic" as const,
           rateMode: "live_api" as const,
-          billableWeightLb: packed.parcel!.weightLb,
+          billableWeightLb: quoteWeightLb,
           easypostRateId: rate.objectId,
           easypostShipmentId: rate.shipmentId,
           quoteSource: "easypost" as const,
@@ -368,7 +469,7 @@ export async function quoteLiveCarrierOptions(input: {
       uspsRates: options.filter((option) => option.provider === "usps").length,
       test: easypost.isTest,
       country: String(input.destination.country || "").slice(0, 2).toUpperCase(),
-      weightLb: packed.parcel.weightLb,
+      weightLb: quoteWeightLb,
     });
     if (!options.length) {
       return {
@@ -393,7 +494,13 @@ export async function quoteLiveCarrierOptions(input: {
     const quoted = await quoteEasyshipRates({
       origin: input.origin,
       destination: input.destination,
-      parcel: packed.parcel,
+      parcels: packed.parcels.map((parcel) => ({
+        weightLb: parcel.weightLb,
+        lengthIn: parcel.lengthIn,
+        widthIn: parcel.widthIn,
+        heightIn: parcel.heightIn,
+        items: easyshipQuoteItems(parcel.items),
+      })),
       products: input.products,
       allowedServices,
     });
@@ -438,7 +545,7 @@ export async function quoteLiveCarrierOptions(input: {
           mode: "api" as const,
           zone: international ? "international" as const : "domestic" as const,
           rateMode: "live_api" as const,
-          billableWeightLb: packed.parcel!.weightLb,
+          billableWeightLb: quoteWeightLb,
           easyshipRateId: rate.objectId,
           quoteSource: "easyship" as const,
           testRate: easyship.isSandbox || rate.test,
@@ -452,7 +559,7 @@ export async function quoteLiveCarrierOptions(input: {
       uspsRates: options.filter((option) => option.provider === "usps").length,
       test: easyship.isSandbox,
       country: String(input.destination.country || "").slice(0, 2).toUpperCase(),
-      weightLb: packed.parcel.weightLb,
+      weightLb: quoteWeightLb,
     });
     if (!options.length) {
       return {
@@ -477,7 +584,7 @@ export async function quoteLiveCarrierOptions(input: {
   let quoted = await quoteShippoShipment({
     origin: input.origin,
     destination: input.destination,
-    parcel: packed.parcel,
+    parcel: quoteParcel,
     allowedServices,
   });
   // Bounded single backoff for Shippo 10429 — never loop. Callers must not spam Shippo after a selection.
@@ -490,7 +597,7 @@ export async function quoteLiveCarrierOptions(input: {
       const retry = await quoteShippoShipment({
         origin: input.origin,
         destination: input.destination,
-        parcel: packed.parcel,
+        parcel: quoteParcel,
         allowedServices,
       });
       if (retry.ok) {
@@ -548,7 +655,7 @@ export async function quoteLiveCarrierOptions(input: {
         mode: "api" as const,
         zone: international ? "international" as const : "domestic" as const,
         rateMode: "live_api" as const,
-        billableWeightLb: packed.parcel!.weightLb,
+        billableWeightLb: quoteWeightLb,
         shippoRateId: rate.objectId,
         quoteSource: "shippo" as const,
         testRate: shippo.isTest || rate.test,
@@ -572,7 +679,7 @@ export async function quoteLiveCarrierOptions(input: {
     provider: "shippo",
     test: shippo.isTest,
     country: String(input.destination.country || "").slice(0, 2).toUpperCase(),
-    weightLb: packed.parcel.weightLb,
+    weightLb: quoteWeightLb,
     rateLimited: anyRateLimitMessage,
   });
 

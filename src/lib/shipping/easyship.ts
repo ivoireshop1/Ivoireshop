@@ -1,3 +1,5 @@
+import { sanitizeProviderError } from "../delivery/types.ts";
+
 function text(name: string) {
   return (process.env[name] ?? "").trim();
 }
@@ -65,6 +67,7 @@ export type EasyshipParcel = {
   lengthIn: number;
   widthIn: number;
   heightIn: number;
+  items?: ReturnType<typeof easyshipQuoteItems>;
 };
 
 export type EasyshipQuoteItem = {
@@ -125,6 +128,16 @@ export function classifyEasyshipHttpStatus(status: number, body: unknown): Easys
   return "request_failed";
 }
 
+export function easyshipApiMessage(body: unknown) {
+  if (!body || typeof body !== "object") return "";
+  const row = body as { error?: { message?: unknown }; message?: unknown; errors?: unknown };
+  const firstError = Array.isArray(row.errors) ? row.errors[0] : null;
+  const raw = [row.error?.message, row.message, firstError && typeof firstError === "object" && firstError && "message" in firstError ? firstError.message : firstError]
+    .map((part) => String(part ?? "").trim())
+    .find(Boolean);
+  return raw ? sanitizeProviderError(raw) : "";
+}
+
 export function easyshipQuoteErrorMessage(code: EasyshipQuoteErrorCode) {
   switch (code) {
     case "not_configured":
@@ -167,9 +180,24 @@ export function easyshipAddressReady(origin: EasyshipAddress, destination: Easys
 export function buildEasyshipRateRequest(input: {
   origin: EasyshipAddress;
   destination: EasyshipAddress;
-  parcel: EasyshipParcel;
+  parcel?: EasyshipParcel;
+  parcels?: Array<EasyshipParcel & { items?: ReturnType<typeof easyshipQuoteItems> }>;
   items: ReturnType<typeof easyshipQuoteItems>;
 }) {
+  const parcels = (input.parcels?.length ? input.parcels : input.parcel ? [input.parcel] : []).map((parcel, index) => {
+    const parcelItems = "items" in parcel ? parcel.items : undefined;
+    return {
+      total_actual_weight: parcel.weightLb,
+      box: {
+        length: parcel.lengthIn,
+        width: parcel.widthIn,
+        height: parcel.heightIn,
+      },
+      items: Array.isArray(parcelItems) && parcelItems.length
+        ? parcelItems
+        : index === 0 ? input.items : input.items.slice(0, 1),
+    };
+  });
   return {
     origin_address: {
       line_1: input.origin.address_line_1 || "",
@@ -195,17 +223,7 @@ export function buildEasyshipRateRequest(input: {
       output_currency: "USD" as const,
     },
     calculate_tax_and_duties: false,
-    parcels: [
-      {
-        total_actual_weight: input.parcel.weightLb,
-        box: {
-          length: input.parcel.lengthIn,
-          width: input.parcel.widthIn,
-          height: input.parcel.heightIn,
-        },
-        items: input.items,
-      },
-    ],
+    parcels,
   };
 }
 
@@ -266,32 +284,34 @@ async function postEasyshipRates(body: unknown) {
 export async function quoteEasyshipRates(input: {
   origin: EasyshipAddress;
   destination: EasyshipAddress;
-  parcel: EasyshipParcel;
+  parcel?: EasyshipParcel;
+  parcels?: Array<EasyshipParcel & { items?: ReturnType<typeof easyshipQuoteItems> }>;
   products: EasyshipQuoteItem[];
   allowedServices?: string[];
 }) {
   const creds = easyshipCredentials();
   if (!creds.configured) {
-    return { ok: false as const, error: easyshipQuoteErrorMessage("not_configured"), code: "not_configured" as const, rates: [] as EasyshipRate[], rateLimited: false, status: 0 };
+    return { ok: false as const, error: easyshipQuoteErrorMessage("not_configured"), code: "not_configured" as const, rates: [] as EasyshipRate[], rateLimited: false, status: 0, apiMessage: "" };
   }
   if (creds.mode === "unknown") {
-    return { ok: false as const, error: easyshipQuoteErrorMessage("unrecognized_key"), code: "unrecognized_key" as const, rates: [] as EasyshipRate[], rateLimited: false, status: 0 };
+    return { ok: false as const, error: easyshipQuoteErrorMessage("unrecognized_key"), code: "unrecognized_key" as const, rates: [] as EasyshipRate[], rateLimited: false, status: 0, apiMessage: "" };
   }
-  if (!parcelIsValid(input.parcel)) {
-    return { ok: false as const, error: easyshipQuoteErrorMessage("invalid_parcel"), code: "invalid_parcel" as const, rates: [] as EasyshipRate[], rateLimited: false, status: 0 };
+  const parcels = input.parcels?.length ? input.parcels : input.parcel ? [input.parcel] : [];
+  if (!parcels.length || parcels.some((parcel) => !parcelIsValid(parcel))) {
+    return { ok: false as const, error: easyshipQuoteErrorMessage("invalid_parcel"), code: "invalid_parcel" as const, rates: [] as EasyshipRate[], rateLimited: false, status: 0, apiMessage: "" };
   }
   if (!easyshipAddressReady(input.origin, input.destination)) {
-    return { ok: false as const, error: easyshipQuoteErrorMessage("incomplete_address"), code: "incomplete_address" as const, rates: [] as EasyshipRate[], rateLimited: false, status: 0 };
+    return { ok: false as const, error: easyshipQuoteErrorMessage("incomplete_address"), code: "incomplete_address" as const, rates: [] as EasyshipRate[], rateLimited: false, status: 0, apiMessage: "" };
   }
   const items = easyshipQuoteItems(input.products);
   if (!items.length) {
-    return { ok: false as const, error: easyshipQuoteErrorMessage("missing_declared_value"), code: "missing_declared_value" as const, rates: [] as EasyshipRate[], rateLimited: false, status: 0 };
+    return { ok: false as const, error: easyshipQuoteErrorMessage("missing_declared_value"), code: "missing_declared_value" as const, rates: [] as EasyshipRate[], rateLimited: false, status: 0, apiMessage: "" };
   }
 
   const request = buildEasyshipRateRequest({
     origin: input.origin,
     destination: input.destination,
-    parcel: input.parcel,
+    parcels,
     items,
   });
   const result = await postEasyshipRates(request);
@@ -311,6 +331,7 @@ export async function quoteEasyshipRates(input: {
       rates: [] as EasyshipRate[],
       rateLimited: code === "rate_limited",
       status: result.status,
+      apiMessage: easyshipApiMessage(result.body),
     };
   }
   return {
@@ -319,5 +340,6 @@ export async function quoteEasyshipRates(input: {
     test: creds.isSandbox,
     rateLimited: false,
     status: result.status,
+    apiMessage: easyshipApiMessage(result.body),
   };
 }

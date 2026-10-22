@@ -60,6 +60,11 @@ export function isWeightBased(settings: Pick<SellingSettings, "sellingMethod">) 
   return settings.sellingMethod === "weight";
 }
 
+/** Customer-facing weight choices exist only for produce sold by weight. Packaged grocery stays each. */
+export function customerWeightSelectionAllowed(sellingMethod?: string | null) {
+  return parseSellingMethod(sellingMethod) === "weight";
+}
+
 export function unitLabel(unit: SellingUnit, quantity = 1) {
   if (unit === "each") return quantity === 1 ? "item" : "items";
   if (unit === "lb") return "lb";

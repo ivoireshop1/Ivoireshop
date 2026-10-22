@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { test } from "node:test";
 import { isShippoRateLimitStatus, liveOptionId, resolveSelectedShippingOption } from "./shippo.ts";
 import type { DeliveryOption } from "../delivery/types.ts";
@@ -154,4 +155,16 @@ test("multiple UPS and USPS services keep distinct identities and revalidate by 
   const noSubstitute = resolveSelectedShippingOption([ivoire], upsGround.id, "delivery", 11.96);
   assert.equal("error" in noSubstitute, true);
   if ("option" in noSubstitute) assert.fail("must not accept a store estimate in place of a live carrier quote");
+});
+
+test("checkout live quotes never call the AI gateway and still log parcel failures", () => {
+  const source = fs.readFileSync(new URL("./live-quotes.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /ensureCheckoutShippingWeights/);
+  assert.doesNotMatch(source, /analyzeProductShippingWithGateway/);
+  assert.doesNotMatch(source, /analyzeProductImageWithGateway/);
+  assert.match(source, /recordShippingQuoteLog/);
+  assert.match(source, /status: packed\.code \?\? "missing_parcel"/);
+  assert.match(source, /shippingLiveRatesEnabled/);
+  assert.match(source, /cartCustomsReady/);
+  assert.doesNotMatch(source, /combinePackages/);
 });

@@ -10,8 +10,10 @@ import {
   identifyEasyshipProvider,
   mapEasyshipRates,
   quoteEasyshipRates,
+  easyshipApiMessage,
 } from "./easyship.ts";
 import {
+  carrierUnavailableCopy,
   customerFacingEasyShipAllowed,
   liveCarrierApiEnabled,
   parseShippingProvider,
@@ -27,6 +29,13 @@ test("shipping provider accepts Easyship without changing the Shippo default", (
   assert.equal(shippingProviderLabel("easyship"), "Easyship");
   assert.equal(liveCarrierApiEnabled({ shipping_provider: "easyship", easyship_enabled: false, shippo_enabled: true }), false);
   assert.equal(liveCarrierApiEnabled({ shipping_provider: "easyship", easyship_enabled: true }), true);
+});
+
+test("checkout unavailable copy uses Easyship when Easyship is selected", () => {
+  assert.match(carrierUnavailableCopy("ups", "easyship"), /Easyship did not return a UPS rate/);
+  assert.doesNotMatch(carrierUnavailableCopy("ups", "easyship"), /Shippo|test rate/);
+  assert.match(easyshipApiMessage({ error: { message: "scope public.rate:read missing Bearer prod_secretvalue" } }), /public\.rate:read/);
+  assert.doesNotMatch(easyshipApiMessage({ error: { message: "Bearer prod_secretvalue" } }), /prod_secretvalue/);
 });
 
 test("Easyship production customer rates stay locked until founder enables them", () => {
@@ -92,6 +101,18 @@ test("Easyship rate request is quote-only and uses actual lb/in parcel data", ()
   assert.equal(request.shipping_settings.units.dimensions, "in");
   assert.equal(request.parcels[0].total_actual_weight, 2.5);
   assert.deepEqual(request.parcels[0].box, { length: 10, width: 8, height: 6 });
+  const multi = buildEasyshipRateRequest({
+    origin: { name: "Ivoire Shop", address_line_1: "1 Main", city: "Norcross", state: "GA", postal_code: "30093", country: "US" },
+    destination: { address_line_1: "1 Main St", city: "Clayton", state: "OH", postal_code: "45315", country: "US" },
+    parcels: [
+      { weightLb: 6, lengthIn: 10, widthIn: 8, heightIn: 6 },
+      { weightLb: 4, lengthIn: 10, widthIn: 8, heightIn: 6 },
+    ],
+    items,
+  });
+  assert.equal(multi.parcels.length, 2);
+  assert.equal(multi.parcels[0].box.height, 6);
+  assert.equal(multi.parcels[1].box.height, 6);
 });
 
 test("Easyship address and HTTP errors stay explicit", () => {

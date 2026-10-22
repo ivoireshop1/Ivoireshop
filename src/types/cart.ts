@@ -13,4 +13,7 @@ export type CartItem = {
   unitIncrement?: number;
   minSellQty?: number;
   maxSellQty?: number | null;
+  weightOptionId?: string | null;
+  weightOptionLabel?: string | null;
+  netWeightLb?: number | null;
 };

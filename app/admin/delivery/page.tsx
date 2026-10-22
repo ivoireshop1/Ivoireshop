@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
-import { originFromSettings, originIsComplete } from "@/src/lib/delivery/origin";
+import { formatOriginLines, originFromSettings, originIsComplete } from "@/src/lib/delivery/origin";
 import { doordashCredentials } from "@/src/lib/delivery/credentials";
 import { checkDeliveryProviders, carrierOrderCounts } from "@/src/lib/delivery/actions";
 import { ShippoSettingsForm } from "@/src/components/admin/shippo-settings-form";
@@ -15,18 +15,22 @@ import { ManualShippingForm } from "@/src/components/admin/manual-shipping-form"
 import { formatCharge, parseRateMode, rateModeLabel } from "@/src/lib/delivery/manual";
 import { TaxSettingsForm } from "@/src/components/admin/tax-settings-form";
 import { IvoireShippingForm } from "@/src/components/admin/ivoire-shipping-form";
+import { ShippingPackagesForm } from "@/src/components/admin/shipping-packages-form";
+import { EasyshipQuoteProbeForm } from "@/src/components/admin/easyship-quote-probe-form";
+import { loadShippingPackages } from "@/src/lib/shipping/package-store";
 import { parseTaxMode, taxModeLabel } from "@/src/lib/tax/totals";
 import Link from "next/link";
 
 export default async function AdminDeliveryPage() {
   const { supabase } = await requireAdmin();
-  const [{ data: settings }, { data: health }, counts, { data: monitorRows }, missingParcelQuery, carrierOrderQuery] = await Promise.all([
+  const [{ data: settings }, { data: health }, counts, { data: monitorRows }, missingParcelQuery, carrierOrderQuery, shippingPackages] = await Promise.all([
     supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle(),
     supabase.from("delivery_provider_health").select("provider, status, last_check_at, last_error"),
     carrierOrderCounts(),
     supabase.from("shipping_monitor_events").select("event_type, payload, created_at").order("created_at", { ascending: false }).limit(200),
     supabase.from("products").select("id", { count: "exact", head: true }).or("ship_weight_lb.is.null,ship_length_in.is.null,ship_width_in.is.null,ship_height_in.is.null"),
     supabase.from("orders").select("id", { count: "exact", head: true }).in("fulfillment_provider", ["ups", "usps"]).gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+    loadShippingPackages(supabase),
   ]);
   const monitor = summarizeShippingEvents((monitorRows ?? []) as Array<{ event_type: string; payload: Record<string, unknown> | null; created_at: string }>);
   const shippo = shippoCredentials();
@@ -60,6 +64,9 @@ export default async function AdminDeliveryPage() {
         <h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Delivery Center</h1>
         <p className="mt-2 max-w-2xl text-sm text-[#6b6b6b]">
           Client-managed fulfillment. Store Pickup is separate from carriers. UPS and USPS at checkout use live Shippo, EasyPost, or Easyship quotes when that provider is selected, enabled, and each carrier is set to Live Carrier API. Store-calculated Ivoire shipping is retired from customer checkout. Postage purchasing stays off until the owner approves it. Provider tokens are configured in the hosting environment by the store owner.
+        </p>
+        <p className="mt-2 text-sm">
+          <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/shipping">Review estimated shipping weights</Link>
         </p>
       </div>
 
@@ -148,6 +155,15 @@ export default async function AdminDeliveryPage() {
         easyshipProduction={easyship.isProduction}
         easyshipSandbox={easyship.isSandbox}
         settings={settings as Record<string, unknown> | null}
+      />
+      <ShippingPackagesForm
+        defaultPackageId={typeof settings?.default_shipping_package_id === "string" ? settings.default_shipping_package_id : null}
+        packages={shippingPackages}
+      />
+      <EasyshipQuoteProbeForm
+        originComplete={originIsComplete(origin)}
+        originLines={formatOriginLines(origin)}
+        packages={shippingPackages}
       />
       <ShippoSettingsForm
         settings={settings as Record<string, unknown> | null}
