@@ -15,6 +15,7 @@ import {
 import {
   carrierUnavailableCopy,
   customerFacingEasyShipAllowed,
+  customerFacingShippoAllowed,
   liveCarrierApiEnabled,
   parseShippingProvider,
   shippingProviderLabel,
@@ -43,6 +44,14 @@ test("Easyship production customer rates stay locked until founder enables them"
   assert.equal(customerFacingEasyShipAllowed({ provider: "easyship", isSandbox: false, customerRatesEnabled: false }), false);
   assert.equal(customerFacingEasyShipAllowed({ provider: "easyship", isSandbox: false, customerRatesEnabled: true }), true);
   assert.equal(customerFacingEasyShipAllowed({ provider: "shippo", isSandbox: false, customerRatesEnabled: true }), false);
+});
+
+test("Shippo TEST rates never become customer checkout prices", () => {
+  assert.equal(customerFacingShippoAllowed({ provider: "shippo", isTest: true, isLive: false, customerRatesEnabled: true }), false);
+  assert.equal(customerFacingShippoAllowed({ provider: "shippo", isTest: false, isLive: false, customerRatesEnabled: true }), false);
+  assert.equal(customerFacingShippoAllowed({ provider: "shippo", isTest: false, isLive: true, customerRatesEnabled: false }), false);
+  assert.equal(customerFacingShippoAllowed({ provider: "shippo", isTest: false, isLive: true, customerRatesEnabled: true }), true);
+  assert.equal(customerFacingShippoAllowed({ provider: "easyship", isTest: false, isLive: true, customerRatesEnabled: true }), false);
 });
 
 test("Easyship credentials classify sand_ and prod_ prefixes without exposing the key", () => {

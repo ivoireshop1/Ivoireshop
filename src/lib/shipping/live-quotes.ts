@@ -13,11 +13,12 @@ import {
   parseCountryList,
   quoteShippoShipment,
   shippoCredentials,
+  shippoMissingCarrierMessage,
   internationalEligibility,
 } from "./shippo";
 import { easypostCredentials, quoteEasyPostShipment } from "./easypost";
 import { easyshipCredentials, easyshipQuoteErrorMessage, easyshipQuoteItems, quoteEasyshipRates } from "./easyship";
-import { customerFacingEasyPostAllowed, customerFacingEasyShipAllowed, liveCarrierApiEnabled, parseShippingProvider } from "./provider";
+import { customerFacingEasyPostAllowed, customerFacingEasyShipAllowed, customerFacingShippoAllowed, liveCarrierApiEnabled, parseShippingProvider } from "./provider";
 import { cartUsesEstimatedWeight, recordShippingMonitorEvent, recordShippingQuoteLog } from "./monitor";
 import { shippingLiveRatesEnabled, LIVE_RATES_DISABLED_MESSAGE } from "./live-rates-switch";
 import { cartCustomsReady } from "./customs";
@@ -168,7 +169,7 @@ export async function quoteLiveCarrierOptions(input: {
       && parseRateMode(settings[`${carrier}_rate_mode`]) === "live_api";
   });
   if (!liveCarriers.length) return { options: [], expectedLiveCarriers: [] };
-  if (provider !== "shippo" && !shippingLiveRatesEnabled()) {
+  if (!shippingLiveRatesEnabled()) {
     await recordShippingQuoteLog({
       usedEstimatedWeight: false,
       weightSources: input.products.map((product) => product.weight_source ?? null),
@@ -265,12 +266,22 @@ export async function quoteLiveCarrierOptions(input: {
         message: "Live UPS/USPS quotes are enabled, but Shippo is not configured on this environment.",
       };
     }
-    if (shippo.isLive) {
-      await recordShippingMonitorEvent("quote_failure", { reason: "live_token_blocked" });
+    if (!customerFacingShippoAllowed({
+      provider,
+      isTest: shippo.isTest,
+      isLive: shippo.isLive,
+      customerRatesEnabled: shippingLiveRatesEnabled(),
+    })) {
+      await recordShippingMonitorEvent("quote_failure", {
+        reason: shippo.isTest ? "shippo_test_rates_locked" : "shippo_customer_rates_locked",
+        carriers: remaining,
+      });
       return {
         options: [],
         expectedLiveCarriers: remaining,
-        message: "A live Shippo token is present. Checkout will not request live postage quotes until the founder approves production shipping.",
+        message: shippo.isTest
+          ? "Shippo TEST rates stay off at checkout. They are sandbox prices, not live customer rates. Store Pickup remains available."
+          : "Shippo checkout rates stay off until the founder enables live customer quotes. Store Pickup remains available.",
       };
     }
   }
@@ -708,6 +719,8 @@ export async function quoteLiveCarrierOptions(input: {
     // seen in staging monitor (upsRates 0 → 7 within seconds). Treat as temporary, not permanent.
     const silentOmitCarriers = missingCarriers.filter((carrier) => {
       if (rateLimitedCarriers.includes(carrier)) return false;
+      const connected = carrier === "ups" ? accounts.ups : accounts.usps;
+      if (connected === 0) return false;
       const msgs = carrier === "ups" ? upsMessages : uspsMessages;
       return msgs.length === 0;
     });
@@ -722,16 +735,20 @@ export async function quoteLiveCarrierOptions(input: {
       writeLiveQuoteCache(cacheKey, busy);
       return busy;
     }
-    const missing = missingCarriers.map((carrier) => carrier.toUpperCase()).join(" and ");
     const apiHint = missingCarriers.includes("ups") && upsMessages.length
       ? ` Shippo UPS note: ${upsMessages[0]}`
       : missingCarriers.includes("usps") && uspsMessages.length
         ? ` Shippo USPS note: ${uspsMessages[0]}`
         : "";
+    const diagnosis = shippoMissingCarrierMessage({
+      missing: missingCarriers,
+      upsAccounts: accounts.ups,
+      uspsAccounts: accounts.usps,
+    });
     const result = {
       options,
       expectedLiveCarriers: remaining,
-      message: `${missing} did not return a rate for this destination and parcel.${apiHint} Showing available ${present} test rates only. This is a carrier/API quote result, not a disabled setting.`,
+      message: `${diagnosis}${apiHint} Showing available ${present} ${shippo.isTest ? "TEST" : "LIVE"} rates only. This is a carrier/API quote result, not a disabled setting.`,
     };
     writeLiveQuoteCache(cacheKey, result);
     return result;

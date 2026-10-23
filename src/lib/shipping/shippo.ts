@@ -487,6 +487,20 @@ export function isShippoRateLimitStatus(status: number, text = "") {
   return status === 429 || /too many requests|10429|rate.?limit/i.test(text);
 }
 
+export function shippoMissingCarrierMessage(input: {
+  missing: Array<"ups" | "usps">;
+  upsAccounts: number;
+  uspsAccounts: number;
+}) {
+  return input.missing.map((carrier) => {
+    const connected = carrier === "ups" ? input.upsAccounts : input.uspsAccounts;
+    if (connected === 0) {
+      return `${carrier.toUpperCase()} is not connected on this Shippo account. No ${carrier.toUpperCase()} rate was invented.`;
+    }
+    return `Shippo returned no ${carrier.toUpperCase()} service for these parcels. No substitute rate was invented.`;
+  }).join(" ");
+}
+
 export type ShippoParcelInput = {
   weightLb: number;
   lengthIn: number;

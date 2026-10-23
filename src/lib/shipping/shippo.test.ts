@@ -14,9 +14,22 @@ import {
   parseCountryList,
   quoteShippoShipment,
   ratesMatchSelection,
+  shippoMissingCarrierMessage,
   shippoServiceLabel,
   shippoShipmentParcels,
 } from "./shippo.ts";
+
+test("missing USPS rates stay explicit and never invent a service", () => {
+  assert.match(
+    shippoMissingCarrierMessage({ missing: ["usps"], upsAccounts: 1, uspsAccounts: 0 }),
+    /USPS is not connected on this Shippo account/,
+  );
+  assert.match(
+    shippoMissingCarrierMessage({ missing: ["usps"], upsAccounts: 1, uspsAccounts: 2 }),
+    /Shippo returned no USPS service for these parcels/,
+  );
+  assert.equal(shippoMissingCarrierMessage({ missing: ["usps"], upsAccounts: 1, uspsAccounts: 0 }).includes("$"), false);
+});
 
 test("Shippo test rates map UPS and USPS only and apply founder margin", () => {
   const rates = mapShippoRates({

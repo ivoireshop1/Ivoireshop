@@ -48,3 +48,16 @@ export function customerFacingEasyShipAllowed(input: {
   if (input.isSandbox) return true;
   return input.customerRatesEnabled === true;
 }
+
+/** TEST Shippo rates never become customer checkout prices. LIVE quotes stay off until founder enables them. */
+export function customerFacingShippoAllowed(input: {
+  provider: ShippingProvider;
+  isTest: boolean;
+  isLive: boolean;
+  customerRatesEnabled: boolean;
+}) {
+  if (input.provider !== "shippo") return false;
+  if (input.isTest) return false;
+  if (!input.isLive) return false;
+  return input.customerRatesEnabled === true;
+}
