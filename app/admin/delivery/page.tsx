@@ -17,6 +17,7 @@ import { TaxSettingsForm } from "@/src/components/admin/tax-settings-form";
 import { IvoireShippingForm } from "@/src/components/admin/ivoire-shipping-form";
 import { ShippingPackagesForm } from "@/src/components/admin/shipping-packages-form";
 import { EasyshipQuoteProbeForm } from "@/src/components/admin/easyship-quote-probe-form";
+import { ShippoTestQuoteForm } from "@/src/components/admin/shippo-test-quote-form";
 import { loadShippingPackages } from "@/src/lib/shipping/package-store";
 import { parseTaxMode, taxModeLabel } from "@/src/lib/tax/totals";
 import Link from "next/link";
@@ -164,6 +165,12 @@ export default async function AdminDeliveryPage() {
         originComplete={originIsComplete(origin)}
         originLines={formatOriginLines(origin)}
         packages={shippingPackages}
+      />
+      <ShippoTestQuoteForm
+        originComplete={originIsComplete(origin)}
+        originLines={formatOriginLines(origin)}
+        shippoConfigured={shippo.configured}
+        shippoTest={shippo.isTest}
       />
       <ShippoSettingsForm
         settings={settings as Record<string, unknown> | null}

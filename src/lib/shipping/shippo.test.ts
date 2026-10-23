@@ -12,8 +12,10 @@ import {
   mapShippoRates,
   parseAllowedServices,
   parseCountryList,
+  quoteShippoShipment,
   ratesMatchSelection,
   shippoServiceLabel,
+  shippoShipmentParcels,
 } from "./shippo.ts";
 
 test("Shippo test rates map UPS and USPS only and apply founder margin", () => {
@@ -135,4 +137,67 @@ test("nested Shippo servicelevel objects supply real service names and tokens", 
   assert.equal(rates.map((rate) => rate.service).join("|"), "Priority Mail|Ground|Priority Express");
   assert.equal(rates[0].serviceToken, "usps_priority");
   assert.equal(rates[2].serviceToken, "usps_priority_express");
+});
+
+test("Shippo shipment payload sends every packed parcel and never invents a price", () => {
+  const parcels = shippoShipmentParcels({
+    parcels: [
+      { weightLb: 29.7, lengthIn: 20, widthIn: 16, heightIn: 12 },
+      { weightLb: 1.925, lengthIn: 10, widthIn: 8, heightIn: 4 },
+    ],
+  });
+  assert.equal(parcels.length, 2);
+  assert.deepEqual(parcels[0], {
+    length: "20",
+    width: "16",
+    height: "12",
+    distance_unit: "in",
+    weight: "29.7",
+    mass_unit: "lb",
+  });
+  assert.equal(parcels[1].weight, "1.925");
+  assert.equal(JSON.stringify(parcels).includes("buy_label"), false);
+  assert.equal(shippoShipmentParcels({ parcel: { weightLb: 2, lengthIn: 8, widthIn: 6, heightIn: 4 } }).length, 1);
+  assert.deepEqual(shippoShipmentParcels({}), []);
+});
+
+test("Shippo quote-only shipment request maps genuine UPS and USPS rates", async () => {
+  const previous = process.env.SHIPPO_API_TOKEN;
+  const originalFetch = globalThis.fetch;
+  const bodies: unknown[] = [];
+  process.env.SHIPPO_API_TOKEN = "shippo_test_mock_token";
+  globalThis.fetch = (async (_url: RequestInfo | URL, init?: RequestInit) => {
+    bodies.push(JSON.parse(String(init?.body || "{}")));
+    return new Response(JSON.stringify({
+      object_id: "shp_1",
+      rates: [
+        { object_id: "r1", provider: "UPS", servicelevel_name: "Ground", amount: "18.40", currency: "USD", estimated_days: 3, test: true },
+        { object_id: "r2", provider: "USPS", servicelevel_name: "Priority Mail", amount: "14.10", currency: "USD", estimated_days: 2, test: true },
+      ],
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    const quoted = await quoteShippoShipment({
+      origin: { name: "Ivoire Shop", address_line_1: "1210 Rockbridge Rd NW", city: "Norcross", state: "GA", postal_code: "30093", country: "US" },
+      destination: { address_line_1: "1 Main St", city: "Clayton", state: "OH", postal_code: "45315", country: "US" },
+      parcels: [
+        { weightLb: 29.7, lengthIn: 20, widthIn: 16, heightIn: 12 },
+        { weightLb: 1.925, lengthIn: 10, widthIn: 8, heightIn: 4 },
+      ],
+    });
+    assert.equal(quoted.ok, true);
+    if (!quoted.ok) return;
+    const payload = bodies[0] as { parcels?: unknown[]; async?: boolean };
+    assert.equal(payload.async, false);
+    assert.equal(payload.parcels?.length, 2);
+    assert.equal(quoted.rates.length, 2);
+    assert.equal(quoted.rates[0].amount, 18.4);
+    assert.equal(quoted.rates[1].amount, 14.1);
+    assert.equal(quoted.rates[0].provider, "ups");
+    assert.equal(quoted.rates[1].provider, "usps");
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previous == null) delete process.env.SHIPPO_API_TOKEN;
+    else process.env.SHIPPO_API_TOKEN = previous;
+  }
 });

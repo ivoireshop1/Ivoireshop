@@ -168,7 +168,7 @@ export async function quoteLiveCarrierOptions(input: {
       && parseRateMode(settings[`${carrier}_rate_mode`]) === "live_api";
   });
   if (!liveCarriers.length) return { options: [], expectedLiveCarriers: [] };
-  if (!shippingLiveRatesEnabled()) {
+  if (provider !== "shippo" && !shippingLiveRatesEnabled()) {
     await recordShippingQuoteLog({
       usedEstimatedWeight: false,
       weightSources: input.products.map((product) => product.weight_source ?? null),
@@ -398,11 +398,11 @@ export async function quoteLiveCarrierOptions(input: {
   const cached = readLiveQuoteCache(cacheKey);
   if (cached) return cached;
 
-  if (packed.parcels.length > 1 && provider !== "easyship") {
+  if (packed.parcels.length > 1 && provider !== "easyship" && provider !== "shippo") {
     return {
       options: [],
       expectedLiveCarriers: remaining,
-      message: "This cart needs more than one measured box. Multi-parcel quotes use Easyship. Store Pickup remains available.",
+      message: "This cart needs more than one measured box. Multi-parcel quotes use Easyship or Shippo. Store Pickup remains available.",
     };
   }
 
@@ -581,12 +581,14 @@ export async function quoteLiveCarrierOptions(input: {
   }
 
   const accounts = await listShippoCarrierAccounts();
-  let quoted = await quoteShippoShipment({
+  const shippoQuote = {
     origin: input.origin,
     destination: input.destination,
     parcel: quoteParcel,
+    parcels: packed.parcels,
     allowedServices,
-  });
+  };
+  let quoted = await quoteShippoShipment(shippoQuote);
   // Bounded single backoff for Shippo 10429 — never loop. Callers must not spam Shippo after a selection.
   const hitRateLimit = (!quoted.ok && Boolean(quoted.rateLimited))
     || (quoted.carrierMessages ?? []).some(isShippoRateLimitMessage);
@@ -594,12 +596,7 @@ export async function quoteLiveCarrierOptions(input: {
     const missingAfterLimit = remaining.filter((carrier) => !quoted.rates.some((rate) => rate.provider === carrier));
     if (missingAfterLimit.length || !quoted.ok) {
       await new Promise((resolve) => setTimeout(resolve, 1600));
-      const retry = await quoteShippoShipment({
-        origin: input.origin,
-        destination: input.destination,
-        parcel: quoteParcel,
-        allowedServices,
-      });
+      const retry = await quoteShippoShipment(shippoQuote);
       if (retry.ok) {
         const retryCoversMore = missingAfterLimit.some((carrier) => retry.rates.some((rate) => rate.provider === carrier));
         if (retryCoversMore || retry.rates.length > quoted.rates.length || !quoted.ok) quoted = retry;

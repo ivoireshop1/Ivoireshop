@@ -10,6 +10,8 @@ import {
 } from "./packages.ts";
 import { parseWeightOption } from "../catalog/weight-options.ts";
 import { destinationReadyForCarrierQuotes } from "../delivery/destination.ts";
+import { shippoShipmentParcels } from "./shippo.ts";
+import { STEEL_SIX_CART } from "./steel-six-cart.ts";
 
 const small = parseShippingPackage({
   id: "pkg-small",
@@ -136,53 +138,7 @@ test("over-capacity mixed grocery splits into another measured box instead of in
   assert.ok(cart.parcels.every((parcel) => parcel.lengthIn === 10 && parcel.heightIn === 6));
 });
 
-const steelSix = [
-  {
-    id: "482b28fb-09eb-44ce-815f-042d3a7d058b",
-    name: "ELEPHANT BRAND Broken Jasmine Rice A1 Super",
-    quantity: 1,
-    item_weight_lb: 25,
-    weight_oz: 400,
-    packaging_weight_oz: 4,
-    weight_source: "verified",
-    category_slug: "ivoire-market",
-  },
-  {
-    id: "d284cc2a-3d1d-4417-9093-5afdea56eed5",
-    name: "Peak milk",
-    quantity: 1,
-    packaging_weight_oz: 4,
-    category_slug: "ivoire-market",
-  },
-  {
-    id: "d8cf6231-d804-4f84-a459-26237e11bcaa",
-    name: "Cow Feet’s",
-    quantity: 1,
-    packaging_weight_oz: 4,
-    category_slug: "ivoire-market",
-  },
-  {
-    id: "78137679-cf2b-4eb9-96db-72cd0a1ce67c",
-    name: "My project 1 (53)",
-    quantity: 1,
-    packaging_weight_oz: 4,
-    category_slug: "ivoire-market",
-  },
-  {
-    id: "138fff79-4418-4cc7-9d4e-cb7129d88e0c",
-    name: "Caro Light Lightening Beauty Cream",
-    quantity: 1,
-    packaging_weight_oz: 4,
-    category_slug: "ivoire-market",
-  },
-  {
-    id: "af9202bc-c0fd-40a0-889c-687770541b4d",
-    name: "MAKARI Naturalle Carotonic Extrême Glow Renewing Face Cream SPF 15, 50ml",
-    quantity: 1,
-    packaging_weight_oz: 4,
-    category_slug: "ivoire-market",
-  },
-] as const;
+const steelSix = STEEL_SIX_CART;
 
 test("six Steel screenshot products pack with labeled estimates and never invent a carrier price", () => {
   const cart = resolveCartParcel({
@@ -217,6 +173,30 @@ test("six Steel screenshot products pack with labeled estimates and never invent
     postal_code: "M5V 2T6",
     country: "CA",
   }), true);
+});
+
+test("six Steel products become a Shippo multi-parcel payload without inventing a carrier price", () => {
+  const grocery = parseShippingPackage({
+    id: "af66826c-c9ad-464d-a001-a0f79387f949",
+    name: "standard grocery box",
+    length_in: 16,
+    width_in: 12,
+    height_in: 8,
+    max_weight_lb: 30,
+    tare_weight_lb: 0.39,
+    is_active: true,
+  })!;
+  const cart = resolveCartParcel({
+    products: steelSix.map((product) => ({ ...product })),
+    packages: [grocery],
+    defaultPackageId: grocery.id,
+  });
+  assert.equal(cart.missing, 0);
+  assert.ok((cart.parcels?.length ?? 0) >= 1);
+  const payload = shippoShipmentParcels({ parcels: cart.parcels });
+  assert.equal(payload.length, cart.parcels.length);
+  assert.ok(payload.every((parcel) => Number(parcel.weight) > 0 && Number(parcel.length) > 0));
+  assert.equal(JSON.stringify(payload).includes("amount"), false);
 });
 
 test("six Steel products stay closed when estimated presets are disabled and no measured box exists", () => {

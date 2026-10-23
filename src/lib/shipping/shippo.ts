@@ -487,26 +487,44 @@ export function isShippoRateLimitStatus(status: number, text = "") {
   return status === 429 || /too many requests|10429|rate.?limit/i.test(text);
 }
 
+export type ShippoParcelInput = {
+  weightLb: number;
+  lengthIn: number;
+  widthIn: number;
+  heightIn: number;
+};
+
+export function shippoShipmentParcels(input: {
+  parcel?: ShippoParcelInput | null;
+  parcels?: ShippoParcelInput[];
+}) {
+  const parcels = input.parcels?.length ? input.parcels : input.parcel ? [input.parcel] : [];
+  return parcels.map((parcel) => ({
+    length: String(parcel.lengthIn),
+    width: String(parcel.widthIn),
+    height: String(parcel.heightIn),
+    distance_unit: "in" as const,
+    weight: String(parcel.weightLb),
+    mass_unit: "lb" as const,
+  }));
+}
+
 export async function quoteShippoShipment(input: {
   origin: Address;
   destination: Address;
-  parcel: { weightLb: number; lengthIn: number; widthIn: number; heightIn: number };
+  parcel?: ShippoParcelInput | null;
+  parcels?: ShippoParcelInput[];
   allowedServices?: string[];
   carrierAccountIds?: string[];
 }) {
   const creds = shippoCredentials();
   if (!creds.configured) return { ok: false as const, error: "Shippo is not configured.", rates: [] as ShippoRate[] };
+  const parcels = shippoShipmentParcels(input);
+  if (!parcels.length) return { ok: false as const, error: "Shippo needs at least one packed parcel.", rates: [] as ShippoRate[] };
   const payload: Record<string, unknown> = {
     address_from: shippoAddress(input.origin),
     address_to: shippoAddress(input.destination),
-    parcels: [{
-      length: String(input.parcel.lengthIn),
-      width: String(input.parcel.widthIn),
-      height: String(input.parcel.heightIn),
-      distance_unit: "in",
-      weight: String(input.parcel.weightLb),
-      mass_unit: "lb",
-    }],
+    parcels,
     async: false,
   };
   if (input.carrierAccountIds?.length) payload.carrier_accounts = input.carrierAccountIds;

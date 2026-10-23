@@ -12,7 +12,7 @@ import { doordashCredentials } from "./credentials";
 import { verifyDoorDash } from "./providers/doordash";
 import { sanitizeProviderError } from "./types";
 import { parseAdminMiles, parseAdminMoney, parseRateMode } from "./manual";
-import { canPrepareShippoLabel, createShippoTestTransaction, listShippoCarrierAccounts, shippoCredentials } from "@/src/lib/shipping/shippo";
+import { canPrepareShippoLabel, createShippoTestTransaction, listShippoCarrierAccounts, quoteShippoShipment, shippoCredentials } from "@/src/lib/shipping/shippo";
 import { easypostCredentials } from "@/src/lib/shipping/easypost";
 import { easyshipCredentials, quoteEasyshipRates } from "@/src/lib/shipping/easyship";
 import {
@@ -21,6 +21,16 @@ import {
   parseEasyshipQuoteProbeDraft,
   rememberEasyshipProbe,
 } from "@/src/lib/shipping/easyship-quote-probe";
+import {
+  mergeSteelSixProducts,
+  parseShippoTestQuoteDraft,
+  prepareSteelSixShippoTestQuote,
+  rememberShippoTestProbe,
+  shippoTestProbeRemainingForAdmin,
+  shippoTestQuoteBlocker,
+  shippoTestQuoteCredentialBlocker,
+} from "@/src/lib/shipping/shippo-test-quote";
+import { STEEL_SIX_CART } from "@/src/lib/shipping/steel-six-cart";
 import { quoteLiveCarrierOptions } from "@/src/lib/shipping/live-quotes";
 import { parseShippingProvider } from "@/src/lib/shipping/provider";
 import { recordShippingMonitorEvent } from "@/src/lib/shipping/monitor";
@@ -864,6 +874,112 @@ export async function requestEasyshipProductionQuote(
     })),
     postagePurchased: false,
     customerFacingRatesRequired: false,
+  };
+}
+
+export type ShippoTestQuoteResult = {
+  requested: boolean;
+  ok?: boolean;
+  error?: string;
+  status?: number;
+  mode?: string | null;
+  apiMessage?: string;
+  parcelCount?: number;
+  ups?: Array<{ service: string; amount: number; estimatedDays: number | null }>;
+  usps?: Array<{ service: string; amount: number; estimatedDays: number | null }>;
+  upsAccounts?: number;
+  uspsAccounts?: number;
+  postagePurchased?: false;
+  customerFacingRatesRequired?: false;
+  providerUnchanged?: true;
+};
+
+export async function requestShippoTestQuote(
+  _prev: ShippoTestQuoteResult | null,
+  formData: FormData,
+): Promise<ShippoTestQuoteResult> {
+  const { supabase, user } = await requireAdmin();
+  const draft = parseShippoTestQuoteDraft(formData);
+  const blocker = shippoTestQuoteBlocker(draft);
+  if (blocker) return { requested: false, error: blocker };
+  const creds = shippoCredentials();
+  const credentialBlocker = shippoTestQuoteCredentialBlocker(creds);
+  if (credentialBlocker) return { requested: false, error: credentialBlocker };
+  const cookieStore = await cookies();
+  const cookieAt = Number(cookieStore.get("shippo_test_probe_at")?.value ?? 0);
+  const remainingMs = shippoTestProbeRemainingForAdmin(user.id, Number.isFinite(cookieAt) ? cookieAt : 0);
+  if (remainingMs > 0) {
+    return {
+      requested: false,
+      error: `Wait ${Math.ceil(remainingMs / 1000)} seconds before another Shippo TEST quote. This protects API allowance.`,
+    };
+  }
+  const { data: settings } = await supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle();
+  const origin = originFromSettings(settings);
+  const packages = await loadShippingPackages(supabase);
+  const ids = STEEL_SIX_CART.map((item) => item.id);
+  const { data: rows } = await supabase
+    .from("products")
+    .select("id, name, price, item_weight_lb, weight_oz, packaging_weight_oz, weight_source, shipping_package_id, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in, dims, category_id")
+    .in("id", ids);
+  const categoryIds = [...new Set((rows ?? []).map((row) => row.category_id).filter((id): id is string => Boolean(id)))];
+  const { data: categories } = categoryIds.length
+    ? await supabase.from("categories").select("id, slug").in("id", categoryIds)
+    : { data: [] as Array<{ id: string; slug: string }> };
+  const slugById = new Map((categories ?? []).map((row) => [row.id, row.slug]));
+  const prepared = prepareSteelSixShippoTestQuote({
+    origin,
+    products: mergeSteelSixProducts((rows ?? []).map((row) => ({
+      ...row,
+      category_slug: row.category_id ? slugById.get(row.category_id) ?? null : null,
+    }))),
+    packages,
+    defaultPackageId: typeof settings?.default_shipping_package_id === "string" ? settings.default_shipping_package_id : null,
+  });
+  if (!prepared.ok) return { requested: false, error: prepared.error };
+  rememberShippoTestProbe(user.id);
+  cookieStore.set("shippo_test_probe_at", String(Date.now()), {
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 120,
+    path: "/admin",
+    secure: true,
+  });
+  const accounts = await listShippoCarrierAccounts();
+  const quoted = await quoteShippoShipment({
+    origin,
+    destination: prepared.destination,
+    parcels: prepared.parcels,
+  });
+  const rates = quoted.ok ? quoted.rates : [];
+  const message = !quoted.ok
+    ? quoted.error
+    : !rates.length
+      ? "Shippo returned no UPS/USPS TEST rates for this destination and packed cart."
+      : undefined;
+  return {
+    requested: true,
+    ok: quoted.ok && rates.length > 0,
+    error: message,
+    status: quoted.status ?? 0,
+    mode: creds.mode,
+    apiMessage: message,
+    parcelCount: prepared.parcels.length,
+    ups: rates.filter((rate) => rate.provider === "ups").map((rate) => ({
+      service: rate.service,
+      amount: rate.amount,
+      estimatedDays: rate.estimatedDays,
+    })),
+    usps: rates.filter((rate) => rate.provider === "usps").map((rate) => ({
+      service: rate.service,
+      amount: rate.amount,
+      estimatedDays: rate.estimatedDays,
+    })),
+    upsAccounts: accounts.ups,
+    uspsAccounts: accounts.usps,
+    postagePurchased: false,
+    customerFacingRatesRequired: false,
+    providerUnchanged: true,
   };
 }
 
