@@ -59,4 +59,11 @@ test("Easyship quote probe cooldown blocks accidental repeat requests", () => {
 test("Easyship API messages are sanitized and never invent a charge", () => {
   assert.match(easyshipApiMessage({ error: { message: "missing public.rate:read Bearer prod_secretvalue" } }), /public\.rate:read/);
   assert.doesNotMatch(easyshipApiMessage({ error: { message: "Bearer prod_secretvalue denied" } }), /prod_secretvalue/);
+  assert.match(easyshipApiMessage({
+    error: {
+      code: "invalid_content",
+      message: "The request body content is not valid.",
+      details: ["#/components/schemas/ParcelItemRateCreate missing required parameters: category"],
+    },
+  }), /category/);
 });

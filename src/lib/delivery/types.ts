@@ -20,6 +20,22 @@ export type DeliveryOption = {
   currency?: string;
   testRate?: boolean;
   etaDays?: number | null;
+  parcelEstimate?: {
+    counted: number;
+    totalWeightLb: number;
+    estimatedBox: boolean;
+    parcels: Array<{
+      boxId: string | null;
+      boxName: string | null;
+      estimatedBox: boolean;
+      weightLb: number;
+      lengthIn: number;
+      widthIn: number;
+      heightIn: number;
+      unknownItemDimensions: boolean;
+      items: string[];
+    }>;
+  };
 };
 
 export function sanitizeProviderError(raw: string) {

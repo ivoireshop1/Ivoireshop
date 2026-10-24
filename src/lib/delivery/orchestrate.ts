@@ -25,7 +25,7 @@ function logDelivery(provider: string, operation: string, success: boolean, mess
 }
 
 export async function collectCheckoutOptions(input: {
-  destination: { address_line_1?: string; city?: string; state?: string; postal_code?: string; country?: string };
+  destination: { name?: string; phone?: string; address_line_1?: string; address_line_2?: string; city?: string; state?: string; postal_code?: string; country?: string };
   products: Array<{
     quantity: number;
     price?: number | string | null;

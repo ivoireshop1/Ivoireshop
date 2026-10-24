@@ -76,7 +76,11 @@ async function authoritativeQuote(input: ReturnType<typeof validateCheckout> & {
     );
 
   let quotes = await collectCheckoutOptions({
-    destination: request.address,
+    destination: {
+      ...request.address,
+      name: request.customerName,
+      phone: request.customerPhone,
+    },
     products,
   });
   let resolved = resolveSelectedShippingOption(quotes.options, selectedId, request.fulfillmentMethod, request.quotedShipping);
@@ -85,7 +89,11 @@ async function authoritativeQuote(input: ReturnType<typeof validateCheckout> & {
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
       quotes = await collectCheckoutOptions({
-        destination: request.address,
+        destination: {
+          ...request.address,
+          name: request.customerName,
+          phone: request.customerPhone,
+        },
         products,
       });
       resolved = resolveSelectedShippingOption(quotes.options, selectedId, request.fulfillmentMethod, request.quotedShipping);

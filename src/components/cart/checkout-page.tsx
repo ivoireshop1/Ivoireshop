@@ -356,7 +356,10 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
       markCheckout("base-quote:start", { seq });
       void getCheckoutDeliveryOptions({
         address: {
+          name: contact.customerName,
+          phone: contact.customerPhone,
           address_line_1: address.addressLine1,
+          address_line_2: address.addressLine2,
           city: address.city,
           state: address.state,
           postal_code: address.postalCode,
@@ -461,7 +464,10 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
       markCheckout("live-quote:start", { seq, fingerprint });
       void getCheckoutLiveCarrierOptions({
         address: {
+          name: contact.customerName,
+          phone: contact.customerPhone,
           address_line_1: address.addressLine1,
+          address_line_2: address.addressLine2,
           city: address.city,
           state: address.state,
           postal_code: address.postalCode,

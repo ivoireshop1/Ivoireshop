@@ -102,7 +102,11 @@ export async function placeCheckoutOrder(
       quotesSubtotal = pre.subtotal;
     } else {
       const quotes = await collectCheckoutOptions({
-        destination: request.address,
+        destination: {
+          ...request.address,
+          name: request.customerName,
+          phone: request.customerPhone,
+        },
         products: checkoutProducts,
       });
       const resolved = resolveSelectedShippingOption(quotes.options, selectedId, request.fulfillmentMethod, request.quotedShipping);

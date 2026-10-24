@@ -24,6 +24,7 @@ export function optionToSnapshot(option: DeliveryOption, pickupLocation?: Pickup
     test_rate: option.testRate === true,
     eta_days: option.etaDays ?? null,
     quoted_at: new Date().toISOString(),
+    parcel_estimate: option.parcelEstimate ?? null,
     ...(option.provider === "pickup" && pickupLocation ? { pickup_location: pickupLocation } : {}),
   };
 }

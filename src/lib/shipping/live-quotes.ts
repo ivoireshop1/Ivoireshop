@@ -1,5 +1,5 @@
 import type { DeliveryOption } from "@/src/lib/delivery/types";
-import { parcelFailureMessage, resolveCartParcel, type ShippingPackagePreset } from "@/src/lib/shipping/packages";
+import { describePackedParcels, parcelFailureMessage, resolveCartParcel, type ShippingPackagePreset } from "@/src/lib/shipping/packages";
 import { isDomesticCountry, parseRateMode } from "@/src/lib/delivery/manual";
 import { originIsComplete, type StoreOrigin } from "@/src/lib/delivery/origin";
 import { destinationReadyForCarrierQuotes } from "@/src/lib/delivery/destination";
@@ -78,7 +78,7 @@ const LIVE_QUOTE_CACHE_MAX = 40;
 
 function liveQuoteCacheKey(input: {
   origin: StoreOrigin;
-  destination: { address_line_1?: string; city?: string; state?: string; postal_code?: string; country?: string };
+  destination: { name?: string; phone?: string; address_line_1?: string; address_line_2?: string; city?: string; state?: string; postal_code?: string; country?: string };
   parcel: { weightLb: number; lengthIn: number; widthIn: number; heightIn: number };
   parcels?: Array<{ weightLb: number; lengthIn: number; widthIn: number; heightIn: number }>;
   carriers: LiveCarrier[];
@@ -154,7 +154,7 @@ function temporaryBusyResult(input: {
 export async function quoteLiveCarrierOptions(input: {
   settings: Record<string, unknown> | null | undefined;
   origin: StoreOrigin;
-  destination: { address_line_1?: string; city?: string; state?: string; postal_code?: string; country?: string };
+  destination: { name?: string; phone?: string; address_line_1?: string; address_line_2?: string; city?: string; state?: string; postal_code?: string; country?: string };
   products: Parameters<typeof cartParcel>[0];
   packages?: ShippingPackagePreset[];
   defaultPackageId?: string | null;
@@ -357,6 +357,12 @@ export async function quoteLiveCarrierOptions(input: {
   }
   const quoteParcel = packed.parcels[0];
   const quoteWeightLb = packed.totalWeightLb ?? packed.parcels.reduce((sum, parcel) => sum + parcel.weightLb, 0);
+  const parcelEstimate = {
+    counted: packed.parcels.length,
+    totalWeightLb: quoteWeightLb,
+    estimatedBox: usedEstimatedBox,
+    parcels: describePackedParcels(packed.parcels),
+  };
   if (!quoteParcel) {
     return {
       options: [],
@@ -475,8 +481,10 @@ export async function quoteLiveCarrierOptions(input: {
           easypostRateId: rate.objectId,
           easypostShipmentId: rate.shipmentId,
           quoteSource: "easypost" as const,
+          currency: "USD",
           testRate: easypost.isTest || rate.test,
           etaDays: rate.estimatedDays,
+          parcelEstimate,
         };
       }));
     await recordShippingMonitorEvent("checkout_quote", {
@@ -565,8 +573,10 @@ export async function quoteLiveCarrierOptions(input: {
           billableWeightLb: quoteWeightLb,
           easyshipRateId: rate.objectId,
           quoteSource: "easyship" as const,
+          currency: "USD",
           testRate: easyship.isSandbox || rate.test,
           etaDays: rate.estimatedDays,
+          parcelEstimate,
         };
       }));
     await recordShippingMonitorEvent("checkout_quote", {
@@ -672,8 +682,10 @@ export async function quoteLiveCarrierOptions(input: {
         billableWeightLb: quoteWeightLb,
         shippoRateId: rate.objectId,
         quoteSource: "shippo" as const,
+        currency: "USD",
         testRate: shippo.isTest || rate.test,
         etaDays: rate.estimatedDays,
+        parcelEstimate,
       };
     }));
 

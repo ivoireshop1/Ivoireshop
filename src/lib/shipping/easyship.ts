@@ -17,6 +17,7 @@ export type EasyshipQuoteErrorCode =
   | "invalid_parcel"
   | "missing_declared_value"
   | "incomplete_address"
+  | "invalid_content"
   | "rate_limited"
   | "request_failed";
 
@@ -94,7 +95,65 @@ export type EasyshipQuoteItem = {
   quantity: number;
   price?: number | string | null;
   description?: string | null;
+  category?: string | null;
+  category_slug?: string | null;
+  hs_code?: string | null;
+  origin_country_alpha2?: string | null;
+  origin_country?: string | null;
 };
+
+const ADDRESS_LIMITS = {
+  line: 35,
+  locality: 200,
+  originName: 22,
+  destName: 50,
+  company: 27,
+  phone: 20,
+} as const;
+
+const ITEM_LIMITS = {
+  description: 200,
+  category: 200,
+} as const;
+
+function clip(value: unknown, max: number) {
+  const text = String(value ?? "").trim();
+  return text ? text.slice(0, max) : "";
+}
+
+function sanitizePhone(value?: string) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (digits.length < 7) return "";
+  return digits.slice(0, ADDRESS_LIMITS.phone);
+}
+
+/** Official Easyship item slugs. Grocery default; cosmetics use health_beauty. Never invent HS codes. */
+export function easyshipItemCategory(input?: { category?: string | null; category_slug?: string | null }) {
+  const token = [input?.category_slug, input?.category].map((part) => String(part ?? "").trim().toLowerCase()).join(" ");
+  if (token.includes("cosmetic") || token.includes("beauty") || token === "health") return "health_beauty";
+  return "dry_food_supplements";
+}
+
+function compactAddress(address: EasyshipAddress, role: "origin" | "destination") {
+  const nameLimit = role === "origin" ? ADDRESS_LIMITS.originName : ADDRESS_LIMITS.destName;
+  const contactName = clip(address.name, nameLimit) || (role === "origin" ? "Ivoire Shop" : "");
+  const phone = sanitizePhone(address.phone);
+  const row: Record<string, string> = {
+    city: clip(address.city, ADDRESS_LIMITS.locality),
+    postal_code: clip(address.postal_code, 16),
+    country_alpha2: countryAlpha2(address.country),
+  };
+  const line1 = clip(address.address_line_1, ADDRESS_LIMITS.line);
+  const line2 = clip(address.address_line_2, ADDRESS_LIMITS.line);
+  const state = clip(address.state, ADDRESS_LIMITS.locality);
+  if (line1) row.line_1 = line1;
+  if (line2) row.line_2 = line2;
+  if (state) row.state = state;
+  if (contactName) row.contact_name = contactName;
+  if (role === "origin") row.company_name = clip(address.name || "Ivoire Shop", ADDRESS_LIMITS.company);
+  if (phone) row.contact_phone = phone;
+  return row;
+}
 
 function countryAlpha2(country?: string) {
   const value = (country || "US").trim().toUpperCase();
@@ -121,13 +180,22 @@ export function easyshipQuoteItems(products: EasyshipQuoteItem[]) {
     const quantity = Number.isFinite(product.quantity) && product.quantity > 0 ? Math.min(Math.ceil(product.quantity), 50) : 0;
     const price = unitPrice(product.price);
     if (!quantity || price == null) continue;
-    const description = String(product.description ?? "").trim().slice(0, 200) || "Ivoire Shop grocery item";
-    items.push({
+    const description = clip(product.description, ITEM_LIMITS.description) || "Ivoire Shop grocery item";
+    const hsCode = clip(product.hs_code, 12).replace(/\D/g, "");
+    const originRaw = String(product.origin_country_alpha2 || product.origin_country || "").trim();
+    const item: Record<string, string | number> = {
       description,
+      category: clip(easyshipItemCategory(product), ITEM_LIMITS.category),
       quantity,
-      declared_currency: "USD" as const,
+      declared_currency: "USD",
       declared_customs_value: price,
-    });
+    };
+    if (hsCode.length >= 6) item.hs_code = hsCode;
+    if (originRaw) {
+      const origin = countryAlpha2(originRaw);
+      if (origin.length === 2) item.origin_country_alpha2 = origin;
+    }
+    items.push(item);
   }
   return items;
 }
@@ -143,6 +211,7 @@ export function identifyEasyshipProvider(carrier: unknown): "ups" | "usps" | nul
 export function classifyEasyshipHttpStatus(status: number, body: unknown): EasyshipQuoteErrorCode {
   if (status === 429) return "rate_limited";
   if (status === 401) return "unauthorized";
+  if (status === 422) return "invalid_content";
   const textValue = JSON.stringify(body ?? "").toLowerCase();
   if (status === 403 || textValue.includes("scope") || textValue.includes("forbidden")) return "missing_scope";
   return "request_failed";
@@ -150,9 +219,17 @@ export function classifyEasyshipHttpStatus(status: number, body: unknown): Easys
 
 export function easyshipApiMessage(body: unknown) {
   if (!body || typeof body !== "object") return "";
-  const row = body as { error?: { message?: unknown }; message?: unknown; errors?: unknown };
+  const row = body as { error?: { message?: unknown; details?: unknown; code?: unknown }; message?: unknown; errors?: unknown };
+  const details = Array.isArray(row.error?.details)
+    ? row.error.details.map((part) => String(part ?? "").trim()).filter(Boolean).join(" ")
+    : "";
   const firstError = Array.isArray(row.errors) ? row.errors[0] : null;
-  const raw = [row.error?.message, row.message, firstError && typeof firstError === "object" && firstError && "message" in firstError ? firstError.message : firstError]
+  const raw = [
+    details,
+    row.error?.message,
+    row.message,
+    firstError && typeof firstError === "object" && firstError && "message" in firstError ? firstError.message : firstError,
+  ]
     .map((part) => String(part ?? "").trim())
     .find(Boolean);
   return raw ? sanitizeProviderError(raw) : "";
@@ -174,6 +251,8 @@ export function easyshipQuoteErrorMessage(code: EasyshipQuoteErrorCode) {
       return "Easyship needs each item's selling price as the declared customs value. Missing prices are never invented.";
     case "incomplete_address":
       return "Easyship needs city and state on the origin and destination for UPS/USPS rates. No substitute rate was invented.";
+    case "invalid_content":
+      return "Easyship rejected the rate request body. Empty optional fields and items missing a category or HS code are never sent. No substitute rate was invented.";
     case "rate_limited":
       return "Easyship rates are temporarily busy. No substitute rate was invented.";
     default:
@@ -197,6 +276,42 @@ export function easyshipAddressReady(origin: EasyshipAddress, destination: Easys
   return true;
 }
 
+function hasEmptyString(value: unknown): boolean {
+  if (value === "") return true;
+  if (!value || typeof value !== "object") return false;
+  return Object.values(value as Record<string, unknown>).some(hasEmptyString);
+}
+
+export function easyshipRateRequestIssues(request: ReturnType<typeof buildEasyshipRateRequest>) {
+  const issues: string[] = [];
+  const origin = request.origin_address;
+  const dest = request.destination_address;
+  if (!origin.city || !origin.postal_code || !origin.country_alpha2) issues.push("origin_address missing city, postal_code, or country_alpha2");
+  if (needsCityState(origin.country_alpha2) && !origin.state) issues.push("origin_address.state is required for US/CA/MX/AU");
+  if (!dest.line_1 || !dest.city || !dest.postal_code || !dest.country_alpha2) {
+    issues.push("destination_address missing line_1, city, postal_code, or country_alpha2");
+  }
+  if (needsCityState(dest.country_alpha2) && !dest.state) issues.push("destination_address.state is required for US/CA/MX/AU");
+  if (!request.parcels.length) issues.push("parcels is required");
+  for (const [index, parcel] of request.parcels.entries()) {
+    if (!(parcel.total_actual_weight > 0)) issues.push(`parcels[${index}].total_actual_weight must be greater than 0`);
+    if (!(parcel.box.length > 0 && parcel.box.width > 0 && parcel.box.height > 0)) {
+      issues.push(`parcels[${index}].box dimensions must be greater than 0`);
+    }
+    if (!parcel.items.length) issues.push(`parcels[${index}].items must contain at least one item`);
+    for (const [itemIndex, item] of parcel.items.entries()) {
+      if (!item.declared_currency || item.declared_customs_value == null) {
+        issues.push(`parcels[${index}].items[${itemIndex}] missing declared_currency or declared_customs_value`);
+      }
+      if (!item.category && !("hs_code" in item && item.hs_code)) {
+        issues.push(`parcels[${index}].items[${itemIndex}] missing category or hs_code`);
+      }
+    }
+  }
+  if (hasEmptyString(request)) issues.push("empty optional strings are omitted; blank fields fail Easyship OpenAPI validation");
+  return issues;
+}
+
 export function buildEasyshipRateRequest(input: {
   origin: EasyshipAddress;
   destination: EasyshipAddress;
@@ -206,6 +321,9 @@ export function buildEasyshipRateRequest(input: {
 }) {
   const parcels = (input.parcels?.length ? input.parcels : input.parcel ? [input.parcel] : []).map((parcel, index) => {
     const parcelItems = "items" in parcel ? parcel.items : undefined;
+    const items = Array.isArray(parcelItems) && parcelItems.length
+      ? parcelItems
+      : index === 0 ? input.items : input.items.slice(0, 1);
     return {
       total_actual_weight: parcel.weightLb,
       box: {
@@ -213,31 +331,12 @@ export function buildEasyshipRateRequest(input: {
         width: parcel.widthIn,
         height: parcel.heightIn,
       },
-      items: Array.isArray(parcelItems) && parcelItems.length
-        ? parcelItems
-        : index === 0 ? input.items : input.items.slice(0, 1),
+      items,
     };
   });
   return {
-    origin_address: {
-      line_1: input.origin.address_line_1 || "",
-      line_2: input.origin.address_line_2 || "",
-      city: input.origin.city || "",
-      state: input.origin.state || "",
-      postal_code: input.origin.postal_code || "",
-      country_alpha2: countryAlpha2(input.origin.country),
-      company_name: input.origin.name || "Ivoire Shop",
-      contact_name: input.origin.name || "Ivoire Shop",
-      contact_phone: input.origin.phone || "",
-    },
-    destination_address: {
-      line_1: input.destination.address_line_1 || "",
-      line_2: input.destination.address_line_2 || "",
-      city: input.destination.city || "",
-      state: input.destination.state || "",
-      postal_code: input.destination.postal_code || "",
-      country_alpha2: countryAlpha2(input.destination.country),
-    },
+    origin_address: compactAddress(input.origin, "origin"),
+    destination_address: compactAddress(input.destination, "destination"),
     shipping_settings: {
       units: { weight: "lb" as const, dimensions: "in" as const },
       output_currency: "USD" as const,
@@ -334,6 +433,18 @@ export async function quoteEasyshipRates(input: {
     parcels,
     items,
   });
+  const issues = easyshipRateRequestIssues(request);
+  if (issues.length) {
+    return {
+      ok: false as const,
+      error: easyshipQuoteErrorMessage("invalid_content"),
+      code: "invalid_content" as const,
+      rates: [] as EasyshipRate[],
+      rateLimited: false,
+      status: 0,
+      apiMessage: sanitizeProviderError(issues[0] ?? ""),
+    };
+  }
   const result = await postEasyshipRates(request);
   if (!result.ok) {
     const code = classifyEasyshipHttpStatus(result.status, result.body);

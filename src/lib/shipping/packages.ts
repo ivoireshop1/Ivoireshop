@@ -55,7 +55,16 @@ export type CartParcelProduct = {
 };
 
 export type PackedParcel = PackageDims & {
-  items: Array<{ description: string; quantity: number; price?: number | string | null }>;
+  items: Array<{
+    description: string;
+    quantity: number;
+    price?: number | string | null;
+    category_slug?: string | null;
+    category?: string | null;
+    hs_code?: string | null;
+    origin_country_alpha2?: string | null;
+    origin_country?: string | null;
+  }>;
   estimatedBox?: boolean;
   boxId?: string;
   boxName?: string;
@@ -400,6 +409,11 @@ export function resolveCartParcel(input: {
       description: lineDescription(product),
       quantity: Number.isFinite(qty) && qty > 0 ? qty : 1,
       price: product.price,
+      category_slug: product.category_slug ?? null,
+      category: product.category ?? null,
+      hs_code: product.hs_code ?? null,
+      origin_country_alpha2: product.origin_country_alpha2 ?? null,
+      origin_country: product.origin_country ?? null,
     };
 
     if (preferred && !aiSource) {

@@ -96,7 +96,7 @@ async function loadCheckoutProducts(items: CheckoutCartItem[]) {
 }
 
 export async function getCheckoutDeliveryOptions(input: {
-  address: { address_line_1?: string; city?: string; state?: string; postal_code?: string; country?: string };
+  address: { name?: string; phone?: string; address_line_1?: string; address_line_2?: string; city?: string; state?: string; postal_code?: string; country?: string };
   items: CheckoutCartItem[];
   /** Default true. Pass false for fast pickup/store/Ivoire options without waiting on Shippo. */
   includeLiveCarriers?: boolean;
@@ -119,7 +119,7 @@ export async function getCheckoutDeliveryOptions(input: {
 
 /** Live UPS/USPS only — merge into an existing fast quote on the client. */
 export async function getCheckoutLiveCarrierOptions(input: {
-  address: { address_line_1?: string; city?: string; state?: string; postal_code?: string; country?: string };
+  address: { name?: string; phone?: string; address_line_1?: string; address_line_2?: string; city?: string; state?: string; postal_code?: string; country?: string };
   items: CheckoutCartItem[];
 }) {
   const started = Date.now();
