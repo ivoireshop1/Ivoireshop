@@ -15,6 +15,7 @@ import {
   mapEasyshipRates,
   quoteEasyshipRates,
   easyshipApiMessage,
+  easyshipCustomerError,
 } from "./easyship.ts";
 import { parseShippingPackage, resolveCartParcel } from "./packages.ts";
 import { STEEL_SIX_CART, STEEL_SIX_SHIPPO_DESTINATION } from "./steel-six-cart.ts";
@@ -205,6 +206,27 @@ test("Easyship address and HTTP errors stay explicit", () => {
   assert.equal(classifyEasyshipHttpStatus(403, { error: { message: "missing public.rate:read" } }), "missing_scope");
   assert.equal(classifyEasyshipHttpStatus(401, {}), "unauthorized");
   assert.equal(classifyEasyshipHttpStatus(422, { error: { code: "invalid_content", message: "The request body content is not valid." } }), "invalid_content");
+  assert.match(easyshipCustomerError({
+    error: easyshipQuoteErrorMessage("invalid_content"),
+    apiMessage: easyshipApiMessage({
+      error: {
+        code: "invalid_content",
+        message: "The request body content is not valid.",
+        details: [
+          "#/components/schemas/ParcelItemRateCreate missing required parameters: category",
+          "origin_address.contact_phone is invalid Bearer prod_secretvalue",
+        ],
+      },
+    }),
+  }), /category/);
+  assert.match(easyshipCustomerError({
+    error: easyshipQuoteErrorMessage("invalid_content"),
+    apiMessage: "origin_address.contact_phone is invalid",
+  }), /contact_phone/);
+  assert.doesNotMatch(easyshipCustomerError({
+    error: easyshipQuoteErrorMessage("invalid_content"),
+    apiMessage: "Bearer prod_secretvalue",
+  }), /prod_secretvalue/);
   assert.equal(classifyEasyshipHttpStatus(429, {}), "rate_limited");
   assert.match(easyshipQuoteErrorMessage("missing_scope"), /public\.rate:read/);
   assert.match(easyshipQuoteErrorMessage("invalid_parcel"), /never invented/);

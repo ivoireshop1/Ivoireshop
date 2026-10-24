@@ -235,6 +235,12 @@ export function easyshipApiMessage(body: unknown) {
   return raw ? sanitizeProviderError(raw) : "";
 }
 
+export function easyshipCustomerError(input: { error: string; apiMessage?: string }) {
+  const detail = sanitizeProviderError(String(input.apiMessage ?? "").trim());
+  if (!detail || detail === "The request body content is not valid." || input.error.includes(detail)) return input.error;
+  return `${input.error} ${detail}`;
+}
+
 export function easyshipQuoteErrorMessage(code: EasyshipQuoteErrorCode) {
   switch (code) {
     case "not_configured":
@@ -454,6 +460,7 @@ export async function quoteEasyshipRates(input: {
       status: result.status,
       code,
       host: creds.isSandbox ? "sandbox" : "production",
+      detail: easyshipApiMessage(result.body).slice(0, 180),
     });
     return {
       ok: false as const,

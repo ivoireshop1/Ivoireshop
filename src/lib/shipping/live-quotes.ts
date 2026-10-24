@@ -17,7 +17,7 @@ import {
   internationalEligibility,
 } from "./shippo";
 import { easypostCredentials, quoteEasyPostShipment } from "./easypost";
-import { easyshipCredentials, easyshipQuoteErrorMessage, easyshipQuoteItems, quoteEasyshipRates } from "./easyship";
+import { easyshipCredentials, easyshipCustomerError, easyshipQuoteErrorMessage, easyshipQuoteItems, quoteEasyshipRates } from "./easyship";
 import { customerFacingEasyPostAllowed, customerFacingEasyShipAllowed, customerFacingShippoAllowed, liveCarrierApiEnabled, parseShippingProvider } from "./provider";
 import { cartUsesEstimatedWeight, recordShippingMonitorEvent, recordShippingQuoteLog } from "./monitor";
 import { shippingLiveRatesEnabled, LIVE_RATES_DISABLED_MESSAGE } from "./live-rates-switch";
@@ -546,7 +546,10 @@ export async function quoteLiveCarrierOptions(input: {
       return {
         options: [],
         expectedLiveCarriers: remaining,
-        message: quoted.error || easyshipQuoteErrorMessage("request_failed"),
+        message: easyshipCustomerError({
+          error: quoted.error || easyshipQuoteErrorMessage("request_failed"),
+          apiMessage: quoted.apiMessage,
+        }),
       };
     }
     const options = assignUniqueLiveOptionIds(quoted.rates
