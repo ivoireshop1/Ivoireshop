@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useId, useState } from "react";
-import { isNextImageSrc } from "@/src/lib/catalog/image-url";
+import { imageUsesNextOptimizer, isNextImageSrc } from "@/src/lib/catalog/image-url";
 import { orderLineImage, type OrderLineItem } from "@/src/lib/orders/line-image";
 
 export function OrderLine({
@@ -39,7 +39,7 @@ export function OrderLine({
           type="button"
         >
           {src && isNextImageSrc(src) ? (
-            <Image alt="" className="object-cover" fill onError={() => setBroken(true)} sizes="64px" src={src} unoptimized />
+            <Image alt="" className="object-cover" fill onError={() => setBroken(true)} sizes="64px" src={src} />
           ) : (
             <span className="flex h-full items-center justify-center px-1 text-center text-[10px] font-semibold uppercase tracking-wide text-forest-green">Ivoire</span>
           )}
@@ -60,7 +60,7 @@ export function OrderLine({
               </button>
             </div>
             <div className="relative mt-3 aspect-square overflow-hidden rounded-xl bg-[#eadfce]">
-              <Image alt={item.product_name} className="object-contain" fill onError={() => setBroken(true)} sizes="90vw" src={src} unoptimized />
+              <Image alt={item.product_name} className="object-contain" fill onError={() => setBroken(true)} sizes="90vw" src={src} unoptimized={!imageUsesNextOptimizer(src)} />
             </div>
           </div>
         </div>

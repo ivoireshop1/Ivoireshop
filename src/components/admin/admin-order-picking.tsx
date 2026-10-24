@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useId, useState, useTransition } from "react";
-import { isNextImageSrc } from "@/src/lib/catalog/image-url";
+import { imageUsesNextOptimizer, isNextImageSrc } from "@/src/lib/catalog/image-url";
 import { orderLineImage } from "@/src/lib/orders/line-image";
 import { pickingProgress, splitProductLabel } from "@/src/lib/orders/ops";
 import { setOrderItemPicked } from "@/src/lib/admin/order-ops-actions";
@@ -93,7 +93,7 @@ export function AdminOrderPicking({ orderId, items }: { orderId: string; items: 
                 type="button"
               >
                 {src && isNextImageSrc(src) ? (
-                  <Image alt="" className="object-cover" fill sizes="112px" src={src} unoptimized />
+                  <Image alt="" className="object-cover" fill sizes="112px" src={src} />
                 ) : (
                   <span className="flex h-full items-center justify-center px-1 text-center text-[10px] font-semibold uppercase tracking-wide text-[#173f35]">Ivoire</span>
                 )}
@@ -129,7 +129,7 @@ export function AdminOrderPicking({ orderId, items }: { orderId: string; items: 
               <button className="inline-flex min-h-11 min-w-11 items-center justify-center font-semibold text-[#173f35]" onClick={() => setPreview(null)} type="button">Close</button>
             </div>
             <div className="relative mt-3 aspect-square overflow-hidden rounded-xl bg-[#eadfce]">
-              <Image alt={previewItem.product_name} className="object-contain" fill sizes="90vw" src={previewSrc} unoptimized />
+              <Image alt={previewItem.product_name} className="object-contain" fill sizes="90vw" src={previewSrc} unoptimized={!imageUsesNextOptimizer(previewSrc)} />
             </div>
             {rows.length > 1 ? (
               <div className="mt-3 flex justify-between gap-2">

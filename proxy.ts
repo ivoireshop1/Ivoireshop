@@ -35,6 +35,14 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|audio/|sounds/|api/payments/stripe/webhook|.*\\.(?:svg|png|jpg|jpeg|gif|webp|wav|mp3|m4a|ogg)$).*)",
+    {
+      source: "/((?!_next/static|_next/image|favicon.ico|audio/|sounds/|api/payments/stripe/webhook|.*\\.(?:svg|png|jpg|jpeg|gif|webp|wav|mp3|m4a|ogg)$).*)",
+      missing: [
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "next-router-segment-prefetch" },
+        { type: "header", key: "purpose", value: "prefetch" },
+        { type: "header", key: "sec-purpose", value: "prefetch" },
+      ],
+    },
   ],
 };

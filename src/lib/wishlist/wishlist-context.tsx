@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/src/lib/supabase/browser";
+import { readBrowserSupabaseSessionCookie } from "@/src/lib/supabase/auth-request";
 import { addToWishlist, getWishlist, removeFromWishlist } from "./wishlist-service";
 import type { WishlistItem } from "@/src/types/wishlist";
 
@@ -28,8 +29,11 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     if (!options?.silent) setIsLoading(true);
     setError(null);
     try {
-      const { data: { user } } = await createClient().auth.getUser();
-      setItems(user ? await getWishlist() : []);
+      if (!readBrowserSupabaseSessionCookie()) {
+        setItems([]);
+        return;
+      }
+      setItems(await getWishlist());
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to load wishlist.");
     } finally {
@@ -42,15 +46,18 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   }, [items]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { void refreshWishlist(); }, 0);
-    const { data: listener } = createClient().auth.onAuthStateChange((event) => {
+    if (!readBrowserSupabaseSessionCookie()) setIsLoading(false);
+    const { data: listener } = createClient().auth.onAuthStateChange((event, session) => {
       if (event === "TOKEN_REFRESHED") return;
-      void refreshWishlist({ silent: event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "INITIAL_SESSION" });
+      if (!session?.user) {
+        setItems([]);
+        setIsLoading(false);
+        return;
+      }
+      if (event !== "SIGNED_IN" && event !== "INITIAL_SESSION" && event !== "USER_UPDATED") return;
+      void refreshWishlist({ silent: event !== "SIGNED_IN" });
     });
-    return () => {
-      window.clearTimeout(timer);
-      listener.subscription.unsubscribe();
-    };
+    return () => listener.subscription.unsubscribe();
   }, [refreshWishlist]);
 
   const update = useCallback(async (productId: string, action: "add" | "remove") => {

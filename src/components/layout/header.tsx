@@ -7,6 +7,7 @@ import { CANONICAL_CATEGORIES } from "@/src/lib/catalog/canonical-categories";
 import { useCart } from "@/src/lib/cart/cart-context";
 import { useWishlist } from "@/src/lib/wishlist/wishlist-context";
 import { createClient } from "@/src/lib/supabase/browser";
+import { headerRoleSync } from "@/src/lib/supabase/auth-request";
 import { type NavRole, resolveStorefrontHomeHref } from "@/src/lib/auth/session-navigation";
 import { NotificationBell } from "@/src/components/customer/notification-bell";
 import type { InboxItem } from "@/src/lib/notifications/inbox-item";
@@ -33,22 +34,22 @@ export function Header({
 
   useEffect(() => {
     const client = createClient();
-
-    async function syncRole() {
-      const { data } = await client.auth.getUser();
-      if (!data.user) {
+    let cancelled = false;
+    const { data: listener } = client.auth.onAuthStateChange((event, session) => {
+      const action = headerRoleSync(event, Boolean(session?.user));
+      if (action === "guest") {
         setRole("guest");
         return;
       }
-      const { data: profile } = await client.from("profiles").select("role").eq("id", data.user.id).maybeSingle();
-      setRole(profile?.role === "admin" ? "admin" : "customer");
-    }
-
-    void syncRole();
-    const { data: listener } = client.auth.onAuthStateChange(() => {
-      void syncRole();
+      if (action !== "profile" || !session?.user) return;
+      void client.from("profiles").select("role").eq("id", session.user.id).maybeSingle().then(({ data: profile }) => {
+        if (!cancelled) setRole(profile?.role === "admin" ? "admin" : "customer");
+      });
     });
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   const isAuthenticated = role !== "guest";

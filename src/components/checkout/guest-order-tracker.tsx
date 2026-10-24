@@ -63,7 +63,7 @@ function GuestOrderCard({
           {order.items.slice(0, 4).map((item, index) => (
             <span className="relative h-12 w-12 overflow-hidden rounded-lg bg-[#eadfce]" key={`${item.product_name}-${index}`}>
               {item.image_url && isNextImageSrc(item.image_url) ? (
-                <Image alt="" className="object-cover" fill sizes="48px" src={item.image_url} unoptimized />
+                <Image alt="" className="object-cover" fill sizes="48px" src={item.image_url} />
               ) : (
                 <span className="flex h-full items-center justify-center text-[9px] font-semibold uppercase tracking-wide text-forest-green">Ivoire</span>
               )}
