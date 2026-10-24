@@ -366,6 +366,36 @@ export async function saveShippingProviderSettings(_prev: { error?: string; save
   return { saved: true };
 }
 
+export async function saveRateTableSettings(_prev: { error?: string; saved?: boolean } | null, formData: FormData) {
+  const { supabase } = await requireAdmin();
+  const enabled = formData.get("rate_table_enabled") === "on";
+  const bufferRaw = Number(formData.get("rate_table_buffer"));
+  const buffer = Number.isFinite(bufferRaw) ? bufferRaw / (bufferRaw > 1 ? 100 : 1) : 0.1;
+  if (buffer < 0 || buffer > 1) return { error: "Buffer must be between 0% and 100%.", saved: false };
+  const amounts: Record<string, Record<string, number | null>> = { ground: {}, priority: {}, express: {} };
+  for (const service of ["ground", "priority", "express"] as const) {
+    for (const max of [5, 10, 20, 25, 30, 40]) {
+      const value = Number(formData.get(`${service}_${max}`));
+      amounts[service][String(max)] = Number.isFinite(value) && value > 0 ? Number(value.toFixed(2)) : null;
+    }
+  }
+  if (enabled) {
+    const missing = ["ground", "priority", "express"].some((service) => (
+      [5, 10, 20, 25, 30, 40].some((max) => !(amounts[service][String(max)] ?? 0))
+    ));
+    if (missing) return { error: "Price every Ground, Priority, and Express bracket before enabling the table.", saved: false };
+  }
+  const saved = await persistStoreSettings(supabase, {
+    rate_table_enabled: enabled,
+    rate_table_buffer: Number(buffer.toFixed(3)),
+    rate_table: amounts,
+    updated_at: new Date().toISOString(),
+  }, "rate_table");
+  if (!saved) return { error: "Couldn’t save the rate table. Apply the rate-table schema first.", saved: false };
+  revalidateFulfillment();
+  return { saved: true };
+}
+
 export async function saveShippingPackages(_prev: { error?: string; saved?: boolean } | null, formData: FormData) {
   const { supabase } = await requireAdmin();
   let rows: unknown[] = [];

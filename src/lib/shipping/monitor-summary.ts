@@ -12,6 +12,7 @@ export function summarizeShippingEvents(rows: Array<{ event_type: string; payloa
     exceptions: counts.shipping_exception ?? 0,
     quotes: counts.checkout_quote ?? 0,
     labelsBlocked: counts.label_blocked ?? 0,
+    rateTableFallbacks: counts.rate_table_fallback ?? 0,
     latestAt: rows[0]?.created_at ?? null,
     lastFailureReason: reason,
     lastFailureAt: lastFailure?.created_at ?? null,

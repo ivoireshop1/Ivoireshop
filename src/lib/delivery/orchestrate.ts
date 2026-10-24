@@ -7,10 +7,12 @@ import { sanitizeProviderError, type DeliveryOption } from "./types";
 import { parseCharge, manualCarrierOptions, parseRateMode } from "./manual";
 import { destinationReadyForCarrierQuotes, destinationReadyForLocalDelivery, incompleteCarrierQuoteMessage } from "./destination";
 import { taxSettingsFromRow, computeTaxLines, computeOrderTotalCents, moneyFromCents, safeUsdToCents, type TaxLine } from "@/src/lib/tax/totals";
-import { quoteLiveCarrierOptions } from "@/src/lib/shipping/live-quotes";
+import { cartParcel, quoteLiveCarrierOptions } from "@/src/lib/shipping/live-quotes";
 import { loadShippingPackages } from "@/src/lib/shipping/package-store";
 import { liveCarrierApiEnabled, parseShippingProvider } from "@/src/lib/shipping/provider";
 import { isCheckoutEligibleShippingOption } from "./checkout-eligibility";
+import { collectRateTableOptions } from "@/src/lib/shipping/rate-table";
+import { recordShippingMonitorEvent } from "@/src/lib/shipping/monitor";
 
 function logDelivery(provider: string, operation: string, success: boolean, message?: string) {
   console.info("[delivery]", {
@@ -125,7 +127,29 @@ export async function collectCheckoutOptions(input: {
   const carrierPrompt = liveCarriersWanted && !destReady ? incompleteCarrierQuoteMessage(input.destination) : "";
   const hasPickup = options.some((option) => option.provider === "pickup");
   const hasLiveCarrier = options.some((option) => (option.provider === "ups" || option.provider === "usps") && option.rateMode === "live_api");
-  let checkoutMessage: string | undefined = [carrierPrompt, live.message].filter(Boolean).join(" ") || undefined;
+  const packed = cartParcel(input.products, {
+    packages,
+    defaultPackageId: typeof settings?.default_shipping_package_id === "string" ? settings.default_shipping_package_id : null,
+  });
+  const tableWeight = packed.totalWeightLb ?? packed.parcels.reduce((sum, parcel) => sum + parcel.weightLb, 0);
+  const table = destReady
+    ? collectRateTableOptions({
+        settings: settingsRow,
+        destinationCountry: quoteCountry,
+        weightLb: tableWeight,
+        liveCarrierOptionsPresent: hasLiveCarrier,
+      })
+    : { options: [] as DeliveryOption[], usedFallback: false, message: undefined as string | undefined };
+  if (table.usedFallback) {
+    void recordShippingMonitorEvent("rate_table_fallback", {
+      reason: hasLiveCarrier ? "skipped_live_present" : "live_unavailable",
+      weightLb: tableWeight,
+      services: table.options.map((option) => option.serviceCode),
+      message: table.message ?? null,
+    });
+  }
+  options.push(...table.options);
+  let checkoutMessage: string | undefined = [carrierPrompt, live.message, table.message].filter(Boolean).join(" ") || undefined;
   if (liveCarriersWanted && destReady && !hasLiveCarrier && !live.temporaryBusy) {
     const unavailable =
       "Live UPS/USPS rates are unavailable for this address and package right now."

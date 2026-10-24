@@ -20,6 +20,11 @@ export type EasyshipQuoteErrorCode =
   | "rate_limited"
   | "request_failed";
 
+export function easyshipKeysRotated(env: NodeJS.ProcessEnv = process.env) {
+  const raw = String(env.EASYSHIP_KEYS_ROTATED ?? "").trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "on" || raw === "yes";
+}
+
 export function easyshipCredentials() {
   const key = text("EASYSHIP_API_KEY");
   const mode: EasyshipKeyMode | null = key.startsWith("sand_")
@@ -36,6 +41,21 @@ export function easyshipCredentials() {
     isSandbox: mode === "sandbox",
     isProduction: mode === "production",
     host: mode === "sandbox" ? SANDBOX_HOST : PRODUCTION_HOST,
+    keyLast4: key ? key.slice(-4) : null,
+    keysRotated: easyshipKeysRotated(),
+  };
+}
+
+export function easyshipPublicStatus() {
+  const creds = easyshipCredentials();
+  return {
+    configured: creds.configured,
+    mode: creds.mode,
+    isSandbox: creds.isSandbox,
+    isProduction: creds.isProduction,
+    keyLast4: creds.keyLast4,
+    keysRotated: creds.keysRotated,
+    rotationRequired: creds.configured && !creds.keysRotated,
   };
 }
 

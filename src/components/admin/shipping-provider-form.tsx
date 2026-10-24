@@ -67,7 +67,7 @@ export function ShippingProviderForm({
       <p className="text-sm text-[#6b6b6b]">
         {easyshipConfigured
           ? easyshipSandbox
-            ? "An Easyship sandbox key prefix is configured. Sandbox rates are illustrative and labeled at checkout. Rate scope and UPS/USPS availability stay unverified until a quote is requested."
+            ? "An Easyship sandbox key prefix is configured. Sandbox rates never appear as customer checkout prices. A courier service list is not confirmed rate availability."
             : easyshipProduction
               ? "An Easyship production key prefix is configured. Customer-facing live rates stay off until you enable them after a verified production quote. Rate scope and UPS/USPS availability stay unverified until a quote is requested."
               : "An Easyship key is present but the format is unrecognized. Expected a sand_ sandbox key or a prod_ production key."

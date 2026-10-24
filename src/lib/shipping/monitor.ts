@@ -9,7 +9,8 @@ export type ShippingMonitorEventType =
   | "missing_parcel"
   | "shipping_exception"
   | "checkout_quote"
-  | "label_blocked";
+  | "label_blocked"
+  | "rate_table_fallback";
 
 export async function recordShippingMonitorEvent(
   eventType: ShippingMonitorEventType,

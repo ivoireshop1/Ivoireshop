@@ -39,13 +39,16 @@ export function customerFacingEasyPostAllowed(input: {
   return input.customerRatesEnabled === true;
 }
 
+/** Sandbox Easyship rates never become customer checkout prices. Production stays off until founder enablement. */
 export function customerFacingEasyShipAllowed(input: {
   provider: ShippingProvider;
   isSandbox: boolean;
+  isProduction?: boolean;
   customerRatesEnabled: boolean;
 }) {
   if (input.provider !== "easyship") return false;
-  if (input.isSandbox) return true;
+  if (input.isSandbox) return false;
+  if (input.isProduction === false) return false;
   return input.customerRatesEnabled === true;
 }
 

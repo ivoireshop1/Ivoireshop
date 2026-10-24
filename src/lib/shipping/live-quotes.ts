@@ -248,13 +248,19 @@ export async function quoteLiveCarrierOptions(input: {
     if (!customerFacingEasyShipAllowed({
       provider,
       isSandbox: easyship.isSandbox,
+      isProduction: easyship.isProduction,
       customerRatesEnabled: settings.easyship_customer_rates_enabled === true,
     })) {
-      await recordShippingMonitorEvent("quote_failure", { reason: "easyship_customer_rates_locked", carriers: remaining });
+      await recordShippingMonitorEvent("quote_failure", {
+        reason: easyship.isSandbox ? "easyship_sandbox_rates_locked" : "easyship_customer_rates_locked",
+        carriers: remaining,
+      });
       return {
         options: [],
         expectedLiveCarriers: remaining,
-        message: "Easyship production quotes stay off at checkout until the founder enables customer-facing live rates after a verified production quote. Store Pickup remains available.",
+        message: easyship.isSandbox
+          ? "Easyship sandbox rates stay off at checkout. They are not live customer prices. Store Pickup remains available."
+          : "Easyship production quotes stay off at checkout until the founder enables customer-facing live rates after a verified production quote. Store Pickup remains available.",
       };
     }
   } else {

@@ -10,7 +10,10 @@ export function fulfillmentDisplay(order: {
   if (provider === "ivoire") return "Shipping · Ivoire Shop (store-calculated)";
   if (provider === "ups") return service ? `Shipping · UPS · ${service}` : "Shipping · UPS";
   if (provider === "usps") return service ? `Shipping · USPS · ${service}` : "Shipping · USPS";
-  if (provider === "store") return "Delivery · Arranged by Ivoire Shop";
+  if (provider === "store") {
+    if (service && /store-calculated/i.test(service)) return `Shipping · ${service}`;
+    return "Delivery · Arranged by Ivoire Shop";
+  }
   return order.fulfillment_method === "delivery" ? "Delivery" : "Fulfillment";
 }
 
@@ -24,6 +27,9 @@ export function shippingMethodCopy(option: {
   const price = option.amount <= 0 ? "FREE" : `$${Number(option.amount).toFixed(2)}`;
   if (option.provider === "pickup") {
     return { title: "Store Pickup", subtitle: "Pick up at our location", price };
+  }
+  if (option.provider === "store" && option.rateMode === "rate_table") {
+    return { title: "STORE-CALCULATED", subtitle: option.estimate || "Founder-approved domestic table. Not a live UPS/USPS rate.", price };
   }
   if (option.provider === "store") {
     return { title: "Local Delivery", subtitle: "Delivered by Ivoire Shop (Local Area)", price: option.amount <= 0 ? "$0.00" : price };

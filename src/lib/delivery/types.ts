@@ -9,14 +9,15 @@ export type DeliveryOption = {
   estimate?: string;
   mode?: "manual" | "api";
   zone?: "domestic" | "international";
-  rateMode?: "store_rate" | "manual_quote" | "live_api";
+  rateMode?: "store_rate" | "manual_quote" | "live_api" | "rate_table";
   usedFallback?: boolean;
   billableWeightLb?: number;
   shippoRateId?: string | null;
   easypostRateId?: string | null;
   easypostShipmentId?: string | null;
   easyshipRateId?: string | null;
-  quoteSource?: "shippo" | "easypost" | "easyship";
+  quoteSource?: "shippo" | "easypost" | "easyship" | "rate_table";
+  currency?: string;
   testRate?: boolean;
   etaDays?: number | null;
 };

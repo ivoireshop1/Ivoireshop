@@ -175,6 +175,37 @@ test("six Steel screenshot products pack with labeled estimates and never invent
   }), true);
 });
 
+test("Steel grocery default packs all six products and quantities into two parcels", () => {
+  const grocery = parseShippingPackage({
+    id: "af66826c-c9ad-464d-a001-a0f79387f949",
+    name: "standard grocery box",
+    length_in: 16,
+    width_in: 12,
+    height_in: 8,
+    max_weight_lb: 30,
+    tare_weight_lb: 0.39,
+    is_active: true,
+  })!;
+  const cart = resolveCartParcel({
+    products: steelSix.map((product) => ({ ...product })),
+    packages: [grocery],
+    defaultPackageId: grocery.id,
+  });
+  assert.equal(cart.missing, 0);
+  assert.equal(cart.parcels.length, 2);
+  const weights = cart.parcels.map((parcel) => parcel.weightLb).sort((a, b) => b - a);
+  assert.equal(weights[0], 29.49);
+  assert.equal(weights[1], 6.165);
+  const descriptions = cart.parcels.flatMap((parcel) => parcel.items.map((item) => item.description));
+  const quantities = cart.parcels.flatMap((parcel) => parcel.items.map((item) => item.quantity));
+  assert.equal(descriptions.length, 6);
+  assert.equal(quantities.reduce((sum, qty) => sum + qty, 0), 6);
+  for (const line of steelSix) {
+    assert.ok(descriptions.includes(line.name), `missing ${line.name}`);
+  }
+  assert.equal(JSON.stringify(describePackedParcels(cart.parcels)).includes("amount"), false);
+});
+
 test("six Steel products become a Shippo multi-parcel payload without inventing a carrier price", () => {
   const grocery = parseShippingPackage({
     id: "af66826c-c9ad-464d-a001-a0f79387f949",

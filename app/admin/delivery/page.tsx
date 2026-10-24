@@ -18,6 +18,10 @@ import { IvoireShippingForm } from "@/src/components/admin/ivoire-shipping-form"
 import { ShippingPackagesForm } from "@/src/components/admin/shipping-packages-form";
 import { EasyshipQuoteProbeForm } from "@/src/components/admin/easyship-quote-probe-form";
 import { ShippoTestQuoteForm } from "@/src/components/admin/shippo-test-quote-form";
+import { RateTableForm } from "@/src/components/admin/rate-table-form";
+import { EasyshipRotationCard } from "@/src/components/admin/easyship-rotation-card";
+import { parseRateTableConfig, rateTableCanOffer } from "@/src/lib/shipping/rate-table";
+import { easyshipPublicStatus } from "@/src/lib/shipping/easyship";
 import { loadShippingPackages } from "@/src/lib/shipping/package-store";
 import { parseTaxMode, taxModeLabel } from "@/src/lib/tax/totals";
 import Link from "next/link";
@@ -37,6 +41,8 @@ export default async function AdminDeliveryPage() {
   const shippo = shippoCredentials();
   const easypost = easypostCredentials();
   const easyship = easyshipCredentials();
+  const easyshipPublic = easyshipPublicStatus();
+  const rateTable = parseRateTableConfig(settings as Record<string, unknown> | null);
   const shippingProvider = parseShippingProvider(settings?.shipping_provider);
   const missingParcelCount = missingParcelQuery.count;
   const carrierOrders7d = carrierOrderQuery.count;
@@ -123,10 +129,12 @@ export default async function AdminDeliveryPage() {
           <p className="text-sm">Quote failures: <strong>{monitor.quoteFailures}</strong></p>
           <p className="text-sm">Missing parcel events: <strong>{monitor.missingParcel}</strong></p>
           <p className="text-sm">Labels blocked: <strong>{monitor.labelsBlocked}</strong></p>
+          <p className="text-sm">Rate-table fallbacks: <strong>{monitor.rateTableFallbacks}</strong></p>
+          <p className="text-sm">Rate table: <strong>{rateTableCanOffer(rateTable) ? "Enabled fallback" : rateTable.enabled ? "On but incomplete" : "Off"}</strong></p>
           <p className="text-sm">UPS/USPS orders (7 days): <strong>{carrierOrders7d ?? "—"}</strong></p>
           <p className="text-sm">Products missing package data: <strong>{missingParcelCount ?? "—"}</strong></p>
         </div>
-        <p className="mt-3 text-xs text-[#6b6b6b]">Checkout abandonment is the gap between quote requests and carrier orders in this window. Quote requests: {monitor.quotes}. Carrier orders (7 days): {carrierOrders7d ?? "—"}. Active provider: {shippingProviderLabel(shippingProvider)}. Shippo: {shippo.configured ? (shippo.isTest ? "test token present" : "token present") : "not configured"}. EasyPost: {easypost.configured ? (easypost.isTest ? "TEST key present" : easypost.isLive ? "production key present" : "unrecognized key") : "not configured"}. Easyship: {easyship.configured ? (easyship.isSandbox ? "sandbox key prefix present" : easyship.isProduction ? "production key prefix present" : "unrecognized key") : "not configured"}.</p>
+        <p className="mt-3 text-xs text-[#6b6b6b]">Checkout abandonment is the gap between quote requests and carrier orders in this window. Quote requests: {monitor.quotes}. Carrier orders (7 days): {carrierOrders7d ?? "—"}. Active provider: {shippingProviderLabel(shippingProvider)}. Shippo: {shippo.configured ? (shippo.isTest ? "test token present" : "token present") : "not configured"}. EasyPost: {easypost.configured ? (easypost.isTest ? "TEST key present" : easypost.isLive ? "production key present" : "unrecognized key") : "not configured"}. Easyship: {easyship.configured ? (easyship.isSandbox ? "sandbox key prefix present" : easyship.isProduction ? "production key prefix present" : "unrecognized key") : "not configured"}{easyshipPublic.keyLast4 ? ` · last 4 ••••${easyshipPublic.keyLast4}` : ""}{easyshipPublic.rotationRequired ? " · rotation required" : ""}.</p>
         {monitor.lastFailureReason ? (
           <p className="mt-3 rounded-xl border border-[#b8964c]/40 bg-[#fbf7ee] p-3 text-sm text-[#7c5d1a]">
             Last live-quote failure: <strong>{monitor.lastFailureReason}</strong>
@@ -148,6 +156,7 @@ export default async function AdminDeliveryPage() {
         </button>
       </form>
 
+      <EasyshipRotationCard />
       <ShippingProviderForm
         easypostConfigured={easypost.configured}
         easypostLive={easypost.isLive}
@@ -157,6 +166,7 @@ export default async function AdminDeliveryPage() {
         easyshipSandbox={easyship.isSandbox}
         settings={settings as Record<string, unknown> | null}
       />
+      <RateTableForm settings={settings as Record<string, unknown> | null} />
       <ShippingPackagesForm
         defaultPackageId={typeof settings?.default_shipping_package_id === "string" ? settings.default_shipping_package_id : null}
         packages={shippingPackages}

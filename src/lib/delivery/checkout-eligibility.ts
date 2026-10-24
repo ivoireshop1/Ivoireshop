@@ -16,7 +16,8 @@ export function isRetiredIvoireShippingSelection(selectedId: string | undefined)
 export function isCheckoutEligibleShippingOption(option: Pick<DeliveryOption, "provider" | "rateMode" | "fulfillmentMethod">) {
   if (option.provider === "ivoire") return false;
   if (option.fulfillmentMethod === "local_pickup" && option.provider === "pickup") return true;
-  if (option.provider === "store") return true;
+  if (option.provider === "store" && option.rateMode === "rate_table") return true;
+  if (option.provider === "store") return option.rateMode !== "store_rate";
   if (option.provider === "ups" || option.provider === "usps") {
     return option.rateMode === "live_api";
   }

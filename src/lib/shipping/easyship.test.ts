@@ -5,6 +5,8 @@ import {
   classifyEasyshipHttpStatus,
   easyshipAddressReady,
   easyshipCredentials,
+  easyshipKeysRotated,
+  easyshipPublicStatus,
   easyshipQuoteErrorMessage,
   easyshipQuoteItems,
   identifyEasyshipProvider,
@@ -39,11 +41,11 @@ test("checkout unavailable copy uses Easyship when Easyship is selected", () => 
   assert.doesNotMatch(easyshipApiMessage({ error: { message: "Bearer prod_secretvalue" } }), /prod_secretvalue/);
 });
 
-test("Easyship production customer rates stay locked until founder enables them", () => {
-  assert.equal(customerFacingEasyShipAllowed({ provider: "easyship", isSandbox: true, customerRatesEnabled: false }), true);
-  assert.equal(customerFacingEasyShipAllowed({ provider: "easyship", isSandbox: false, customerRatesEnabled: false }), false);
-  assert.equal(customerFacingEasyShipAllowed({ provider: "easyship", isSandbox: false, customerRatesEnabled: true }), true);
-  assert.equal(customerFacingEasyShipAllowed({ provider: "shippo", isSandbox: false, customerRatesEnabled: true }), false);
+test("Easyship sandbox rates never become customer checkout prices", () => {
+  assert.equal(customerFacingEasyShipAllowed({ provider: "easyship", isSandbox: true, isProduction: false, customerRatesEnabled: true }), false);
+  assert.equal(customerFacingEasyShipAllowed({ provider: "easyship", isSandbox: false, isProduction: true, customerRatesEnabled: false }), false);
+  assert.equal(customerFacingEasyShipAllowed({ provider: "easyship", isSandbox: false, isProduction: true, customerRatesEnabled: true }), true);
+  assert.equal(customerFacingEasyShipAllowed({ provider: "shippo", isSandbox: false, isProduction: true, customerRatesEnabled: true }), false);
 });
 
 test("Shippo TEST rates never become customer checkout prices", () => {
@@ -173,6 +175,11 @@ test("Easyship snapshots and error sanitizer never leak the API key", () => {
   });
   assert.equal(snapshot.quote_source, "easyship");
   assert.equal(snapshot.easyship_rate_id, "ups-1");
+  assert.equal(snapshot.currency, "USD");
+  const publicStatus = easyshipPublicStatus();
+  assert.equal("key" in publicStatus, false);
+  assert.equal(easyshipKeysRotated({}), false);
+  assert.equal(easyshipKeysRotated({ EASYSHIP_KEYS_ROTATED: "true" }), true);
   assert.doesNotMatch(sanitizeProviderError("Bearer sand_local_test_placeholder failed"), /sand_/);
   assert.doesNotMatch(sanitizeProviderError("prod_local_test_placeholder"), /prod_local/);
 });
