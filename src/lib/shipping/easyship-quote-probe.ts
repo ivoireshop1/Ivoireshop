@@ -1,13 +1,21 @@
+import { destinationReadyForCarrierQuotes } from "../delivery/destination.ts";
+import { originIsComplete, type StoreOrigin } from "../delivery/origin.ts";
+import { buildEasyshipRateRequest, easyshipQuoteItems, easyshipRateRequestIssues } from "./easyship.ts";
+import { describePackedParcels, resolveCartParcel, type CartParcelProduct, type ShippingPackagePreset } from "./packages.ts";
+import { mergeSteelSixProducts } from "./shippo-test-quote.ts";
+import { STEEL_SIX_CART, STEEL_SIX_SHIPPO_DESTINATION } from "./steel-six-cart.ts";
+
 export const EASYSHIP_PRODUCTION_QUOTE_CONFIRM = "request-one-easyship-production-quote";
 export const EASYSHIP_PROBE_COOLDOWN_MS = 120_000;
-export const EASYSHIP_PROBE_LIMITS = {
-  minWeightLb: 0.05,
-  maxWeightLb: 150,
-  minDimIn: 1,
-  maxDimIn: 108,
-  minDeclared: 0.5,
-  maxDeclared: 5000,
-};
+
+export const STEEL_SIX_EASYSHIP_DESTINATION = {
+  name: "Steel test recipient",
+  address_line_1: STEEL_SIX_SHIPPO_DESTINATION.address_line_1,
+  city: STEEL_SIX_SHIPPO_DESTINATION.city,
+  state: STEEL_SIX_SHIPPO_DESTINATION.state,
+  postal_code: STEEL_SIX_SHIPPO_DESTINATION.postal_code,
+  country: STEEL_SIX_SHIPPO_DESTINATION.country,
+} as const;
 
 const lastProbeAtByAdmin = new Map<string, number>();
 
@@ -26,75 +34,115 @@ export function easyshipProbeRemainingForAdmin(adminId: string, extraLastAt?: nu
 
 export type EasyshipQuoteProbeDraft = {
   confirm: string;
-  acknowledged: boolean;
-  parcel: { weightLb: number; lengthIn: number; widthIn: number; heightIn: number } | null;
-  destination: {
-    address_line_1: string;
-    city: string;
-    state: string;
-    postal_code: string;
-    country: string;
-  };
-  declaredValue: number | null;
-  description: string;
 };
 
-function positiveNumber(raw: FormDataEntryValue | null) {
-  const text = String(raw ?? "").trim();
-  if (!text) return null;
-  const value = Number(text);
-  return Number.isFinite(value) && value > 0 ? value : null;
-}
-
 export function parseEasyshipQuoteProbeDraft(formData: FormData): EasyshipQuoteProbeDraft {
-  const weightLb = positiveNumber(formData.get("weight_lb"));
-  const lengthIn = positiveNumber(formData.get("length_in"));
-  const widthIn = positiveNumber(formData.get("width_in"));
-  const heightIn = positiveNumber(formData.get("height_in"));
   return {
     confirm: String(formData.get("confirm") ?? "").trim(),
-    acknowledged: formData.get("acknowledge") === "on",
-    parcel: weightLb != null && lengthIn != null && widthIn != null && heightIn != null
-      ? { weightLb, lengthIn, widthIn, heightIn }
-      : null,
-    destination: {
-      address_line_1: String(formData.get("dest_line_1") ?? "").trim(),
-      city: String(formData.get("dest_city") ?? "").trim(),
-      state: String(formData.get("dest_state") ?? "").trim(),
-      postal_code: String(formData.get("dest_postal") ?? "").trim(),
-      country: String(formData.get("dest_country") ?? "US").trim() || "US",
-    },
-    declaredValue: positiveNumber(formData.get("declared_value")),
-    description: String(formData.get("description") ?? "").trim() || "Ivoire Shop grocery item",
   };
 }
 
 export function easyshipQuoteProbeBlocker(draft: EasyshipQuoteProbeDraft) {
-  if (!draft.acknowledged) return "Confirm that this request uses one Easyship production API call.";
   if (draft.confirm !== EASYSHIP_PRODUCTION_QUOTE_CONFIRM) {
-    return `Type ${EASYSHIP_PRODUCTION_QUOTE_CONFIRM} to request one production quote.`;
-  }
-  if (!draft.parcel) return "Enter verified packed weight and box measurements. Missing values are never invented.";
-  const { minWeightLb, maxWeightLb, minDimIn, maxDimIn, minDeclared, maxDeclared } = EASYSHIP_PROBE_LIMITS;
-  if (draft.parcel.weightLb < minWeightLb || draft.parcel.weightLb > maxWeightLb) {
-    return `Packed weight must be a realistic measured value between ${minWeightLb} and ${maxWeightLb} lb.`;
-  }
-  if ([draft.parcel.lengthIn, draft.parcel.widthIn, draft.parcel.heightIn].some((dim) => dim < minDimIn || dim > maxDimIn)) {
-    return `Box dimensions must be realistic measured values between ${minDimIn} and ${maxDimIn} in.`;
-  }
-  if (!draft.declaredValue) return "Enter the item selling price as the declared value. Prices are never invented.";
-  if (draft.declaredValue < minDeclared || draft.declaredValue > maxDeclared) {
-    return `Declared value must be the real selling price, between $${minDeclared.toFixed(2)} and $${maxDeclared.toFixed(0)}.`;
-  }
-  const dest = draft.destination;
-  if (
-    dest.address_line_1.length < 5
-    || dest.city.length < 2
-    || dest.state.length < 2
-    || dest.postal_code.length < 5
-    || dest.country.length < 2
-  ) {
-    return "Enter a complete real destination address. Addresses are never invented.";
+    return `Use the Admin confirmation button to request one production quote.`;
   }
   return null;
+}
+
+export function steelSixSellingPrice(value: unknown) {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount > 0 ? Number(amount.toFixed(2)) : null;
+}
+
+export function steelSixPriceGaps(products: Array<{ name?: string | null; price?: number | string | null }>) {
+  return products
+    .filter((product) => steelSixSellingPrice(product.price) == null)
+    .map((product) => String(product.name ?? "").trim() || "cart item");
+}
+
+function quoteProducts(products: CartParcelProduct[]) {
+  return products.map((product) => ({
+    quantity: product.quantity,
+    price: product.price,
+    description: product.name ?? product.description,
+    category_slug: product.category_slug,
+    category: product.category,
+    hs_code: product.hs_code,
+    origin_country_alpha2: product.origin_country_alpha2,
+    origin_country: product.origin_country,
+  }));
+}
+
+export function prepareSteelSixEasyshipQuote(input: {
+  origin: StoreOrigin;
+  products?: CartParcelProduct[];
+  packages?: ShippingPackagePreset[];
+  defaultPackageId?: string | null;
+}) {
+  if (!originIsComplete(input.origin)) {
+    return { ok: false as const, error: "Store origin is incomplete. Save the Delivery origin before requesting a quote." };
+  }
+  const destination = { ...STEEL_SIX_EASYSHIP_DESTINATION };
+  if (!destinationReadyForCarrierQuotes(destination)) {
+    return { ok: false as const, error: "The Clayton OH test destination is incomplete." };
+  }
+  const products = input.products ?? mergeSteelSixProducts();
+  if (products.length !== STEEL_SIX_CART.length) {
+    return { ok: false as const, error: "The six-product Steel fixture is incomplete. Missing products are never invented." };
+  }
+  const missingPrices = steelSixPriceGaps(products);
+  if (missingPrices.length) {
+    return {
+      ok: false as const,
+      error: `Selling prices are missing for ${missingPrices.join(", ")}. Declared value uses Steel catalog prices only and is never invented.`,
+      missingPrices,
+    };
+  }
+  const packed = resolveCartParcel({
+    products,
+    packages: input.packages ?? [],
+    defaultPackageId: input.defaultPackageId,
+  });
+  if (!packed.parcels.length || packed.missing) {
+    return {
+      ok: false as const,
+      error: packed.message ?? "The six-product cart could not be packed. No Easyship request was sent.",
+      packed,
+    };
+  }
+  const items = easyshipQuoteItems(quoteProducts(products));
+  if (items.length !== products.length) {
+    return { ok: false as const, error: "A Steel catalog price could not be used as declared value. Prices are never invented." };
+  }
+  const parcels = packed.parcels.map((parcel) => ({
+    weightLb: parcel.weightLb,
+    lengthIn: parcel.lengthIn,
+    widthIn: parcel.widthIn,
+    heightIn: parcel.heightIn,
+    items: easyshipQuoteItems(parcel.items),
+  }));
+  const request = buildEasyshipRateRequest({
+    origin: input.origin,
+    destination,
+    parcels,
+    items,
+  });
+  const issues = easyshipRateRequestIssues(request);
+  if (issues.length) {
+    return { ok: false as const, error: "The Easyship rate request body is not valid. No substitute rate was invented.", issues };
+  }
+  const declaredValue = Number(items.reduce((sum, item) => (
+    sum + Number(item.declared_customs_value) * Number(item.quantity)
+  ), 0).toFixed(2));
+  return {
+    ok: true as const,
+    destination,
+    products,
+    packed,
+    parcels,
+    request,
+    items,
+    declaredValue,
+    parcelEstimate: describePackedParcels(packed.parcels),
+  };
 }

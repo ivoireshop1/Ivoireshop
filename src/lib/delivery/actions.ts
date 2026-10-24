@@ -19,7 +19,9 @@ import {
   easyshipProbeRemainingForAdmin,
   easyshipQuoteProbeBlocker,
   parseEasyshipQuoteProbeDraft,
+  prepareSteelSixEasyshipQuote,
   rememberEasyshipProbe,
+  steelSixSellingPrice,
 } from "@/src/lib/shipping/easyship-quote-probe";
 import {
   mergeSteelSixProducts,
@@ -834,7 +836,19 @@ export type EasyshipQuoteProbeResult = {
   mode?: string | null;
   apiMessage?: string;
   code?: string;
-  parcel?: { weightLb: number; lengthIn: number; widthIn: number; heightIn: number };
+  parcelCount?: number;
+  declaredValue?: number;
+  parcels?: Array<{
+    boxId: string | null;
+    boxName: string | null;
+    estimatedBox: boolean;
+    weightLb: number;
+    lengthIn: number;
+    widthIn: number;
+    heightIn: number;
+    unknownItemDimensions: boolean;
+    items: string[];
+  }>;
   ups?: Array<{ service: string; amount: number; estimatedDays: number | null }>;
   usps?: Array<{ service: string; amount: number; estimatedDays: number | null }>;
   postagePurchased?: false;
@@ -864,9 +878,27 @@ export async function requestEasyshipProductionQuote(
   }
   const { data: settings } = await supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle();
   const origin = originFromSettings(settings);
-  if (!originIsComplete(origin)) {
-    return { requested: false, error: "Store origin is incomplete. Save the Delivery origin before requesting a quote." };
-  }
+  const packages = await loadShippingPackages(supabase);
+  const ids = STEEL_SIX_CART.map((item) => item.id);
+  const { data: rows } = await supabase
+    .from("products")
+    .select("id, name, price, item_weight_lb, weight_oz, packaging_weight_oz, weight_source, shipping_package_id, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in, dims, category_id")
+    .in("id", ids);
+  const categoryIds = [...new Set((rows ?? []).map((row) => row.category_id).filter((id): id is string => Boolean(id)))];
+  const { data: categories } = categoryIds.length
+    ? await supabase.from("categories").select("id, slug").in("id", categoryIds)
+    : { data: [] as Array<{ id: string; slug: string }> };
+  const slugById = new Map((categories ?? []).map((row) => [row.id, row.slug]));
+  const prepared = prepareSteelSixEasyshipQuote({
+    origin,
+    products: mergeSteelSixProducts((rows ?? []).map((row) => ({
+      ...row,
+      category_slug: row.category_id ? slugById.get(row.category_id) ?? null : null,
+    }))),
+    packages,
+    defaultPackageId: typeof settings?.default_shipping_package_id === "string" ? settings.default_shipping_package_id : null,
+  });
+  if (!prepared.ok) return { requested: false, error: prepared.error };
   rememberEasyshipProbe(user.id);
   cookieStore.set("easyship_probe_at", String(Date.now()), {
     httpOnly: true,
@@ -877,9 +909,14 @@ export async function requestEasyshipProductionQuote(
   });
   const quoted = await quoteEasyshipRates({
     origin,
-    destination: draft.destination,
-    parcel: draft.parcel!,
-    products: [{ quantity: 1, price: draft.declaredValue, description: draft.description }],
+    destination: prepared.destination,
+    parcels: prepared.parcels,
+    products: prepared.products.map((product) => ({
+      quantity: product.quantity,
+      price: steelSixSellingPrice(product.price),
+      description: product.name,
+      category_slug: product.category_slug,
+    })),
   });
   const rates = quoted.ok ? quoted.rates : [];
   return {
@@ -891,7 +928,9 @@ export async function requestEasyshipProductionQuote(
     mode: creds.mode,
     apiMessage: quoted.apiMessage || undefined,
     code: quoted.ok ? undefined : quoted.code,
-    parcel: draft.parcel!,
+    parcelCount: prepared.parcels.length,
+    declaredValue: prepared.declaredValue,
+    parcels: prepared.parcelEstimate,
     ups: rates.filter((rate) => rate.provider === "ups").map((rate) => ({
       service: rate.service,
       amount: rate.amount,

@@ -23,12 +23,16 @@ import { EasyshipRotationCard } from "@/src/components/admin/easyship-rotation-c
 import { parseRateTableConfig, rateTableCanOffer } from "@/src/lib/shipping/rate-table";
 import { easyshipPublicStatus } from "@/src/lib/shipping/easyship";
 import { loadShippingPackages } from "@/src/lib/shipping/package-store";
+import { prepareSteelSixEasyshipQuote, steelSixSellingPrice } from "@/src/lib/shipping/easyship-quote-probe";
+import { mergeSteelSixProducts } from "@/src/lib/shipping/shippo-test-quote";
+import { STEEL_SIX_CART } from "@/src/lib/shipping/steel-six-cart";
 import { parseTaxMode, taxModeLabel } from "@/src/lib/tax/totals";
 import Link from "next/link";
 
 export default async function AdminDeliveryPage() {
   const { supabase } = await requireAdmin();
-  const [{ data: settings }, { data: health }, counts, { data: monitorRows }, missingParcelQuery, carrierOrderQuery, shippingPackages] = await Promise.all([
+  const steelSixIds = STEEL_SIX_CART.map((item) => item.id);
+  const [{ data: settings }, { data: health }, counts, { data: monitorRows }, missingParcelQuery, carrierOrderQuery, shippingPackages, { data: steelSixRows }] = await Promise.all([
     supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle(),
     supabase.from("delivery_provider_health").select("provider, status, last_check_at, last_error"),
     carrierOrderCounts(),
@@ -36,7 +40,17 @@ export default async function AdminDeliveryPage() {
     supabase.from("products").select("id", { count: "exact", head: true }).or("ship_weight_lb.is.null,ship_length_in.is.null,ship_width_in.is.null,ship_height_in.is.null"),
     supabase.from("orders").select("id", { count: "exact", head: true }).in("fulfillment_provider", ["ups", "usps"]).gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
     loadShippingPackages(supabase),
+    supabase.from("products").select("id, name, price, item_weight_lb, weight_oz, packaging_weight_oz, weight_source, shipping_package_id, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in, dims, category_id").in("id", steelSixIds),
   ]);
+  const steelSixCategoryIds = [...new Set((steelSixRows ?? []).map((row) => row.category_id).filter((id): id is string => Boolean(id)))];
+  const { data: steelSixCategories } = steelSixCategoryIds.length
+    ? await supabase.from("categories").select("id, slug").in("id", steelSixCategoryIds)
+    : { data: [] as Array<{ id: string; slug: string }> };
+  const steelSixSlugById = new Map((steelSixCategories ?? []).map((row) => [row.id, row.slug]));
+  const steelSixProducts = mergeSteelSixProducts((steelSixRows ?? []).map((row) => ({
+    ...row,
+    category_slug: row.category_id ? steelSixSlugById.get(row.category_id) ?? null : null,
+  })));
   const monitor = summarizeShippingEvents((monitorRows ?? []) as Array<{ event_type: string; payload: Record<string, unknown> | null; created_at: string }>);
   const shippo = shippoCredentials();
   const easypost = easypostCredentials();
@@ -47,6 +61,12 @@ export default async function AdminDeliveryPage() {
   const missingParcelCount = missingParcelQuery.count;
   const carrierOrders7d = carrierOrderQuery.count;
   const origin = originFromSettings(settings);
+  const steelSixPrepared = prepareSteelSixEasyshipQuote({
+    origin,
+    products: steelSixProducts,
+    packages: shippingPackages,
+    defaultPackageId: typeof settings?.default_shipping_package_id === "string" ? settings.default_shipping_package_id : null,
+  });
   const healthBy = new Map((health ?? []).map((row) => [row.provider, row]));
   const shippoHealth = healthBy.get("shippo");
   const easypostHealth = healthBy.get("easypost");
@@ -174,7 +194,17 @@ export default async function AdminDeliveryPage() {
       <EasyshipQuoteProbeForm
         originComplete={originIsComplete(origin)}
         originLines={formatOriginLines(origin)}
-        packages={shippingPackages}
+        easyshipConfigured={easyship.configured}
+        easyshipProduction={easyship.isProduction}
+        lines={steelSixProducts.map((product) => ({
+          name: String(product.name ?? "Steel fixture item"),
+          quantity: product.quantity,
+          price: steelSixSellingPrice(product.price),
+        }))}
+        missingPrices={steelSixPrepared.ok ? [] : (steelSixPrepared.missingPrices ?? [])}
+        parcels={steelSixPrepared.ok ? steelSixPrepared.parcelEstimate : []}
+        packedError={steelSixPrepared.ok || steelSixPrepared.missingPrices?.length ? null : steelSixPrepared.error}
+        declaredValue={steelSixPrepared.ok ? steelSixPrepared.declaredValue : null}
       />
       <ShippoTestQuoteForm
         originComplete={originIsComplete(origin)}
