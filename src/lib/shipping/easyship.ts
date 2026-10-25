@@ -69,6 +69,8 @@ export type EasyshipRate = {
   currency: string;
   estimatedDays: number | null;
   durationTerms: string | null;
+  shipmentCharge: number | null;
+  fuelSurcharge: number | null;
   test: boolean;
 };
 
@@ -167,6 +169,12 @@ function needsCityState(country: string) {
 
 function parcelIsValid(parcel: EasyshipParcel) {
   return parcel.weightLb > 0 && parcel.lengthIn > 0 && parcel.widthIn > 0 && parcel.heightIn > 0;
+}
+
+function finiteMoney(value: unknown) {
+  if (value == null || value === "") return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : null;
 }
 
 function unitPrice(value: unknown) {
@@ -358,6 +366,8 @@ export function mapEasyshipRates(body: unknown, allowedServices: string[] = [], 
     rates?: Array<{
       courier_service?: { id?: string; name?: string; umbrella_name?: string } | null;
       total_charge?: number | string;
+      shipment_charge?: number | string | null;
+      fuel_surcharge?: number | string | null;
       currency?: string;
       min_delivery_time?: number | null;
       max_delivery_time?: number | null;
@@ -385,6 +395,8 @@ export function mapEasyshipRates(body: unknown, allowedServices: string[] = [], 
         durationTerms: typeof days === "number" && Number.isFinite(days)
           ? `${days} business day${days === 1 ? "" : "s"}`
           : null,
+        shipmentCharge: finiteMoney(row.shipment_charge),
+        fuelSurcharge: finiteMoney(row.fuel_surcharge),
         test,
       } satisfies EasyshipRate;
     })

@@ -11,6 +11,8 @@ import { AdminOrderInternalNotes } from "@/src/components/admin/admin-order-inte
 import { AdminOrderPaymentPanel } from "@/src/components/admin/admin-order-payment-panel";
 import { AdminOrderFulfillmentPanel } from "@/src/components/admin/admin-order-fulfillment-panel";
 import { AdminOrderPrintActions } from "@/src/components/admin/admin-order-print-actions";
+import { AdminUpsLabelPanel } from "@/src/components/admin/admin-ups-label-panel";
+import { easyshipLabelPurchasesEnabled } from "@/src/lib/shipping/easyship-labels";
 import { getEmailProviderStatus } from "@/src/lib/email/send";
 import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 import { LiveOrderTimeline } from "@/src/components/orders/live-order-timeline";
@@ -38,6 +40,13 @@ export default async function OrderDetailPage({ params, searchParams }: { params
   const authorNames = new Map((authors ?? []).map((row) => [row.id, row.full_name]));
   const picked = new Set((picks ?? []).map((row) => row.order_item_id));
   const carrier = isCarrierFulfillment(order.fulfillment_provider);
+  const labelHistory = carrier && order.fulfillment_provider === "ups"
+    ? await supabase
+      .from("easyship_label_purchases")
+      .select("id, status, service_name, label_cost, tracking_number, error_message, created_at, purchased_at, label_ready, easyship_shipment_id")
+      .eq("order_id", id)
+      .order("created_at", { ascending: false })
+    : { data: [], error: null };
   const customerNotified = (customerNotes ?? []).some((note) => note.event_type === "ready_for_pickup" || note.event_type === "ready_for_delivery" || note.event_type === "shipped");
   return (
     <div className="min-w-0 space-y-6">
@@ -79,6 +88,28 @@ export default async function OrderDetailPage({ params, searchParams }: { params
           }}
         />
       </div>
+      {order.fulfillment_provider === "ups" && order.fulfillment_method === "delivery" ? (
+        <AdminUpsLabelPanel
+          customerShipping={order.shipping_cost == null ? null : Number(order.shipping_cost)}
+          history={(labelHistory.data ?? []).map((row) => ({
+            id: row.id,
+            status: row.status,
+            serviceName: row.service_name,
+            labelCost: row.label_cost == null ? null : Number(row.label_cost),
+            trackingNumber: row.tracking_number,
+            errorMessage: row.error_message,
+            createdAt: row.created_at,
+            purchasedAt: row.purchased_at,
+            labelReady: Boolean(row.label_ready),
+            shipmentId: row.easyship_shipment_id,
+          }))}
+          historyError={Boolean(labelHistory.error)}
+          orderId={order.id}
+          purchased={(labelHistory.data ?? []).some((row) => row.status === "purchased")}
+          purchasesEnabled={easyshipLabelPurchasesEnabled()}
+          service={order.fulfillment_service}
+        />
+      ) : null}
       {carrier ? <AdminOrderShipmentForm order={order} /> : null}
       <div className="grid min-w-0 gap-5 lg:grid-cols-2">
         <AdminOrderFulfillmentPanel events={events ?? []} order={order} />
