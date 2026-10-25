@@ -29,7 +29,7 @@ export const OWNERS_MANUAL_PAGES: ManualPage[] = [
     kicker: "BADGER GHOST",
     body: [
       "Your guide to running Ivoire Shop day to day.",
-      "Storefront: https://ivoireshop-steel.vercel.app",
+      "Storefront: https://ivoireshop.business",
       "Built and supported by BADGER GHOST.",
       "Chapters follow the same Admin menu and storefront your customers use.",
     ],

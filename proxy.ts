@@ -6,10 +6,12 @@ import { updateSession } from "@/src/lib/supabase/proxy";
 export async function proxy(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
   const requestOrigin = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+  const hasOneTimeCredential = searchParams.has("code") || searchParams.has("token_hash");
   if (
     process.env.VERCEL_ENV === "production" &&
     isProtectedInfrastructureOrigin(requestOrigin) &&
-    !isTrustedPublicSiteOrigin(requestOrigin)
+    !isTrustedPublicSiteOrigin(requestOrigin) &&
+    !hasOneTimeCredential
   ) {
     const canonical = new URL(pathname + request.nextUrl.search, CANONICAL_PRODUCTION_ORIGIN);
     return NextResponse.redirect(canonical, 307);

@@ -46,7 +46,10 @@ export function publicImageOrigins(env: NodeJS.ProcessEnv = process.env) {
 
   // Production serverless functions must not self-fetch VERCEL_URL first.
   // Unique deployment hosts are often protected; catalog images already load on Steel.
-  if (env.VERCEL_ENV === "production") push(CANONICAL_PRODUCTION_ORIGIN);
+  if (env.VERCEL_ENV === "production") {
+    push(CANONICAL_PRODUCTION_ORIGIN);
+    push("https://ivoireshop-steel.vercel.app");
+  }
 
   const vercelHost = (env.VERCEL_URL || env.VERCEL_PROJECT_PRODUCTION_URL || "")
     .replace(/^https?:\/\//, "")

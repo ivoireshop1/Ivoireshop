@@ -1,11 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { CANONICAL_PRODUCTION_ORIGIN, isTrustedPublicSiteOrigin, resolvePublicSiteUrl } from "@/src/lib/site";
 import { RECOVERY_INVALID_PATH, RECOVERY_REQUEST_PATH, RECOVERY_SET_PASSWORD_PATH } from "@/src/lib/auth/recovery";
 import { createRouteHandlerClient } from "@/src/lib/supabase/route-handler";
 
 function sitePath(request: NextRequest, path: string) {
-  const origin = resolvePublicSiteUrl(process.env as NodeJS.ProcessEnv, request.nextUrl.origin);
-  return new URL(path, `${origin.replace(/\/$/, "")}/`);
+  return new URL(path, `${request.nextUrl.protocol}//${request.nextUrl.host}/`);
 }
 
 /**
@@ -22,13 +20,6 @@ export async function GET(request: NextRequest) {
 
   if (authError) {
     return NextResponse.redirect(sitePath(request, RECOVERY_INVALID_PATH));
-  }
-
-  const requestOrigin = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
-  if ((code || tokenHash) && process.env.VERCEL_ENV === "production" && !isTrustedPublicSiteOrigin(requestOrigin)) {
-    const canonical = new URL("/auth/callback/recovery", CANONICAL_PRODUCTION_ORIGIN);
-    canonical.search = request.nextUrl.search;
-    return NextResponse.redirect(canonical);
   }
 
   const { supabase, redirect } = createRouteHandlerClient(request);

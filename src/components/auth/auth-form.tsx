@@ -107,6 +107,11 @@ export default function AuthForm({
       setMessage("If an account exists for that email, we've sent password reset instructions.");
       return;
     }
+    if (mode === "signup") {
+      // Clear only this browser. A leftover session must not stay signed in as
+      // someone else while a new account is waiting for confirmation.
+      await supabase.auth.signOut({ scope: "local" });
+    }
     const result =
       mode === "login"
         ? await supabase.auth.signInWithPassword({ email, password })
