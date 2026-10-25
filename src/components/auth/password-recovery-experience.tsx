@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/browser";
-import { getPasswordRecoveryCallbackUrl } from "@/src/lib/site";
+import { requestPasswordReset } from "@/src/lib/auth/request-password-reset";
 import { completePasswordRecovery, revokeServerSession } from "@/src/lib/auth/password";
 import {
   applyNewPasswordAndRevokeSession,
@@ -12,22 +12,13 @@ import {
   parseRecoveryFragment,
 } from "@/src/lib/auth/recovery-session";
 import { RECOVERY_CALLBACK_PATH, RECOVERY_INVALID_PATH, RECOVERY_SET_PASSWORD_PATH } from "@/src/lib/auth/recovery";
-import { isAuthRateLimited, remainingResendMs, resendCooldownLabel } from "@/src/lib/auth/resend-cooldown";
+import { remainingResendMs, resendCooldownLabel } from "@/src/lib/auth/resend-cooldown";
 import { RESEND_CONFIRM_AT_KEY } from "@/src/lib/auth/mask-email";
 
 const PRIVACY_MESSAGE = "If an account exists for that email, we've sent password reset instructions.";
 const MISSING_ENV_MESSAGE =
   "Ivoire Shop cannot reach its account service right now. Please try again shortly, or contact the store if this continues.";
 const RESET_EMAIL_KEY = "ivoire_password_reset_email";
-
-function recoveryRedirectTo() {
-  // Prefer the live browser origin so a Preview deployment never mails users back to
-  // NEXT_PUBLIC_SITE_URL=http://localhost:3000 from a local env file.
-  if (typeof window !== "undefined" && window.location.origin) {
-    return `${window.location.origin.replace(/\/$/, "")}${RECOVERY_CALLBACK_PATH}`;
-  }
-  return getPasswordRecoveryCallbackUrl();
-}
 
 function tryCreateClient() {
   try {
@@ -176,21 +167,12 @@ export function PasswordRecoveryExperience({
   }, [invalid, router, stage]);
 
   async function sendResetEmail(targetEmail: string) {
-    const { client: supabase, error: clientError } = tryCreateClient();
-    if (!supabase) {
-      return { ok: false as const, error: clientError ?? MISSING_ENV_MESSAGE, rateLimited: false };
-    }
-    const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, {
-      redirectTo: recoveryRedirectTo(),
-    });
-    if (error) {
-      if (isAuthRateLimited(error.message)) {
-        return { ok: false as const, error: null, rateLimited: true };
-      }
+    const requested = await requestPasswordReset(targetEmail);
+    if (!requested.ok) {
       return {
         ok: false as const,
-        error: "We could not send a reset email right now. Try again in a moment.",
-        rateLimited: false,
+        error: requested.rateLimited ? null : "We could not send a reset email right now. Try again in a moment.",
+        rateLimited: requested.rateLimited,
       };
     }
     try {
