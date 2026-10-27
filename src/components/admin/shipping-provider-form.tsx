@@ -33,8 +33,15 @@ export function ShippingProviderForm({
     : settings?.shipping_provider === "easyship"
       ? "easyship"
       : "shippo";
+  const formKey = [
+    settings?.shipping_provider,
+    settings?.easyship_enabled,
+    settings?.easyship_customer_rates_enabled,
+    settings?.easypost_enabled,
+    settings?.easypost_customer_rates_enabled,
+  ].map((value) => String(value)).join("|");
   return (
-    <form action={action} className="min-w-0 space-y-4 overflow-x-hidden rounded-2xl bg-white p-5">
+    <form action={action} className="min-w-0 space-y-4 overflow-x-hidden rounded-2xl bg-white p-5" key={formKey}>
       <h2 className="font-semibold text-[#173f35]">Live rate provider</h2>
       <p className="text-sm text-[#6b6b6b]">
         Choose who supplies UPS and USPS checkout quotes. Shippo and EasyPost settings stay saved when Easyship is selected.
@@ -69,7 +76,9 @@ export function ShippingProviderForm({
           ? easyshipSandbox
             ? "An Easyship sandbox key prefix is configured. Sandbox rates never appear as customer checkout prices. A courier service list is not confirmed rate availability."
             : easyshipProduction
-              ? "An Easyship production key prefix is configured. Customer-facing live rates stay off until you enable them after a verified production quote. Rate scope and UPS/USPS availability stay unverified until a quote is requested."
+              ? settings?.easyship_customer_rates_enabled === true
+                ? "An Easyship production key prefix is configured. Customer checkout uses this saved activation for UPS and USPS quotes unless the emergency switch is explicitly off."
+                : "An Easyship production key prefix is configured. Customer-facing live rates stay off until you enable them after a verified production quote. Rate scope and UPS/USPS availability stay unverified until a quote is requested."
               : "An Easyship key is present but the format is unrecognized. Expected a sand_ sandbox key or a prod_ production key."
           : "Easyship is not configured. Add EASYSHIP_API_KEY to Vercel Production as a Secret."}
       </p>

@@ -3,7 +3,7 @@ import { requireAdmin } from "@/src/lib/auth/guards";
 import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 import { ozToLb, weightSourceBadge } from "@/src/lib/catalog/shipping-weight";
 import { redactShippingDiagnostics } from "@/src/lib/shipping/redact";
-import { shippingLiveRatesEnabled } from "@/src/lib/shipping/live-rates-switch";
+import { shippingLiveRatesSwitch } from "@/src/lib/shipping/live-rates-switch";
 import { parcelUsedEstimatedBox } from "@/src/lib/shipping/shipping-quote-log";
 
 export default async function AdminShippingWeightsPage() {
@@ -31,7 +31,7 @@ export default async function AdminShippingWeightsPage() {
     return <AdminLoadFailure message="Unable to load shipping monitor." title="Shipping" />;
   }
 
-  const liveRatesOn = shippingLiveRatesEnabled();
+  const liveRatesSwitch = shippingLiveRatesSwitch();
   const rows = (logs ?? []).map((row) => ({
     ...row,
     message: redactShippingDiagnostics(row.message),
@@ -46,7 +46,8 @@ export default async function AdminShippingWeightsPage() {
         <h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Shipping monitor</h1>
         <p className="mt-2 max-w-2xl text-sm text-[#6b6b6b]">
           Checkout quoting prefers verified weights and measured boxes. When those are missing, configured category estimates and labeled estimated box presets may be used. Estimated values are never treated as measured cartons or carrier-approved packaging. Pickup stays available when a delivery quote cannot be built.
-          Live checkout rates emergency switch: <strong>{liveRatesOn ? "ON" : "OFF"}</strong>.
+          Emergency switch SHIPPING_LIVE_RATES_ENABLED: <strong>{liveRatesSwitch.toUpperCase()}</strong>.
+          When that switch is unset, checkout follows the saved Easyship or EasyPost customer-rate activation. An explicit off value stops live quotes. Shippo still requires the switch to be on.
         </p>
         <p className="mt-2 text-sm">
           <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/delivery">Delivery Center</Link>

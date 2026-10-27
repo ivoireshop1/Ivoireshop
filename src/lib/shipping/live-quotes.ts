@@ -20,7 +20,7 @@ import { easypostCredentials, quoteEasyPostShipment } from "./easypost";
 import { easyshipCredentials, easyshipCustomerError, easyshipQuoteErrorMessage, easyshipQuoteItems, quoteEasyshipRates } from "./easyship";
 import { customerFacingEasyPostAllowed, customerFacingEasyShipAllowed, customerFacingShippoAllowed, liveCarrierApiEnabled, parseShippingProvider } from "./provider";
 import { cartUsesEstimatedWeight, recordShippingMonitorEvent, recordShippingQuoteLog } from "./monitor";
-import { shippingLiveRatesEnabled, LIVE_RATES_DISABLED_MESSAGE } from "./live-rates-switch";
+import { checkoutLiveQuotesBlocked, shippingLiveRatesEnabled, LIVE_RATES_DISABLED_MESSAGE } from "./live-rates-switch";
 import { cartCustomsReady } from "./customs";
 
 export type LiveCarrier = "ups" | "usps";
@@ -169,7 +169,7 @@ export async function quoteLiveCarrierOptions(input: {
       && parseRateMode(settings[`${carrier}_rate_mode`]) === "live_api";
   });
   if (!liveCarriers.length) return { options: [], expectedLiveCarriers: [] };
-  if (!shippingLiveRatesEnabled()) {
+  if (checkoutLiveQuotesBlocked(settings)) {
     await recordShippingQuoteLog({
       usedEstimatedWeight: false,
       weightSources: input.products.map((product) => product.weight_source ?? null),

@@ -87,6 +87,7 @@ export function CheckoutShippingMethods({
             expanded={expanded === "ups"}
             onToggle={() => toggleCarrier("ups")}
             options={ups}
+            quoteMessage={message}
             temporaryBusy={temporaryBusyCarriers.includes("ups")}
             unavailableMessage={carrierUnavailableCopy("ups", provider)}
             value={value}
@@ -100,6 +101,7 @@ export function CheckoutShippingMethods({
             expanded={expanded === "usps"}
             onToggle={() => toggleCarrier("usps")}
             options={usps}
+            quoteMessage={message}
             temporaryBusy={temporaryBusyCarriers.includes("usps")}
             unavailableMessage={carrierUnavailableCopy("usps", provider)}
             value={value}
@@ -176,6 +178,7 @@ function CarrierAccordion({
   onChange,
   baseId,
   unavailableMessage,
+  quoteMessage,
   temporaryBusy = false,
 }: {
   carrier: CarrierKey;
@@ -186,6 +189,7 @@ function CarrierAccordion({
   onChange: (option: DeliveryOption) => void;
   baseId: string;
   unavailableMessage?: string;
+  quoteMessage?: string | null;
   temporaryBusy?: boolean;
 }) {
   const meta = CARRIER_META[carrier];
@@ -233,7 +237,7 @@ function CarrierAccordion({
               : keepSelectionBusy
                 ? "Temporarily busy — your selection is kept"
                 : unavailable
-                  ? "Unavailable for this destination"
+                  ? (quoteMessage ? "Quote unavailable" : "Unavailable for this destination")
                   : meta.hint}
           </span>
         </span>
@@ -257,7 +261,7 @@ function CarrierAccordion({
               <p className="text-sm text-[#7c5d1a]" role="status">
                 {keepSelectionBusy
                   ? `${meta.title} rates are temporarily busy. If you already selected a ${meta.title} service, it is kept — wait a moment or continue to payment.`
-                  : (unavailableMessage || `No ${meta.title} services are available for this address.`)}
+                  : (quoteMessage || unavailableMessage || `No ${meta.title} services are available for this address.`)}
               </p>
             ) : (
               options.map((option) => {

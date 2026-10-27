@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/browser";
 import { requestPasswordReset } from "@/src/lib/auth/request-password-reset";
 import { completePasswordRecovery, revokeServerSession } from "@/src/lib/auth/password";
+import { PasswordField } from "@/src/components/auth/password-field";
 import {
   applyNewPasswordAndRevokeSession,
   canSetRecoveryPassword,
@@ -311,30 +312,20 @@ export function PasswordRecoveryExperience({
           <h1 className="text-2xl font-semibold text-forest-green sm:text-3xl">Choose a new password</h1>
           <p className="mt-3 text-sm leading-6 text-muted">After you save, you will be signed out and must sign in with the new password.</p>
           <form className="mt-8 space-y-5" onSubmit={setPasswordSubmit}>
-            <label className="block text-sm font-medium">
-              New password
-              <input
-                autoComplete="new-password"
-                className="mt-2 min-h-11 w-full min-w-0 rounded-lg border border-black/15 px-4 py-3"
-                minLength={8}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                type="password"
-                value={password}
-              />
-            </label>
-            <label className="block text-sm font-medium">
-              Confirm new password
-              <input
-                autoComplete="new-password"
-                className="mt-2 min-h-11 w-full min-w-0 rounded-lg border border-black/15 px-4 py-3"
-                minLength={8}
-                onChange={(event) => setConfirm(event.target.value)}
-                required
-                type="password"
-                value={confirm}
-              />
-            </label>
+            <PasswordField
+              autoComplete="new-password"
+              id="new-password"
+              label="New password"
+              onChange={setPassword}
+              value={password}
+            />
+            <PasswordField
+              autoComplete="new-password"
+              id="confirm-password"
+              label="Confirm new password"
+              onChange={setConfirm}
+              value={confirm}
+            />
             <p className="text-xs leading-5 text-muted">Use at least 8 characters. Both fields must match.</p>
             <button className="min-h-11 w-full rounded-lg bg-forest-green px-4 py-3 font-medium text-white disabled:opacity-60" disabled={isSubmitting} type="submit">
               {isSubmitting ? "Updating..." : "Update password"}

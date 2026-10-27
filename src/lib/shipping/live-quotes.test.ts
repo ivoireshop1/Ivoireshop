@@ -164,8 +164,9 @@ test("checkout live quotes never call the AI gateway and still log parcel failur
   assert.doesNotMatch(source, /analyzeProductImageWithGateway/);
   assert.match(source, /recordShippingQuoteLog/);
   assert.match(source, /status: packed\.code \?\? "missing_parcel"/);
+  assert.match(source, /checkoutLiveQuotesBlocked\(settings\)/);
   assert.match(source, /shippingLiveRatesEnabled/);
-  assert.match(source, /if \(!shippingLiveRatesEnabled\(\)\)/);
+  assert.doesNotMatch(source, /if \(!shippingLiveRatesEnabled\(\)\)/);
   assert.match(source, /customerFacingShippoAllowed/);
   assert.match(source, /shippo_test_rates_locked/);
   assert.match(source, /parcels: packed\.parcels/);

@@ -11,6 +11,7 @@ import { getAuthCallbackUrl } from "@/src/lib/site";
 import { customerAuthPageCopy, publicAuthActionMessage, RATE_LIMIT_BODY, RATE_LIMIT_TITLE } from "@/src/lib/auth/customer-auth-messages";
 import { PENDING_SIGNUP_EMAIL_KEY, RESEND_CONFIRM_AT_KEY } from "@/src/lib/auth/mask-email";
 import { isAuthRateLimited, remainingResendMs, resendCooldownLabel } from "@/src/lib/auth/resend-cooldown";
+import { PasswordField } from "@/src/components/auth/password-field";
 
 type AuthMode = "login" | "signup" | "reset" | "update-password";
 
@@ -212,18 +213,13 @@ export default function AuthForm({
             />
           </label>
           {mode !== "reset" && (
-            <label className="block text-sm font-medium">
-              Password
-              <input
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                className="mt-2 min-h-11 w-full min-w-0 rounded-lg border border-black/15 px-4 py-3"
-                type="password"
-                minLength={8}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-              />
-            </label>
+            <PasswordField
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              id="password"
+              label="Password"
+              onChange={setPassword}
+              value={password}
+            />
           )}
           <button
             className="min-h-11 w-full rounded-lg bg-forest-green px-4 py-3 font-medium text-white disabled:opacity-60"
