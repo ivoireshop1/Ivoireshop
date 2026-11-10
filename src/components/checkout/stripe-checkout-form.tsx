@@ -4,6 +4,7 @@ import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { stripePaymentStatus } from "@/src/lib/payments/stripe-actions";
+import { stripeBrowserOptions } from "@/src/lib/payments/stripe-client";
 import type { CheckoutReceipt } from "@/src/lib/checkout/checkout-validation";
 
 const loaders = new Map<string, Promise<Stripe | null>>();
@@ -11,7 +12,7 @@ const loaders = new Map<string, Promise<Stripe | null>>();
 function stripePromise(publishableKey: string) {
   let pending = loaders.get(publishableKey);
   if (!pending) {
-    pending = loadStripe(publishableKey);
+    pending = loadStripe(publishableKey, stripeBrowserOptions());
     loaders.set(publishableKey, pending);
   }
   return pending;

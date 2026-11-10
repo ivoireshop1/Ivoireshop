@@ -16,12 +16,12 @@ type CartContextValue = {
   itemCount: number;
   subtotal: number;
   addItem: (item: CartInput, quantity?: number) => void;
-  removeItem: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
-  incrementQuantity: (productId: string) => void;
-  decrementQuantity: (productId: string) => void;
+  removeItem: (productId: string, weightOptionId?: string | null) => void;
+  updateQuantity: (productId: string, quantity: number, weightOptionId?: string | null) => void;
+  incrementQuantity: (productId: string, weightOptionId?: string | null) => void;
+  decrementQuantity: (productId: string, weightOptionId?: string | null) => void;
   clearCart: () => void;
-  completePurchase: (purchased: { productId: string; quantity: number }[], orderId: string) => void;
+  completePurchase: (purchased: Array<{ productId: string; quantity: number; weightOptionId?: string | null }>, orderId: string) => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -60,27 +60,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         unitIncrement: settings.unitIncrement,
         minSellQty: settings.minSellQty,
         maxSellQty: settings.maxSellQty,
+        weightOptionId: item.weightOptionId ?? null,
+        weightOptionLabel: item.weightOptionLabel ?? null,
+        netWeightLb: item.netWeightLb ?? null,
         quantity: snapQuantity(("quantity" in item && item.quantity ? item.quantity : quantity), settings),
       };
       setItems((current) => mergeItem(current, complete));
       setLastAddedItem(complete);
       setAddEventId((eventId) => eventId + 1);
     },
-    removeItem: (productId: string) => setItems((current) => current.filter((item) => item.productId !== productId)),
-    updateQuantity: (productId: string, quantity: number) => setItems((current) => current.flatMap((item) => {
-      if (item.productId !== productId) return [item];
+    removeItem: (productId: string, weightOptionId?: string | null) => setItems((current) => current.filter((item) => item.productId !== productId || (weightOptionId != null && (item.weightOptionId ?? "") !== (weightOptionId ?? "")))),
+    updateQuantity: (productId: string, quantity: number, weightOptionId?: string | null) => setItems((current) => current.flatMap((item) => {
+      if (item.productId !== productId || (weightOptionId != null && (item.weightOptionId ?? "") !== (weightOptionId ?? ""))) return [item];
       if (!Number.isFinite(quantity) || quantity <= 0) return [];
       const settings = settingsFromCartItem(item);
       const next = snapQuantity(quantity, settings);
       return next < settings.minSellQty ? [] : [{ ...item, quantity: next }];
     })),
-    incrementQuantity: (productId: string) => setItems((current) => current.map((item) => {
-      if (item.productId !== productId) return item;
+    incrementQuantity: (productId: string, weightOptionId?: string | null) => setItems((current) => current.map((item) => {
+      if (item.productId !== productId || (weightOptionId != null && (item.weightOptionId ?? "") !== (weightOptionId ?? ""))) return item;
       const settings = settingsFromCartItem(item);
       return { ...item, quantity: snapQuantity(item.quantity + settings.unitIncrement, settings) };
     })),
-    decrementQuantity: (productId: string) => setItems((current) => current.flatMap((item) => {
-      if (item.productId !== productId) return [item];
+    decrementQuantity: (productId: string, weightOptionId?: string | null) => setItems((current) => current.flatMap((item) => {
+      if (item.productId !== productId || (weightOptionId != null && (item.weightOptionId ?? "") !== (weightOptionId ?? ""))) return [item];
       const settings = settingsFromCartItem(item);
       const next = roundQty(item.quantity - settings.unitIncrement);
       if (next < settings.minSellQty - 1e-9) return [];

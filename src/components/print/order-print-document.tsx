@@ -14,6 +14,7 @@ type PrintItem = {
   picked?: boolean;
   selling_unit?: string | null;
   selling_method?: string | null;
+  weight_option_label?: string | null;
 };
 
 function formatPrintQty(item: PrintItem) {
@@ -154,8 +155,8 @@ export function OrderPrintDocument({
                   ) : null}
                   <span>
                     {kind === "packing-slip" && item.selling_unit && item.selling_unit !== "each"
-                      ? `${formatPrintQty(item)} ${item.product_name}`
-                      : item.product_name}
+                      ? `${formatPrintQty(item)} ${item.product_name}${item.weight_option_label ? ` · ${item.weight_option_label}` : ""}`
+                      : `${item.product_name}${item.weight_option_label ? ` · ${item.weight_option_label}` : ""}`}
                   </span>
                 </div>
               </td>
@@ -168,7 +169,12 @@ export function OrderPrintDocument({
       </table>
       {kind === "packing-slip" ? (
         <p className="mt-2 text-xs">
-          Item count: {items.reduce((sum, item) => sum + Number(item.quantity), 0)} · Carrier: {order.fulfillment_provider || "Not assigned"} · Method: {fulfillment}
+          Item count: {items.reduce((sum, item) => sum + Number(item.quantity), 0)}
+          {" · "}Order {order.order_number}
+          {" · "}Service: {order.fulfillment_service || fulfillment}
+          {" · "}Carrier: {order.fulfillment_provider || "Not assigned"}
+          {" · "}Rate source: {typeof snapshot.quote_source === "string" ? snapshot.quote_source : "order record"}
+          {typeof snapshot.currency === "string" ? ` · ${snapshot.currency}` : ""}
           {order.tracking_number ? ` · Tracking: ${order.tracking_number}` : ""}
           {order.shipped_at ? ` · Ship date: ${formatStoreDateTime(order.shipped_at)}` : ""}
         </p>

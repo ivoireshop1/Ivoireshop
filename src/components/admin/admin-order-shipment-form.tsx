@@ -7,10 +7,13 @@ import { carrierDisplayName, isCarrierOrder, officialTrackLabel, shippingOpsStat
 import { formatStoreDateTime } from "@/src/lib/store/timezone";
 import { useLiveNotifications } from "@/src/components/realtime/live-notifications-provider";
 
-function SubmitButton({ label, success }: { label: string; success?: boolean }) {
+function SubmitButton({ label, success, intent, tone = "solid" }: { label: string; success?: boolean; intent: "tracking" | "ship"; tone?: "solid" | "quiet" }) {
   const { pending } = useFormStatus();
+  const className = tone === "quiet"
+    ? "min-h-11 rounded-xl border border-[#173f35]/20 px-4 py-2 text-sm font-semibold text-[#173f35]"
+    : "min-h-11 rounded-xl bg-[#173f35] px-4 py-2 text-sm text-white";
   return (
-    <button className="min-h-11 rounded-xl bg-[#173f35] px-4 py-2 text-sm text-white" disabled={pending} type="submit">
+    <button className={className} disabled={pending} name="intent" type="submit" value={intent}>
       {pending ? "Saving…" : success ? "Tracking saved ✓" : label}
     </button>
   );
@@ -125,7 +128,10 @@ export function AdminOrderShipmentForm({
                   : "Tracking saved ✓ Customer notified."}
             </p>
           ) : null}
-          <SubmitButton label={correction ? "Save Correction" : "Save Tracking & Mark Shipped"} success={state?.saved} />
+          <div className="flex flex-wrap gap-2">
+            <SubmitButton intent="tracking" label={correction ? "Save Correction" : "Save tracking"} success={state?.saved && !state.markedShipped} />
+            {correction || order.shipped_at ? null : <SubmitButton intent="ship" label="Mark as shipped" success={state?.markedShipped} tone="quiet" />}
+          </div>
         </form>
       )}
     </section>

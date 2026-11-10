@@ -7,8 +7,8 @@ import {
   resolvePublicSiteUrl,
 } from "./site.ts";
 
-test("founder production origin is ivoireshop-steel, not ivoire-shop-five", () => {
-  assert.equal(CANONICAL_PRODUCTION_ORIGIN, "https://ivoireshop-steel.vercel.app");
+test("founder production origin is ivoireshop.business, not ivoire-shop-five", () => {
+  assert.equal(CANONICAL_PRODUCTION_ORIGIN, "https://ivoireshop.business");
   assert.doesNotMatch(CANONICAL_PRODUCTION_ORIGIN, /ivoire-shop-five/);
 });
 
@@ -28,6 +28,25 @@ test("production site URL uses the founder storefront", () => {
   assert.equal(
     resolvePublicSiteUrl({ VERCEL_ENV: "production" }, "https://ivoireshop-random.vercel.app"),
     CANONICAL_PRODUCTION_ORIGIN,
+  );
+  assert.equal(
+    resolvePublicSiteUrl({ VERCEL_ENV: "production" }, "https://ivoire-shop-five.vercel.app"),
+    "https://ivoireshop.business",
+  );
+});
+
+test("production auth stays on the trusted host that started it", () => {
+  assert.equal(
+    resolvePublicSiteUrl({ VERCEL_ENV: "production" }, "https://ivoireshop.business"),
+    "https://ivoireshop.business",
+  );
+  assert.equal(
+    resolvePublicSiteUrl({ VERCEL_ENV: "production" }, "https://www.ivoireshop.business"),
+    "https://www.ivoireshop.business",
+  );
+  assert.equal(
+    resolvePublicSiteUrl({ VERCEL_ENV: "production" }, "https://ivoireshop-steel.vercel.app"),
+    "https://ivoireshop-steel.vercel.app",
   );
 });
 

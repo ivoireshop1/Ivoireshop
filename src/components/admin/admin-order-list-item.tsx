@@ -108,7 +108,7 @@ export function AdminOrderListItem({ order }: { order: AdminOrderListItemData })
             });
             return (
               <span className="relative h-10 w-10 overflow-hidden rounded-lg bg-[#eadfce]" key={`${item.product_name}-${index}`}>
-                {src && isNextImageSrc(src) ? <Image alt="" className="object-cover" fill sizes="40px" src={src} unoptimized /> : null}
+                {src && isNextImageSrc(src) ? <Image alt="" className="object-cover" fill sizes="40px" src={src} /> : null}
               </span>
             );
           })}

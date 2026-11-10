@@ -6,10 +6,12 @@ import { createClient } from "@/src/lib/supabase/browser";
 import { useRouter } from "next/navigation";
 import { resolveAuthRedirectTarget } from "@/src/lib/navigation/smart-navigation";
 import { resolvePostLoginPath } from "@/src/lib/auth/post-login";
-import { getAuthCallbackUrl, getPasswordRecoveryCallbackUrl } from "@/src/lib/site";
+import { requestPasswordReset } from "@/src/lib/auth/request-password-reset";
+import { getAuthCallbackUrl } from "@/src/lib/site";
 import { customerAuthPageCopy, publicAuthActionMessage, RATE_LIMIT_BODY, RATE_LIMIT_TITLE } from "@/src/lib/auth/customer-auth-messages";
 import { PENDING_SIGNUP_EMAIL_KEY, RESEND_CONFIRM_AT_KEY } from "@/src/lib/auth/mask-email";
 import { isAuthRateLimited, remainingResendMs, resendCooldownLabel } from "@/src/lib/auth/resend-cooldown";
+import { PasswordField } from "@/src/components/auth/password-field";
 
 type AuthMode = "login" | "signup" | "reset" | "update-password";
 
@@ -100,12 +102,19 @@ export default function AuthForm({
       "/account",
     );
     if (mode === "reset") {
-      await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: getPasswordRecoveryCallbackUrl(),
-      });
+      const requested = await requestPasswordReset(email);
       setIsSubmitting(false);
+      if (!requested.ok && requested.rateLimited) {
+        setRateLimited(true);
+        return;
+      }
       setMessage("If an account exists for that email, we've sent password reset instructions.");
       return;
+    }
+    if (mode === "signup") {
+      // Clear only this browser. A leftover session must not stay signed in as
+      // someone else while a new account is waiting for confirmation.
+      await supabase.auth.signOut({ scope: "local" });
     }
     const result =
       mode === "login"
@@ -204,18 +213,13 @@ export default function AuthForm({
             />
           </label>
           {mode !== "reset" && (
-            <label className="block text-sm font-medium">
-              Password
-              <input
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                className="mt-2 min-h-11 w-full min-w-0 rounded-lg border border-black/15 px-4 py-3"
-                type="password"
-                minLength={8}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-              />
-            </label>
+            <PasswordField
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              id="password"
+              label="Password"
+              onChange={setPassword}
+              value={password}
+            />
           )}
           <button
             className="min-h-11 w-full rounded-lg bg-forest-green px-4 py-3 font-medium text-white disabled:opacity-60"

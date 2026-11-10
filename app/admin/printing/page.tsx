@@ -15,7 +15,7 @@ export default async function AdminPrintingPage() {
       </div>
       <section className="rounded-2xl bg-white p-5">
         <h2 className="font-semibold text-[#173f35]">Orders</h2>
-        <p className="mt-2 text-sm text-[#6b6b6b]">Open an order, choose a document, then print. Packing slips, receipts, summaries, and delivery sheets use stored order totals.</p>
+        <p className="mt-2 text-sm text-[#6b6b6b]">Open an order, choose a document, then print. Packing slips, receipts, summaries, and delivery sheets use stored order totals. A purchased UPS label is printed from that order after the carrier file is saved.</p>
         <Link className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-[#173f35] underline" href="/admin/orders">
           Open orders
         </Link>

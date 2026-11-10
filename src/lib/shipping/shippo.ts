@@ -29,10 +29,28 @@ export function parseCountryList(raw: unknown) {
 }
 
 export function internationalDestinationAllowed(country: string | null | undefined, allowlist: string[]) {
+  return internationalEligibility(country, allowlist).allowed;
+}
+
+export function internationalEligibility(country: string | null | undefined, allowlist: string[]) {
   const code = (country ?? "").trim().toUpperCase();
-  if (!code || code === "US" || code === "USA") return true;
-  if (!allowlist.length) return true;
-  return allowlist.includes(code === "USA" ? "US" : code);
+  const normalized = code === "USA" || code === "UNITED STATES" || code === "UNITED STATES OF AMERICA" ? "US" : code;
+  if (!normalized || normalized === "US") return { allowed: true as const, reason: null };
+  if (!allowlist.length) {
+    return {
+      allowed: false as const,
+      reason: "not_configured" as const,
+      message: "International delivery eligibility is not configured yet. Store Pickup remains available.",
+    };
+  }
+  if (!allowlist.includes(normalized)) {
+    return {
+      allowed: false as const,
+      reason: "not_listed" as const,
+      message: "This destination is not on the founder international shipping list. Store Pickup remains available.",
+    };
+  }
+  return { allowed: true as const, reason: null };
 }
 
 export function parseAllowedServices(raw: unknown) {
@@ -469,26 +487,58 @@ export function isShippoRateLimitStatus(status: number, text = "") {
   return status === 429 || /too many requests|10429|rate.?limit/i.test(text);
 }
 
+export function shippoMissingCarrierMessage(input: {
+  missing: Array<"ups" | "usps">;
+  upsAccounts: number;
+  uspsAccounts: number;
+}) {
+  return input.missing.map((carrier) => {
+    const connected = carrier === "ups" ? input.upsAccounts : input.uspsAccounts;
+    if (connected === 0) {
+      return `${carrier.toUpperCase()} is not connected on this Shippo account. No ${carrier.toUpperCase()} rate was invented.`;
+    }
+    return `Shippo returned no ${carrier.toUpperCase()} service for these parcels. No substitute rate was invented.`;
+  }).join(" ");
+}
+
+export type ShippoParcelInput = {
+  weightLb: number;
+  lengthIn: number;
+  widthIn: number;
+  heightIn: number;
+};
+
+export function shippoShipmentParcels(input: {
+  parcel?: ShippoParcelInput | null;
+  parcels?: ShippoParcelInput[];
+}) {
+  const parcels = input.parcels?.length ? input.parcels : input.parcel ? [input.parcel] : [];
+  return parcels.map((parcel) => ({
+    length: String(parcel.lengthIn),
+    width: String(parcel.widthIn),
+    height: String(parcel.heightIn),
+    distance_unit: "in" as const,
+    weight: String(parcel.weightLb),
+    mass_unit: "lb" as const,
+  }));
+}
+
 export async function quoteShippoShipment(input: {
   origin: Address;
   destination: Address;
-  parcel: { weightLb: number; lengthIn: number; widthIn: number; heightIn: number };
+  parcel?: ShippoParcelInput | null;
+  parcels?: ShippoParcelInput[];
   allowedServices?: string[];
   carrierAccountIds?: string[];
 }) {
   const creds = shippoCredentials();
   if (!creds.configured) return { ok: false as const, error: "Shippo is not configured.", rates: [] as ShippoRate[] };
+  const parcels = shippoShipmentParcels(input);
+  if (!parcels.length) return { ok: false as const, error: "Shippo needs at least one packed parcel.", rates: [] as ShippoRate[] };
   const payload: Record<string, unknown> = {
     address_from: shippoAddress(input.origin),
     address_to: shippoAddress(input.destination),
-    parcels: [{
-      length: String(input.parcel.lengthIn),
-      width: String(input.parcel.widthIn),
-      height: String(input.parcel.heightIn),
-      distance_unit: "in",
-      weight: String(input.parcel.weightLb),
-      mass_unit: "lb",
-    }],
+    parcels,
     async: false,
   };
   if (input.carrierAccountIds?.length) payload.carrier_accounts = input.carrierAccountIds;

@@ -12,6 +12,12 @@ export function createClient() {
   }
 
   const { url, anonKey } = getSupabaseConfig();
-  client = createBrowserClient(url, anonKey);
+  client = createBrowserClient(url, anonKey, {
+    cookieOptions: {
+      path: "/",
+      sameSite: "lax",
+      secure: typeof window !== "undefined" && window.location.protocol === "https:",
+    },
+  });
   return client;
 }

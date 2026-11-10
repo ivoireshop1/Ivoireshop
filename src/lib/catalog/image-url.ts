@@ -1,3 +1,8 @@
+/** Remote hosts allowed by next.config.ts images.remotePatterns, plus local public files. */
+export function imageUsesNextOptimizer(src: string) {
+  return isNextImageSrc(src);
+}
+
 export function isNextImageSrc(src: string) {
   if (src.startsWith("/") && !src.startsWith("//") && !src.includes("\\")) return true;
   try {

@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { formatOriginLines, type StoreOrigin } from "@/src/lib/delivery/origin";
 import type { DeliveryOption } from "@/src/lib/delivery/types";
 import { shippingMethodCopy } from "@/src/lib/delivery/labels";
+import { carrierUnavailableCopy, parseShippingProvider, type ShippingProvider } from "@/src/lib/shipping/provider";
 
 type CarrierKey = "ups" | "usps";
 
@@ -21,6 +22,7 @@ export function CheckoutShippingMethods({
   message,
   expectedLiveCarriers = [],
   temporaryBusyCarriers = [],
+  quoteProvider = "shippo",
 }: {
   options: DeliveryOption[];
   value: string;
@@ -28,11 +30,13 @@ export function CheckoutShippingMethods({
   busy?: boolean;
   pickupOrigin?: StoreOrigin | null;
   message?: string | null;
-  /** Carriers enabled for live Shippo quotes — always show accordion even when Shippo returns no rates. */
+  /** Carriers enabled for live quotes — always show accordion even when the selected provider returns no rates. */
   expectedLiveCarriers?: Array<"ups" | "usps">;
   /** Carriers that hit a temporary API limit — must not display as permanently Unavailable. */
   temporaryBusyCarriers?: Array<"ups" | "usps">;
+  quoteProvider?: ShippingProvider;
 }) {
+  const provider = parseShippingProvider(quoteProvider);
   const pickupLines = formatOriginLines(pickupOrigin ?? undefined);
   const baseId = useId();
 
@@ -83,8 +87,9 @@ export function CheckoutShippingMethods({
             expanded={expanded === "ups"}
             onToggle={() => toggleCarrier("ups")}
             options={ups}
+            quoteMessage={message}
             temporaryBusy={temporaryBusyCarriers.includes("ups")}
-            unavailableMessage="UPS is unavailable for this destination and parcel. Shippo did not return a UPS test rate. USPS and store options below are still available when listed."
+            unavailableMessage={carrierUnavailableCopy("ups", provider)}
             value={value}
             onChange={onChange}
           />
@@ -96,8 +101,9 @@ export function CheckoutShippingMethods({
             expanded={expanded === "usps"}
             onToggle={() => toggleCarrier("usps")}
             options={usps}
+            quoteMessage={message}
             temporaryBusy={temporaryBusyCarriers.includes("usps")}
-            unavailableMessage="USPS is unavailable for this destination and parcel. Shippo did not return a USPS test rate."
+            unavailableMessage={carrierUnavailableCopy("usps", provider)}
             value={value}
             onChange={onChange}
           />
@@ -172,6 +178,7 @@ function CarrierAccordion({
   onChange,
   baseId,
   unavailableMessage,
+  quoteMessage,
   temporaryBusy = false,
 }: {
   carrier: CarrierKey;
@@ -182,6 +189,7 @@ function CarrierAccordion({
   onChange: (option: DeliveryOption) => void;
   baseId: string;
   unavailableMessage?: string;
+  quoteMessage?: string | null;
   temporaryBusy?: boolean;
 }) {
   const meta = CARRIER_META[carrier];
@@ -229,7 +237,7 @@ function CarrierAccordion({
               : keepSelectionBusy
                 ? "Temporarily busy — your selection is kept"
                 : unavailable
-                  ? "Unavailable for this destination"
+                  ? (quoteMessage ? "Quote unavailable" : "Unavailable for this destination")
                   : meta.hint}
           </span>
         </span>
@@ -253,7 +261,7 @@ function CarrierAccordion({
               <p className="text-sm text-[#7c5d1a]" role="status">
                 {keepSelectionBusy
                   ? `${meta.title} rates are temporarily busy. If you already selected a ${meta.title} service, it is kept — wait a moment or continue to payment.`
-                  : (unavailableMessage || `No ${meta.title} services are available for this address.`)}
+                  : (quoteMessage || unavailableMessage || `No ${meta.title} services are available for this address.`)}
               </p>
             ) : (
               options.map((option) => {

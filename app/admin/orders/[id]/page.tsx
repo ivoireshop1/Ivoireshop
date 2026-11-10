@@ -11,6 +11,14 @@ import { AdminOrderInternalNotes } from "@/src/components/admin/admin-order-inte
 import { AdminOrderPaymentPanel } from "@/src/components/admin/admin-order-payment-panel";
 import { AdminOrderFulfillmentPanel } from "@/src/components/admin/admin-order-fulfillment-panel";
 import { AdminOrderPrintActions } from "@/src/components/admin/admin-order-print-actions";
+import { AdminUpsLabelPanel } from "@/src/components/admin/admin-ups-label-panel";
+import { CompareBuyLabels } from "@/src/components/admin/compare-buy-labels";
+import { easyshipLabelPurchasesEnabled, upsLabelEligibility } from "@/src/lib/shipping/easyship-labels";
+import { refreshCompareLabelQuotes } from "@/src/lib/shipping/compare-label-actions";
+import { purchaseUpsLabel } from "@/src/lib/shipping/easyship-label-actions";
+import { compareLabelsEligible } from "@/src/lib/shipping/compare-labels";
+import { originFromSettings } from "@/src/lib/delivery/origin";
+import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
 import { getEmailProviderStatus } from "@/src/lib/email/send";
 import { AdminLoadFailure } from "@/src/components/admin/admin-load-failure";
 import { LiveOrderTimeline } from "@/src/components/orders/live-order-timeline";
@@ -38,6 +46,33 @@ export default async function OrderDetailPage({ params, searchParams }: { params
   const authorNames = new Map((authors ?? []).map((row) => [row.id, row.full_name]));
   const picked = new Set((picks ?? []).map((row) => row.order_item_id));
   const carrier = isCarrierFulfillment(order.fulfillment_provider);
+  const showCompare = compareLabelsEligible(order);
+  const { data: originSettings } = showCompare
+    ? await supabase.from("store_settings").select("origin_name, origin_address_line_1, origin_city, origin_state, origin_postal_code, origin_country").eq("id", STORE_SETTINGS_ID).maybeSingle()
+    : { data: null };
+  const savedAddress = order.shipping_address && typeof order.shipping_address === "object" ? order.shipping_address as Record<string, unknown> : {};
+  const snapshot = order.delivery_snapshot && typeof order.delivery_snapshot === "object" && !Array.isArray(order.delivery_snapshot)
+    ? order.delivery_snapshot as Record<string, unknown>
+    : null;
+  const savedCourierServiceId = typeof snapshot?.easyship_rate_id === "string" ? snapshot.easyship_rate_id : null;
+  const verifiedUpsPurchase = upsLabelEligibility({
+    id: order.id,
+    paymentStatus: String(order.payment_status ?? ""),
+    isDemo: Boolean(order.is_demo),
+    status: String(order.status ?? ""),
+    fulfillmentMethod: String(order.fulfillment_method ?? ""),
+    provider: String(order.fulfillment_provider ?? ""),
+    service: order.fulfillment_service ? String(order.fulfillment_service) : null,
+    shippingCost: order.shipping_cost == null ? null : Number(order.shipping_cost),
+    courierServiceId: savedCourierServiceId,
+  }).ok;
+  const labelHistory = carrier && order.fulfillment_provider === "ups"
+    ? await supabase
+      .from("easyship_label_purchases")
+      .select("id, status, service_name, label_cost, tracking_number, error_message, created_at, purchased_at, label_ready, easyship_shipment_id")
+      .eq("order_id", id)
+      .order("created_at", { ascending: false })
+    : { data: [], error: null };
   const customerNotified = (customerNotes ?? []).some((note) => note.event_type === "ready_for_pickup" || note.event_type === "ready_for_delivery" || note.event_type === "shipped");
   return (
     <div className="min-w-0 space-y-6">
@@ -79,6 +114,49 @@ export default async function OrderDetailPage({ params, searchParams }: { params
           }}
         />
       </div>
+      {order.fulfillment_provider === "ups" && order.fulfillment_method === "delivery" ? (
+        <AdminUpsLabelPanel
+          customerShipping={order.shipping_cost == null ? null : Number(order.shipping_cost)}
+          history={(labelHistory.data ?? []).map((row) => ({
+            id: row.id,
+            status: row.status,
+            serviceName: row.service_name,
+            labelCost: row.label_cost == null ? null : Number(row.label_cost),
+            trackingNumber: row.tracking_number,
+            errorMessage: row.error_message,
+            createdAt: row.created_at,
+            purchasedAt: row.purchased_at,
+            labelReady: Boolean(row.label_ready),
+            shipmentId: row.easyship_shipment_id,
+          }))}
+          historyError={Boolean(labelHistory.error)}
+          orderId={order.id}
+          purchased={(labelHistory.data ?? []).some((row) => row.status === "purchased")}
+          purchasesEnabled={easyshipLabelPurchasesEnabled()}
+          service={order.fulfillment_service}
+        />
+      ) : null}
+      {showCompare ? (
+        <CompareBuyLabels
+          customerShipping={order.shipping_cost == null ? null : Number(order.shipping_cost)}
+          destination={{
+            name: String(savedAddress.name ?? order.customer_name ?? ""),
+            address_line_1: String(savedAddress.address_line_1 ?? ""),
+            address_line_2: String(savedAddress.address_line_2 ?? ""),
+            city: String(savedAddress.city ?? ""),
+            state: String(savedAddress.state ?? ""),
+            postal_code: String(savedAddress.postal_code ?? ""),
+            country: String(savedAddress.country ?? ""),
+          }}
+          orderId={order.id}
+          purchaseAction={purchaseUpsLabel as (state: { error?: string; purchased?: boolean } | null, formData: FormData) => Promise<{ error?: string; purchased?: boolean }>}
+          quoteAction={refreshCompareLabelQuotes}
+          savedCourierServiceId={savedCourierServiceId}
+          savedService={order.fulfillment_service ? String(order.fulfillment_service) : null}
+          shipFrom={originFromSettings(originSettings as Record<string, unknown> | null)}
+          verifiedPurchaseAllowed={easyshipLabelPurchasesEnabled() && verifiedUpsPurchase}
+        />
+      ) : null}
       {carrier ? <AdminOrderShipmentForm order={order} /> : null}
       <div className="grid min-w-0 gap-5 lg:grid-cols-2">
         <AdminOrderFulfillmentPanel events={events ?? []} order={order} />

@@ -15,6 +15,14 @@ import { createAdminClient } from "@/src/lib/supabase/admin";
 import { centsToUsdString, usdToCents } from "@/src/lib/payments/money";
 import { getStripeConfig } from "@/src/lib/payments/stripe-config";
 import { taxSnapshotFromSettings, type TaxLine, type TaxSettings } from "@/src/lib/tax/totals";
+import {
+  attachCheckoutWeightOption,
+  checkoutItemsForSellingMethod,
+  loadProductWeightOptions,
+  requireWeightOptionSchema,
+  weightOptionCheckoutError,
+  weightOptionsSchemaReady,
+} from "@/src/lib/catalog/weight-option-checkout";
 
 export type PreResolvedCheckoutShipping = {
   selected: DeliveryOption;
@@ -39,11 +47,24 @@ export async function placeCheckoutOrder(
     if (store && store.is_open === false) {
       return { success: false, error: STORE_CLOSED_MESSAGE, retrySame: false };
     }
-    const { data: catalog } = await supabase
-      .from("products")
-      .select("id, price, selling_method, selling_unit, unit_increment, min_sell_qty, max_sell_qty, package_weight_lb, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in")
-      .in("id", request.items.map((item) => item.product_id));
+    const productIds = request.items.map((item) => item.product_id);
+    const [{ data: catalog }, loadedOptions, schemaReady] = await Promise.all([
+      supabase
+        .from("products")
+        .select("id, name, description, short_description, price, selling_method, selling_unit, unit_increment, min_sell_qty, max_sell_qty, package_weight_lb, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in, item_weight_lb, shipping_package_id, weight_oz, packaging_weight_oz, weight_source, weight_confidence, dims")
+        .in("id", productIds),
+      loadProductWeightOptions(supabase as never, productIds),
+      weightOptionsSchemaReady(supabase as never),
+    ]);
     const byId = new Map((catalog ?? []).map((row) => [row.id, row]));
+    const checkoutProducts = request.items.map((item) => (
+      attachCheckoutWeightOption(byId.get(item.product_id) ?? { id: item.product_id, price: null }, item, loadedOptions.options)
+    ));
+    const checkoutItems = checkoutItemsForSellingMethod(request.items, checkoutProducts);
+    const schemaError = requireWeightOptionSchema(checkoutItems, schemaReady && loadedOptions.schemaReady);
+    if (schemaError) return { success: false, error: schemaError, retrySame: false };
+    const optionError = weightOptionCheckoutError(checkoutItems, checkoutProducts);
+    if (optionError) return { success: false, error: optionError, retrySame: false };
     const selectedId = request.deliveryOptionId || (request.fulfillmentMethod === "local_pickup" ? "pickup" : "store");
     if (isRetiredIvoireShippingSelection(selectedId)) {
       return { success: false, error: IVOIRE_SHIPPING_RETIRED_MESSAGE, retrySame: false };
@@ -81,8 +102,12 @@ export async function placeCheckoutOrder(
       quotesSubtotal = pre.subtotal;
     } else {
       const quotes = await collectCheckoutOptions({
-        destination: request.address,
-        products: request.items.map((item) => ({ quantity: item.quantity, ...byId.get(item.product_id) })),
+        destination: {
+          ...request.address,
+          name: request.customerName,
+          phone: request.customerPhone,
+        },
+        products: checkoutProducts,
       });
       const resolved = resolveSelectedShippingOption(quotes.options, selectedId, request.fulfillmentMethod, request.quotedShipping);
       if ("error" in resolved) {
@@ -117,7 +142,7 @@ export async function placeCheckoutOrder(
     const origin = originFromSettings(store);
     const pickupLocation = request.fulfillmentMethod === "local_pickup" && originIsComplete(origin) ? pickupLocationSnapshot(origin) : null;
     const { data, error } = await supabase.rpc("create_checkout_order", {
-      p_items: request.items,
+      p_items: checkoutItems,
       p_customer_name: request.customerName,
       p_customer_email: request.customerEmail,
       p_customer_phone: request.customerPhone,
@@ -141,7 +166,7 @@ export async function placeCheckoutOrder(
         p_shipping: shipping,
         p_tax: tax,
         p_fulfillment_provider: selected.provider,
-        p_fulfillment_service: selected.serviceCode || selected.label,
+        p_fulfillment_service: selected.rateMode === "rate_table" ? selected.label : (selected.serviceCode || selected.label),
         p_delivery_snapshot: optionToSnapshot(selected, pickupLocation),
           p_tax_snapshot: taxSnapshotFromSettings(quotesTax, tax, breakdown?.taxLines ?? []),
         });
@@ -168,7 +193,7 @@ export async function placeCheckoutOrder(
             tax_amount: tax,
             total,
             fulfillment_provider: selected.provider,
-            fulfillment_service: selected.serviceCode || selected.label,
+            fulfillment_service: selected.rateMode === "rate_table" ? selected.label : (selected.serviceCode || selected.label),
             shipping_mode: selected.mode || ((selected.provider === "ups" || selected.provider === "usps") ? "manual" : null),
             delivery_snapshot: optionToSnapshot(selected, pickupLocation),
             tax_snapshot: taxSnapshotFromSettings(quotesTax, tax, breakdown?.taxLines ?? []),
@@ -202,7 +227,7 @@ export async function placeCheckoutOrder(
         email_sent: false,
         account_order: Boolean(user),
         fulfillment_provider: selected.provider,
-        fulfillment_service: selected.serviceCode || selected.label,
+        fulfillment_service: selected.rateMode === "rate_table" ? selected.label : (selected.serviceCode || selected.label),
         subtotal: quotesSubtotal,
         shipping_cost: shipping,
         tax_amount: tax,

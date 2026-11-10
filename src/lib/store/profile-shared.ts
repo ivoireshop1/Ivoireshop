@@ -1,5 +1,5 @@
 /** Keep in sync with CANONICAL_PRODUCTION_ORIGIN in src/lib/site.ts */
-const FALLBACK_STOREFRONT_URL = "https://ivoireshop-steel.vercel.app";
+const FALLBACK_STOREFRONT_URL = "https://ivoireshop.business";
 
 /** Checkout and Stripe/PayPal paths are USD-only today. */
 export const SUPPORTED_STORE_CURRENCIES = ["USD"] as const;

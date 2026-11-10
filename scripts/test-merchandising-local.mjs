@@ -36,7 +36,7 @@ test("production recovery host is used when local SITE_URL is set", () => {
         VERCEL_PROJECT_PRODUCTION_URL: "ivoire-shop-five.vercel.app",
       },
     ),
-    "https://ivoire-shop-five.vercel.app",
+    "https://ivoireshop.business",
   );
   assert.equal(
     resolvePublicSiteUrl({ NEXT_PUBLIC_SITE_URL: "http://localhost:3000" }, "https://ivoire-shop-five.vercel.app"),
@@ -54,18 +54,18 @@ test("Vercel deployment and team alias origins are never used for customer auth"
       },
       "https://ivoire-shop-kcedntz9m-ibrahim-s-projects-1a340afc.vercel.app",
     ),
-    "https://ivoire-shop-five.vercel.app",
+    "https://ivoireshop.business",
   );
   assert.equal(
     resolvePublicSiteUrl({
       VERCEL_ENV: "production",
       VERCEL_PROJECT_PRODUCTION_URL: "ivoire-shop-ibrahim-s-projects-1a340afc.vercel.app",
     }),
-    "https://ivoire-shop-five.vercel.app",
+    "https://ivoireshop.business",
   );
   assert.equal(
     resolvePublicSiteUrl({ VERCEL_ENV: "preview", VERCEL_URL: "ivoire-shop-git-auth-xxx.vercel.app" }),
-    "https://ivoire-shop-five.vercel.app",
+    "https://ivoire-shop-git-auth-xxx.vercel.app",
   );
 });
 

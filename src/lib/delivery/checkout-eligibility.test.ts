@@ -33,6 +33,11 @@ test("checkout eligibility keeps pickup and live carriers only", () => {
     fulfillmentMethod: "delivery",
     rateMode: "store_rate",
   }), false);
+  assert.equal(isCheckoutEligibleShippingOption({
+    provider: "store",
+    fulfillmentMethod: "delivery",
+    rateMode: "rate_table",
+  }), true);
 });
 
 test("server rejects stale Ivoire Shop Shipping selections", () => {

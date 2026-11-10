@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { shouldRefreshSupabaseSession } from "./auth-request";
 import { getSupabaseConfig } from "./config";
 
 export async function updateSession(request: NextRequest) {
@@ -9,6 +10,9 @@ export async function updateSession(request: NextRequest) {
     (!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY &&
       !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
   ) {
+    return response;
+  }
+  if (!shouldRefreshSupabaseSession({ cookies: request.cookies.getAll(), headers: request.headers })) {
     return response;
   }
 

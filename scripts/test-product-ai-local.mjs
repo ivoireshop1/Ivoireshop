@@ -137,20 +137,21 @@ test("failure codes distinguish image fetch from AI auth and timeouts", () => {
   assert.equal(productAiGatewayReady(), Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL === "1"));
 });
 
-test("production AI image fetch prefers the public Steel origin over VERCEL_URL", () => {
+test("production AI image fetch prefers the public storefront over VERCEL_URL", () => {
   const origins = publicImageOrigins({
     VERCEL: "1",
     VERCEL_ENV: "production",
     VERCEL_URL: "ivoire-shop-unique.vercel.app",
   });
-  assert.equal(origins[0], "https://ivoireshop-steel.vercel.app");
+  assert.equal(origins[0], "https://ivoireshop.business");
+  assert.equal(origins[1], "https://ivoireshop-steel.vercel.app");
   assert.equal(
     publicImageHttpUrl("/images/Foods%2012-22-25/Foods%2012-22-25/golden-tropics-plantain-fufu-680g.jpeg", {
       VERCEL: "1",
       VERCEL_ENV: "production",
       VERCEL_URL: "ivoire-shop-unique.vercel.app",
     }),
-    "https://ivoireshop-steel.vercel.app/images/Foods%2012-22-25/Foods%2012-22-25/golden-tropics-plantain-fufu-680g.jpeg",
+    "https://ivoireshop.business/images/Foods%2012-22-25/Foods%2012-22-25/golden-tropics-plantain-fufu-680g.jpeg",
   );
 });
 

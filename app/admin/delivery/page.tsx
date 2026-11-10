@@ -1,42 +1,76 @@
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
-import { originFromSettings, originIsComplete } from "@/src/lib/delivery/origin";
+import { formatOriginLines, originFromSettings, originIsComplete } from "@/src/lib/delivery/origin";
 import { doordashCredentials } from "@/src/lib/delivery/credentials";
 import { checkDeliveryProviders, carrierOrderCounts } from "@/src/lib/delivery/actions";
 import { ShippoSettingsForm } from "@/src/components/admin/shippo-settings-form";
 import { ShippingProviderForm } from "@/src/components/admin/shipping-provider-form";
 import { shippoCredentials } from "@/src/lib/shipping/shippo";
 import { easypostCredentials } from "@/src/lib/shipping/easypost";
-import { parseShippingProvider } from "@/src/lib/shipping/provider";
+import { easyshipCredentials } from "@/src/lib/shipping/easyship";
+import { parseShippingProvider, shippingProviderLabel } from "@/src/lib/shipping/provider";
 import { summarizeShippingEvents } from "@/src/lib/shipping/monitor";
 import { DeliveryOriginForm } from "@/src/components/admin/delivery-origin-form";
 import { ManualShippingForm } from "@/src/components/admin/manual-shipping-form";
 import { formatCharge, parseRateMode, rateModeLabel } from "@/src/lib/delivery/manual";
 import { TaxSettingsForm } from "@/src/components/admin/tax-settings-form";
 import { IvoireShippingForm } from "@/src/components/admin/ivoire-shipping-form";
+import { ShippingPackagesForm } from "@/src/components/admin/shipping-packages-form";
+import { EasyshipQuoteProbeForm } from "@/src/components/admin/easyship-quote-probe-form";
+import { ShippoTestQuoteForm } from "@/src/components/admin/shippo-test-quote-form";
+import { RateTableForm } from "@/src/components/admin/rate-table-form";
+import { EasyshipRotationCard } from "@/src/components/admin/easyship-rotation-card";
+import { parseRateTableConfig, rateTableCanOffer } from "@/src/lib/shipping/rate-table";
+import { easyshipPublicStatus } from "@/src/lib/shipping/easyship";
+import { loadShippingPackages } from "@/src/lib/shipping/package-store";
+import { prepareSteelSixEasyshipQuote, steelSixSellingPrice } from "@/src/lib/shipping/easyship-quote-probe";
+import { mergeSteelSixProducts } from "@/src/lib/shipping/shippo-test-quote";
+import { STEEL_SIX_CART } from "@/src/lib/shipping/steel-six-cart";
 import { parseTaxMode, taxModeLabel } from "@/src/lib/tax/totals";
 import Link from "next/link";
 
 export default async function AdminDeliveryPage() {
   const { supabase } = await requireAdmin();
-  const [{ data: settings }, { data: health }, counts, { data: monitorRows }, missingParcelQuery, carrierOrderQuery] = await Promise.all([
+  const steelSixIds = STEEL_SIX_CART.map((item) => item.id);
+  const [{ data: settings }, { data: health }, counts, { data: monitorRows }, missingParcelQuery, carrierOrderQuery, shippingPackages, { data: steelSixRows }] = await Promise.all([
     supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle(),
     supabase.from("delivery_provider_health").select("provider, status, last_check_at, last_error"),
     carrierOrderCounts(),
     supabase.from("shipping_monitor_events").select("event_type, payload, created_at").order("created_at", { ascending: false }).limit(200),
     supabase.from("products").select("id", { count: "exact", head: true }).or("ship_weight_lb.is.null,ship_length_in.is.null,ship_width_in.is.null,ship_height_in.is.null"),
     supabase.from("orders").select("id", { count: "exact", head: true }).in("fulfillment_provider", ["ups", "usps"]).gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+    loadShippingPackages(supabase),
+    supabase.from("products").select("id, name, price, item_weight_lb, weight_oz, packaging_weight_oz, weight_source, shipping_package_id, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in, dims, category_id").in("id", steelSixIds),
   ]);
+  const steelSixCategoryIds = [...new Set((steelSixRows ?? []).map((row) => row.category_id).filter((id): id is string => Boolean(id)))];
+  const { data: steelSixCategories } = steelSixCategoryIds.length
+    ? await supabase.from("categories").select("id, slug").in("id", steelSixCategoryIds)
+    : { data: [] as Array<{ id: string; slug: string }> };
+  const steelSixSlugById = new Map((steelSixCategories ?? []).map((row) => [row.id, row.slug]));
+  const steelSixProducts = mergeSteelSixProducts((steelSixRows ?? []).map((row) => ({
+    ...row,
+    category_slug: row.category_id ? steelSixSlugById.get(row.category_id) ?? null : null,
+  })));
   const monitor = summarizeShippingEvents((monitorRows ?? []) as Array<{ event_type: string; payload: Record<string, unknown> | null; created_at: string }>);
   const shippo = shippoCredentials();
   const easypost = easypostCredentials();
+  const easyship = easyshipCredentials();
+  const easyshipPublic = easyshipPublicStatus();
+  const rateTable = parseRateTableConfig(settings as Record<string, unknown> | null);
   const shippingProvider = parseShippingProvider(settings?.shipping_provider);
   const missingParcelCount = missingParcelQuery.count;
   const carrierOrders7d = carrierOrderQuery.count;
   const origin = originFromSettings(settings);
+  const steelSixPrepared = prepareSteelSixEasyshipQuote({
+    origin,
+    products: steelSixProducts,
+    packages: shippingPackages,
+    defaultPackageId: typeof settings?.default_shipping_package_id === "string" ? settings.default_shipping_package_id : null,
+  });
   const healthBy = new Map((health ?? []).map((row) => [row.provider, row]));
   const shippoHealth = healthBy.get("shippo");
   const easypostHealth = healthBy.get("easypost");
+  const easyshipHealth = healthBy.get("easyship");
   const upsHealth = healthBy.get("ups");
   const uspsHealth = healthBy.get("usps");
   const doorConfigured = doordashCredentials().configured;
@@ -56,7 +90,10 @@ export default async function AdminDeliveryPage() {
         <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#b8964c]">Fulfillment</p>
         <h1 className="mt-2 text-3xl font-semibold text-[#173f35]">Delivery Center</h1>
         <p className="mt-2 max-w-2xl text-sm text-[#6b6b6b]">
-          Client-managed fulfillment. Store Pickup is separate from carriers. UPS and USPS at checkout use live Shippo or EasyPost quotes when that provider is selected, enabled, and each carrier is set to Live Carrier API. Store-calculated Ivoire shipping is retired from customer checkout. Postage purchasing stays off until the owner approves it. Provider tokens are configured in the hosting environment by the store owner.
+          Client-managed fulfillment. Store Pickup is separate from carriers. UPS and USPS at checkout use live Shippo, EasyPost, or Easyship quotes when that provider is selected, enabled, and each carrier is set to Live Carrier API. Store-calculated Ivoire shipping is retired from customer checkout. Postage purchasing stays off until the owner approves it. Provider tokens are configured in the hosting environment by the store owner.
+        </p>
+        <p className="mt-2 text-sm">
+          <Link className="font-semibold text-[#173f35] underline underline-offset-4" href="/admin/shipping">Review estimated shipping weights</Link>
         </p>
       </div>
 
@@ -78,7 +115,7 @@ export default async function AdminDeliveryPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="rounded-2xl bg-white p-5">
           <h2 className="font-semibold text-[#173f35]">UPS</h2>
-          <p className="mt-2 text-sm text-[#6b6b6b]">{parseRateMode(settings?.ups_rate_mode) === "live_api" ? `${shippingProvider === "easypost" ? "EasyPost" : "Shippo"} live rates` : "Manual Shipping"}</p>
+          <p className="mt-2 text-sm text-[#6b6b6b]">{parseRateMode(settings?.ups_rate_mode) === "live_api" ? `${shippingProviderLabel(shippingProvider)} live rates` : "Manual Shipping"}</p>
           <p className="mt-4 text-sm font-medium text-[#173f35]">{rateModeLabel(parseRateMode(settings?.ups_rate_mode))}{settings?.ups_enabled && settings?.ups_show_at_checkout !== false ? "" : " · Hidden at checkout"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">{upsHealth?.last_error || upsHealth?.status || "No connection check yet"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">Domestic: {settings?.ups_domestic_enabled ? formatCharge(settings.ups_domestic_charge) : "Off"}</p>
@@ -86,7 +123,7 @@ export default async function AdminDeliveryPage() {
         </section>
         <section className="rounded-2xl bg-white p-5">
           <h2 className="font-semibold text-[#173f35]">USPS</h2>
-          <p className="mt-2 text-sm text-[#6b6b6b]">{parseRateMode(settings?.usps_rate_mode) === "live_api" ? `${shippingProvider === "easypost" ? "EasyPost" : "Shippo"} live rates` : "Manual Shipping"}</p>
+          <p className="mt-2 text-sm text-[#6b6b6b]">{parseRateMode(settings?.usps_rate_mode) === "live_api" ? `${shippingProviderLabel(shippingProvider)} live rates` : "Manual Shipping"}</p>
           <p className="mt-4 text-sm font-medium text-[#173f35]">{rateModeLabel(parseRateMode(settings?.usps_rate_mode))}{settings?.usps_enabled && settings?.usps_show_at_checkout !== false ? "" : " · Hidden at checkout"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">{uspsHealth?.last_error || uspsHealth?.status || "No connection check yet"}</p>
           <p className="mt-1 text-xs text-[#6b6b6b]">Domestic: {settings?.usps_domestic_enabled ? formatCharge(settings.usps_domestic_charge) : "Off"}</p>
@@ -112,16 +149,19 @@ export default async function AdminDeliveryPage() {
           <p className="text-sm">Quote failures: <strong>{monitor.quoteFailures}</strong></p>
           <p className="text-sm">Missing parcel events: <strong>{monitor.missingParcel}</strong></p>
           <p className="text-sm">Labels blocked: <strong>{monitor.labelsBlocked}</strong></p>
+          <p className="text-sm">Rate-table fallbacks: <strong>{monitor.rateTableFallbacks}</strong></p>
+          <p className="text-sm">Rate table: <strong>{rateTableCanOffer(rateTable) ? "Enabled fallback" : rateTable.enabled ? "On but incomplete" : "Off"}</strong></p>
           <p className="text-sm">UPS/USPS orders (7 days): <strong>{carrierOrders7d ?? "—"}</strong></p>
           <p className="text-sm">Products missing package data: <strong>{missingParcelCount ?? "—"}</strong></p>
         </div>
-        <p className="mt-3 text-xs text-[#6b6b6b]">Checkout abandonment is the gap between quote requests and carrier orders in this window. Quote requests: {monitor.quotes}. Carrier orders (7 days): {carrierOrders7d ?? "—"}. Active provider: {shippingProvider === "easypost" ? "EasyPost" : "Shippo"}. Shippo: {shippo.configured ? (shippo.isTest ? "test token present" : "token present") : "not configured"}. EasyPost: {easypost.configured ? (easypost.isTest ? "TEST key present" : easypost.isLive ? "production key present" : "unrecognized key") : "not configured"}.</p>
+        <p className="mt-3 text-xs text-[#6b6b6b]">Checkout abandonment is the gap between quote requests and carrier orders in this window. Quote requests: {monitor.quotes}. Carrier orders (7 days): {carrierOrders7d ?? "—"}. Active provider: {shippingProviderLabel(shippingProvider)}. Shippo: {shippo.configured ? (shippo.isTest ? "test token present" : "token present") : "not configured"}. EasyPost: {easypost.configured ? (easypost.isTest ? "TEST key present" : easypost.isLive ? "production key present" : "unrecognized key") : "not configured"}. Easyship: {easyship.configured ? (easyship.isSandbox ? "sandbox key prefix present" : easyship.isProduction ? "production key prefix present" : "unrecognized key") : "not configured"}{easyshipPublic.keyLast4 ? ` · last 4 ••••${easyshipPublic.keyLast4}` : ""}{easyshipPublic.rotationRequired ? " · rotation required" : ""}.</p>
         {monitor.lastFailureReason ? (
           <p className="mt-3 rounded-xl border border-[#b8964c]/40 bg-[#fbf7ee] p-3 text-sm text-[#7c5d1a]">
             Last live-quote failure: <strong>{monitor.lastFailureReason}</strong>
             {monitor.lastFailureAt ? ` · ${new Date(monitor.lastFailureAt).toLocaleString()}` : ""}.
             {shippoHealth?.last_error ? ` Shippo check: ${shippoHealth.last_error}.` : ""}
             {easypostHealth?.last_error ? ` EasyPost check: ${easypostHealth.last_error}.` : ""}
+            {easyshipHealth?.last_error ? ` Easyship check: ${easyshipHealth.last_error}.` : ""}
             {missingParcelCount ? ` Products missing package data: ${missingParcelCount}.` : ""}
             Checkout does not invent rates when the token or package data is missing.
           </p>
@@ -132,15 +172,45 @@ export default async function AdminDeliveryPage() {
       {!counts.ok ? <p className="text-sm text-[#7c5d1a]">Unable to load shipping counts. Delivery settings below can still be saved.</p> : null}
       <form action={checkDeliveryProviders}>
         <button className="min-h-11 rounded-xl border border-[#173f35]/20 px-4 py-2 text-sm font-medium text-[#173f35]" type="submit">
-          Check DoorDash, Shippo, and EasyPost
+          Check DoorDash, Shippo, EasyPost, and Easyship
         </button>
       </form>
 
+      <EasyshipRotationCard />
       <ShippingProviderForm
         easypostConfigured={easypost.configured}
         easypostLive={easypost.isLive}
         easypostTest={easypost.isTest}
+        easyshipConfigured={easyship.configured}
+        easyshipProduction={easyship.isProduction}
+        easyshipSandbox={easyship.isSandbox}
         settings={settings as Record<string, unknown> | null}
+      />
+      <RateTableForm settings={settings as Record<string, unknown> | null} />
+      <ShippingPackagesForm
+        defaultPackageId={typeof settings?.default_shipping_package_id === "string" ? settings.default_shipping_package_id : null}
+        packages={shippingPackages}
+      />
+      <EasyshipQuoteProbeForm
+        originComplete={originIsComplete(origin)}
+        originLines={formatOriginLines(origin)}
+        easyshipConfigured={easyship.configured}
+        easyshipProduction={easyship.isProduction}
+        lines={steelSixProducts.map((product) => ({
+          name: String(product.name ?? "Steel fixture item"),
+          quantity: product.quantity,
+          price: steelSixSellingPrice(product.price),
+        }))}
+        missingPrices={steelSixPrepared.ok ? [] : (steelSixPrepared.missingPrices ?? [])}
+        parcels={steelSixPrepared.ok ? steelSixPrepared.parcelEstimate : []}
+        packedError={steelSixPrepared.ok || steelSixPrepared.missingPrices?.length ? null : steelSixPrepared.error}
+        declaredValue={steelSixPrepared.ok ? steelSixPrepared.declaredValue : null}
+      />
+      <ShippoTestQuoteForm
+        originComplete={originIsComplete(origin)}
+        originLines={formatOriginLines(origin)}
+        shippoConfigured={shippo.configured}
+        shippoTest={shippo.isTest}
       />
       <ShippoSettingsForm
         settings={settings as Record<string, unknown> | null}

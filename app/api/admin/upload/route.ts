@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/src/lib/auth/guards";
+import { compressProductImage } from "@/src/lib/catalog/product-image-bytes";
 import path from "node:path";
 
 export async function POST(request: Request) {
@@ -34,22 +35,26 @@ export async function POST(request: Request) {
         );
       }
 
-      const extension = path.extname(file.name) || ".jpg";
+      const originalExtension = path.extname(file.name) || ".jpg";
+      const arrayBuffer = await file.arrayBuffer();
+      const prepared = await compressProductImage({
+        bytes: Buffer.from(arrayBuffer),
+        contentType: file.type,
+        fallbackExtension: originalExtension,
+      });
       const baseName = path
-        .basename(file.name, extension)
+        .basename(file.name, originalExtension)
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "-")
         .slice(0, 40);
       const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      const filename = `${baseName || "product"}-${uniqueSuffix}${extension}`;
-
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      const filename = `${baseName || "product"}-${uniqueSuffix}${prepared.extension}`;
 
       // Only persistent Storage uploads may become product image references.
+      // Original bytes stay on the admin's device. Stored objects are new files, not replacements.
       const { error: storageError } = await supabase.storage
         .from("product-images")
-        .upload(filename, buffer, { contentType: file.type, upsert: false });
+        .upload(filename, prepared.bytes, { contentType: prepared.contentType, upsert: false });
       if (storageError) {
         return NextResponse.json({ error: "Image Storage upload failed. Please try again." }, { status: 502 });
       }

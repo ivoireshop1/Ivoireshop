@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/lib/audio/ivoire-tones.test.ts src/lib/audio/volume.test.ts src/lib/delivery/origin.test.ts src/lib/delivery/destination.test.ts src/lib/delivery/tracking.test.ts src/lib/delivery/checkout-eligibility.test.ts src/lib/orders/buckets.test.ts src/lib/orders/status.test.ts src/lib/orders/timeline.test.ts src/lib/store/timezone.test.ts src/lib/store/profile-shared.test.ts src/lib/auth/protected-accounts.test.ts src/lib/site.test.ts src/lib/notifications/drawer-box.test.ts src/lib/notifications/merge.test.ts src/lib/orders/action-state.test.ts src/lib/orders/ops.test.ts src/lib/payments/totals.test.ts src/lib/payments/stripe-webhook.test.ts src/lib/payments/stripe-config.test.ts src/lib/payments/stripe-intent.test.ts src/lib/payments/readiness.test.ts src/lib/payments/demo.test.ts src/lib/tax/totals.test.ts src/lib/tax/readiness.test.ts src/lib/shipping/estimate.test.ts src/lib/shipping/shippo.test.ts src/lib/shipping/live-quotes.test.ts src/lib/shipping/monitor.test.ts src/lib/catalog/selling.test.ts src/lib/catalog/category-tree.test.ts src/lib/catalog/global-modify.test.ts src/lib/catalog/product-embeds.test.ts src/lib/checkout/guest-order-storage.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/audio/ivoire-tones.test.ts src/lib/audio/volume.test.ts src/lib/delivery/origin.test.ts src/lib/delivery/destination.test.ts src/lib/delivery/tracking.test.ts src/lib/delivery/checkout-eligibility.test.ts src/lib/orders/buckets.test.ts src/lib/orders/status.test.ts src/lib/orders/timeline.test.ts src/lib/store/timezone.test.ts src/lib/store/profile-shared.test.ts src/lib/auth/protected-accounts.test.ts src/lib/auth/recovery-link.test.ts src/lib/site.test.ts src/lib/notifications/drawer-box.test.ts src/lib/notifications/merge.test.ts src/lib/orders/action-state.test.ts src/lib/orders/ops.test.ts src/lib/payments/totals.test.ts src/lib/payments/stripe-webhook.test.ts src/lib/payments/stripe-config.test.ts src/lib/payments/stripe-client.test.ts src/lib/payments/stripe-intent.test.ts src/lib/payments/readiness.test.ts src/lib/payments/demo.test.ts src/lib/tax/totals.test.ts src/lib/tax/readiness.test.ts src/lib/shipping/estimate.test.ts src/lib/shipping/shippo.test.ts src/lib/shipping/live-quotes.test.ts src/lib/shipping/easypost.test.ts src/lib/shipping/easyship.test.ts src/lib/shipping/monitor.test.ts src/lib/catalog/selling.test.ts src/lib/catalog/category-tree.test.ts src/lib/catalog/global-modify.test.ts src/lib/catalog/product-embeds.test.ts src/lib/checkout/guest-order-storage.test.ts src/lib/shipping/rate-table.test.ts src/lib/shipping/packages.test.ts src/lib/supabase/auth-request.test.ts src/lib/catalog/product-image-bytes.test.ts src/lib/shipping/easyship-label.test.ts"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^7.0.0",
@@ -19,6 +19,7 @@
     "next": "16.3.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "sharp": "^0.35.5",
     "stripe": "^23.0.0",
     "zod": "^4.6.5"
   },

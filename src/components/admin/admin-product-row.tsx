@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { imageUsesNextOptimizer } from "@/src/lib/catalog/image-url";
 import Link from "next/link";
 import { useRef, useState, type ChangeEvent } from "react";
 import { DeleteProductForm } from "@/src/components/admin/delete-product-form";
@@ -203,7 +204,7 @@ export function AdminProductRow({
       <div className="flex items-center gap-3">
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-[#173f35]/10 bg-white lg:h-14 lg:w-14">
           {product.imageUrl ? (
-            <Image alt={product.name} className="h-full w-full object-cover" height={64} src={product.imageUrl} unoptimized width={64} />
+            <Image alt={product.name} className="h-full w-full object-cover" height={64} src={product.imageUrl} unoptimized={!imageUsesNextOptimizer(product.imageUrl)} width={64} />
           ) : (
             <span className="flex h-full items-center justify-center text-xs text-[#6b6b6b]">No image</span>
           )}

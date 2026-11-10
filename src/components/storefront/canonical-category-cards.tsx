@@ -56,7 +56,7 @@ export function CanonicalCategoryCards({
             <Link className="group block" href={`/shop?category=${encodeURIComponent(category.slug)}`}>
               <div className="relative aspect-[4/3] overflow-hidden rounded-[18px] bg-[#dfe8df]">
                 {category.image_url && isNextImageSrc(category.image_url) ? (
-                  <Image alt={category.name} className="object-cover transition duration-300 group-hover:scale-105" fill sizes="(max-width: 640px) 90vw, 30vw" src={category.image_url} unoptimized />
+                  <Image alt={category.name} className="object-cover transition duration-300 group-hover:scale-105" fill sizes="(max-width: 640px) 90vw, 30vw" src={category.image_url} />
                 ) : (
                   <div className="flex h-full items-end p-5">
                     <span className="text-2xl font-semibold text-forest-green">{category.name}</span>

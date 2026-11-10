@@ -8,6 +8,11 @@ export function createRouteHandlerClient(request: NextRequest) {
   const pending: CookieToSet[] = [];
   const { url, anonKey } = getSupabaseConfig();
   const supabase = createServerClient(url, anonKey, {
+    cookieOptions: {
+      path: "/",
+      sameSite: "lax",
+      secure: request.nextUrl.protocol === "https:",
+    },
     cookies: {
       getAll() {
         return request.cookies.getAll();

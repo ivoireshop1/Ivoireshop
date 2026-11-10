@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { imageUsesNextOptimizer } from "@/src/lib/catalog/image-url";
 import { useState } from "react";
 
 export function CategoryImageField({
@@ -52,7 +53,7 @@ export function CategoryImageField({
       </label>
       {url ? (
         <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-[#eadfce]">
-          <Image alt="Category image preview" className="object-cover" fill sizes="(max-width: 768px) 90vw, 280px" src={url} unoptimized />
+          <Image alt="Category image preview" className="object-cover" fill sizes="(max-width: 768px) 90vw, 280px" src={url} unoptimized={!imageUsesNextOptimizer(url)} />
         </div>
       ) : (
         <p className="text-xs text-[#6b6b6b]">{emptyHint}</p>

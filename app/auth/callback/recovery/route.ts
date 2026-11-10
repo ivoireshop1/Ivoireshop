@@ -1,36 +1,67 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { CANONICAL_PRODUCTION_ORIGIN, isTrustedPublicSiteOrigin, resolvePublicSiteUrl } from "@/src/lib/site";
+import { recoveryContinueHtml, recoveryCredential } from "@/src/lib/auth/recovery-link";
 import { RECOVERY_INVALID_PATH, RECOVERY_REQUEST_PATH, RECOVERY_SET_PASSWORD_PATH } from "@/src/lib/auth/recovery";
 import { createRouteHandlerClient } from "@/src/lib/supabase/route-handler";
 
 function sitePath(request: NextRequest, path: string) {
-  const origin = resolvePublicSiteUrl(process.env as NodeJS.ProcessEnv, request.nextUrl.origin);
-  return new URL(path, `${origin.replace(/\/$/, "")}/`);
+  return new URL(path, `${request.nextUrl.protocol}//${request.nextUrl.host}/`);
+}
+
+function continuePage(tokenHash: string, code: string) {
+  return new NextResponse(recoveryContinueHtml({ tokenHash, code }), {
+    status: 200,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "referrer-policy": "no-referrer",
+    },
+  });
+}
+
+function isBrowserPrefetch(request: NextRequest) {
+  const purpose = `${request.headers.get("purpose") ?? ""} ${request.headers.get("sec-purpose") ?? ""}`.toLowerCase();
+  return (
+    purpose.includes("prefetch") ||
+    request.headers.has("next-router-prefetch") ||
+    request.headers.has("next-router-segment-prefetch")
+  );
 }
 
 /**
- * Dedicated password-recovery callback.
- * Always finishes on the set-password page (or the invalid/request page) —
- * never on /login, /account, or /admin before a new password is chosen.
+ * Password-recovery callback.
+ * A token_hash link waits for the person to continue, so a mail app opening
+ * the link does not use it up. An older PKCE code is still exchanged here.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const code = searchParams.get("code");
-  const tokenHash = searchParams.get("token_hash");
+  const code = recoveryCredential(searchParams.get("code"));
+  const tokenHash = recoveryCredential(searchParams.get("token_hash"));
   const type = searchParams.get("type");
   const authError = searchParams.get("error") || searchParams.get("error_code");
 
   if (authError) {
     return NextResponse.redirect(sitePath(request, RECOVERY_INVALID_PATH));
   }
-
-  const requestOrigin = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
-  if ((code || tokenHash) && process.env.VERCEL_ENV === "production" && !isTrustedPublicSiteOrigin(requestOrigin)) {
-    const canonical = new URL("/auth/callback/recovery", CANONICAL_PRODUCTION_ORIGIN);
-    canonical.search = request.nextUrl.search;
-    return NextResponse.redirect(canonical);
+  if (isBrowserPrefetch(request)) {
+    return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
   }
+  if (tokenHash && (type === "recovery" || !type)) {
+    return continuePage(tokenHash, "");
+  }
+  if (code) {
+    const { supabase, redirect } = createRouteHandlerClient(request);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) return redirect(sitePath(request, RECOVERY_INVALID_PATH));
+    return redirect(sitePath(request, RECOVERY_SET_PASSWORD_PATH));
+  }
+  return NextResponse.redirect(sitePath(request, RECOVERY_REQUEST_PATH));
+}
 
+export async function POST(request: NextRequest) {
+  const form = await request.formData();
+  const tokenHash = recoveryCredential(String(form.get("token_hash") ?? ""));
+  const code = recoveryCredential(String(form.get("code") ?? ""));
+  const type = String(form.get("type") ?? "");
   const { supabase, redirect } = createRouteHandlerClient(request);
 
   if (tokenHash && (type === "recovery" || !type)) {
@@ -38,22 +69,15 @@ export async function GET(request: NextRequest) {
       type: "recovery",
       token_hash: tokenHash,
     });
-    if (error) {
-      return redirect(sitePath(request, RECOVERY_INVALID_PATH));
-    }
+    if (error) return redirect(sitePath(request, RECOVERY_INVALID_PATH));
     return redirect(sitePath(request, RECOVERY_SET_PASSWORD_PATH));
   }
 
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) {
-      return redirect(sitePath(request, RECOVERY_INVALID_PATH));
-    }
+    if (error) return redirect(sitePath(request, RECOVERY_INVALID_PATH));
     return redirect(sitePath(request, RECOVERY_SET_PASSWORD_PATH));
   }
 
-  // Implicit/hash tokens never reach the server. Send the browser to the reset
-  // page (not stage=set) so a preserved fragment can be consumed, or the user
-  // can request a fresh link if the fragment was dropped.
-  return NextResponse.redirect(sitePath(request, RECOVERY_REQUEST_PATH));
+  return redirect(sitePath(request, RECOVERY_INVALID_PATH));
 }

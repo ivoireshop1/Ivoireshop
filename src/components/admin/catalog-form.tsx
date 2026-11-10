@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import { fillProductDetailsWithAi } from "@/src/lib/catalog/product-ai-actions";
-import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
+import { imageUsesNextOptimizer, isPersistentImageUrl } from "@/src/lib/catalog/image-url";
 import {
   isImportedPlaceholderSlug,
   slugifyProductName,
@@ -858,7 +858,7 @@ export function ProductForm({
                       className="h-full w-full object-cover"
                       height={120}
                       src={img.url}
-                      unoptimized
+                      unoptimized={!imageUsesNextOptimizer(img.url)}
                       width={120}
                     />
 

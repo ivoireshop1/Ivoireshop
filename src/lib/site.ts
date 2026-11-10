@@ -2,10 +2,17 @@ function isLocalHost(value: string) {
   return /localhost|127\.0\.0\.1/i.test(value);
 }
 
-/** Founder public storefront on the ivoireshop Vercel project. Never Ibrahim's ivoire-shop-five. */
-export const CANONICAL_PRODUCTION_ORIGIN = "https://ivoireshop-steel.vercel.app";
+/**
+ * Customer storefront. The Steel alias stays trusted so a session started there
+ * can finish there. Never Ibrahim's ivoire-shop-five.
+ */
+export const CANONICAL_PRODUCTION_ORIGIN = "https://ivoireshop.business";
 
-const TRUSTED_PRODUCTION_HOSTS = new Set(["ivoireshop-steel.vercel.app"]);
+const TRUSTED_PRODUCTION_HOSTS = new Set([
+  "ivoireshop.business",
+  "www.ivoireshop.business",
+  "ivoireshop-steel.vercel.app",
+]);
 
 function parseHttpUrl(value: string) {
   try {
@@ -65,7 +72,9 @@ export function resolvePublicSiteUrl(
   const vercelEnv = env.VERCEL_ENV ?? "";
 
   if (vercelEnv === "production") {
-    return CANONICAL_PRODUCTION_ORIGIN;
+    // Keep the host that started signup or password reset. The PKCE verifier
+    // cookie is host-only, so a later hop to a different domain cannot redeem it.
+    return trustedOrigin(origin) || CANONICAL_PRODUCTION_ORIGIN;
   }
 
   // Preview + staging Supabase must keep their own deployment origin. Sending
@@ -98,20 +107,14 @@ export function getPublicSiteUrl() {
 
 export function getAuthCallbackUrl(nextPath: string) {
   const next = nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/account";
-  const vercelEnv = process.env.VERCEL_ENV ?? "";
-  // Production confirmations use the founder storefront only.
-  // Preview / local confirmations stay on the host that owns the Supabase project.
-  const origin =
-    vercelEnv === "production" ? CANONICAL_PRODUCTION_ORIGIN : getPublicSiteUrl();
-  return `${origin}/auth/callback?next=${encodeURIComponent(next)}`;
+  // Use the trusted origin that started the flow. Forcing one production host
+  // emails a code the other host cannot redeem.
+  return `${getPublicSiteUrl()}/auth/callback?next=${encodeURIComponent(next)}`;
 }
 
 /** Password-reset emails must land on the recovery callback, never a generic post-login path. */
 export function getPasswordRecoveryCallbackUrl() {
-  const vercelEnv = process.env.VERCEL_ENV ?? "";
-  const origin =
-    vercelEnv === "production" ? CANONICAL_PRODUCTION_ORIGIN : getPublicSiteUrl();
-  return `${origin.replace(/\/$/, "")}/auth/callback/recovery`;
+  return `${getPublicSiteUrl().replace(/\/$/, "")}/auth/callback/recovery`;
 }
 
 export const siteConfig = {

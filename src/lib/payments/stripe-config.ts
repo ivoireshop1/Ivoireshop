@@ -51,7 +51,7 @@ export function stripeKeyMode(value: string): StripeMode | null {
 }
 
 export function getStripeConfig() {
-  const secretKey = text(STRIPE_ENV_NAMES.secret);
+  const secretKey = normalizeWebhookSecret(text(STRIPE_ENV_NAMES.secret));
   const publishableKey = text(STRIPE_ENV_NAMES.publishable);
   const webhookSecret = normalizeWebhookSecret(text(STRIPE_ENV_NAMES.webhook));
   const secretPresent = Boolean(secretKey);
