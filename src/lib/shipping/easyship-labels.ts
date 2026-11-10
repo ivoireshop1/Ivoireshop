@@ -43,6 +43,28 @@ export type StoredUpsLabel = {
   errorMessage: string | null;
 };
 
+export function purchaseRequestGate(input: {
+  purchasesEnabled: boolean;
+  confirm: string;
+  order: UpsLabelOrder;
+}) {
+  if (!input.purchasesEnabled) {
+    return { ok: false as const, error: "UPS label purchases stay off until founder approval. The reviewed cost was not charged." };
+  }
+  if (input.confirm.trim() !== EASYSHIP_UPS_LABEL_CONFIRM) {
+    return { ok: false as const, error: "The confirmation phrase does not match. Nothing was charged." };
+  }
+  return upsLabelEligibility(input.order);
+}
+
+export async function beginLabelPurchase<T>(
+  gate: ReturnType<typeof purchaseRequestGate>,
+  transport: () => Promise<T>,
+) {
+  if (!gate.ok) return { called: false as const, error: gate.error };
+  return { called: true as const, result: await transport() };
+}
+
 export function upsLabelEligibility(order: UpsLabelOrder) {
   if (order.isDemo || order.paymentStatus === "demo") {
     return { ok: false as const, error: "Demonstration orders cannot buy postage." };

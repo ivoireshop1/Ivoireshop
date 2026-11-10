@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { buildEasyshipShipmentBody, executeEasyshipLabelPurchase, parseEasyshipLabelResponse } from "./easyship-label-api.ts";
 import {
@@ -7,7 +8,9 @@ import {
   easyshipChargeCoversCarrierFees,
   easyshipLabelPurchasesEnabled,
   labelCostComparison,
+  beginLabelPurchase,
   labelPdfReady,
+  purchaseRequestGate,
   runLabelPurchase,
   trackingNotificationAfterSave,
   type UpsLabelOrder,
@@ -224,4 +227,36 @@ test("a failed label call keeps the shipment id and a USPS label is rejected", a
     fetchImpl: async () => Response.json({ shipment: { easyship_shipment_id: "shp-2", courier_service: { id: "usps-1", umbrella_name: "USPS" } } }),
   });
   assert.equal(rejected.ok, false);
+});
+
+test("purchase stays blocked and does not call the carrier while the flag is off", async () => {
+  const gate = purchaseRequestGate({ purchasesEnabled: false, confirm: EASYSHIP_UPS_LABEL_CONFIRM, order });
+  const ran = await beginLabelPurchase(gate, async () => {
+    throw new Error("postage was requested");
+  });
+  assert.equal(ran.called, false);
+  if (!ran.called) assert.match(ran.error, /founder approval/);
+  const source = readFileSync(new URL("./easyship-label-actions.ts", import.meta.url), "utf8");
+  const purchase = source.slice(source.indexOf("export async function purchaseUpsLabel"));
+  const gateAt = purchase.indexOf("purchaseRequestGate");
+  const quoteAt = purchase.indexOf("quoteOrder");
+  const buyAt = purchase.indexOf("executeEasyshipLabelPurchase");
+  assert.ok(gateAt >= 0 && gateAt < quoteAt && quoteAt < buyAt);
+});
+
+test("the confirmation phrase and one paid UPS parcel are required before a purchase", async () => {
+  const wrong = purchaseRequestGate({ purchasesEnabled: true, confirm: "buy it", order });
+  assert.equal(wrong.ok, false);
+  const unpaid = purchaseRequestGate({ purchasesEnabled: true, confirm: EASYSHIP_UPS_LABEL_CONFIRM, order: { ...order, paymentStatus: "pending" } });
+  assert.equal(unpaid.ok, false);
+  const usps = purchaseRequestGate({ purchasesEnabled: true, confirm: EASYSHIP_UPS_LABEL_CONFIRM, order: { ...order, provider: "usps", service: "USPS Ground" } });
+  assert.equal(usps.ok, false);
+  const pickup = purchaseRequestGate({ purchasesEnabled: true, confirm: EASYSHIP_UPS_LABEL_CONFIRM, order: { ...order, fulfillmentMethod: "local_pickup", provider: "pickup" } });
+  assert.equal(pickup.ok, false);
+  const local = purchaseRequestGate({ purchasesEnabled: true, confirm: EASYSHIP_UPS_LABEL_CONFIRM, order: { ...order, provider: "store" } });
+  assert.equal(local.ok, false);
+  const open = purchaseRequestGate({ purchasesEnabled: true, confirm: EASYSHIP_UPS_LABEL_CONFIRM, order });
+  assert.equal(open.ok, true);
+  const ran = await beginLabelPurchase(wrong, async () => "charged");
+  assert.equal(ran.called, false);
 });

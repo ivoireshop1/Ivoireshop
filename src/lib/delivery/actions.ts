@@ -39,6 +39,7 @@ import { recordShippingMonitorEvent } from "@/src/lib/shipping/monitor";
 import { isPersistentImageUrl } from "@/src/lib/catalog/image-url";
 import { recordAdminIncident } from "@/src/lib/ops/incident";
 import { isCarrierOrder, validateCarrierTracking } from "./tracking";
+import { shipmentMarksShipped, shipmentSaveIntent, shipmentSavePatch } from "./shipment-save";
 import { notifyFulfillmentEmail } from "@/src/lib/communications/fulfillment-email";
 import { recordCustomerNotification, recordFulfillmentNotification } from "@/src/lib/notifications/record";
 import { computeOrderTotalCents, computeTaxLines, moneyFromCents, safeUsdToCents, taxSettingsFromRow } from "@/src/lib/tax/totals";
@@ -687,16 +688,20 @@ export async function saveOrderShipment(_prev: ShipmentActionState | null, formD
   if (!alreadyShipped && ["delivered", "cancelled"].includes(order.status)) {
     return { error: "This order cannot be marked shipped." };
   }
+  const intent = shipmentSaveIntent(formData.get("intent"));
   const shippedAt = alreadyShipped
-    ? order.shipped_at
+    ? String(order.shipped_at ?? "")
     : parseShipmentDate(String(formData.get("shipped_at") ?? ""));
-  const patch: Record<string, unknown> = { tracking_number: checked.tracking };
-  const demo = order.is_demo || order.payment_provider === "demo" || order.payment_status === "demo";
-  if (postage != null && !demo) patch.postage_cost = postage;
-  if (!alreadyShipped) {
-    patch.status = "shipped";
-    patch.shipped_at = shippedAt;
-  }
+  const demo = Boolean(order.is_demo || order.payment_provider === "demo" || order.payment_status === "demo");
+  const patch = shipmentSavePatch({
+    intent,
+    tracking: checked.tracking,
+    alreadyShipped,
+    postage,
+    demo,
+    shippedAt,
+  });
+  const marksShipped = shipmentMarksShipped(intent, alreadyShipped);
   const { data: changed, error } = await supabase.from("orders").update(patch).eq("id", id).select("id").maybeSingle();
   if (error || !changed) return { error: "Shipping details could not be saved. Try again." };
   await supabase.from("order_carrier_events").insert({
@@ -707,7 +712,7 @@ export async function saveOrderShipment(_prev: ShipmentActionState | null, formD
     source: "admin",
     occurred_at: shippedAt,
   });
-  if (!alreadyShipped) {
+  if (marksShipped) {
     const emailSent = demo ? false : await notifyFulfillmentEmail(supabase, id, "shipped");
     await recordFulfillmentNotification(supabase, id, "shipped", Boolean(emailSent), order.fulfillment_provider);
   } else if (!hadTracking) {
@@ -719,7 +724,7 @@ export async function saveOrderShipment(_prev: ShipmentActionState | null, formD
   return {
     saved: true,
     corrected: Boolean(correction && hadTracking && trackingChanged),
-    markedShipped: !alreadyShipped,
+    markedShipped: marksShipped,
   };
 }
 

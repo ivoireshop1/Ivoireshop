@@ -12,6 +12,7 @@ import { executeEasyshipLabelPurchase, buildEasyshipShipmentBody } from "./easys
 import {
   decideEasyshipLabelPurchase,
   easyshipLabelPurchasesEnabled,
+  purchaseRequestGate,
   labelPdfReady,
   prepareOrderLabelQuote,
   trackingNotificationAfterSave,
@@ -240,6 +241,12 @@ export async function purchaseUpsLabel(_prev: UpsLabelActionState | null, formDa
       error: saved.error ?? "This order already has a purchased UPS label. No second label was bought.",
     };
   }
+  const gate = purchaseRequestGate({
+    purchasesEnabled: easyshipLabelPurchasesEnabled(),
+    confirm,
+    order: orderForDecision(context.order),
+  });
+  if (!gate.ok) return { error: gate.error, purchasesEnabled: easyshipLabelPurchasesEnabled() };
   const quoted = await quoteOrder(context);
   if (!quoted.ok) return { error: quoted.error, purchasesEnabled: easyshipLabelPurchasesEnabled() };
   const active = rows.find((row) => row.status === "purchasing") ?? null;

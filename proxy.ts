@@ -32,6 +32,9 @@ export async function proxy(request: NextRequest) {
     dest.pathname = recoveryIntent ? RECOVERY_CALLBACK_PATH : "/auth/callback";
     return NextResponse.redirect(dest);
   }
+  if (process.env.COMPARE_LABELS_PREVIEW === "1" && pathname.startsWith("/preview/compare-labels")) {
+    return NextResponse.next();
+  }
   return updateSession(request);
 }
 
