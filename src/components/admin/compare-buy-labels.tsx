@@ -11,6 +11,7 @@ import {
   fullOrderComparison,
   isLowestKnown,
   missingPackageDetails,
+  nextCompareBoxId,
   packageCsv,
   parsePositive,
   quoteFingerprint,
@@ -230,7 +231,7 @@ export function CompareBuyLabels({
             </fieldset>
           ))}
         </div>
-        <button className="mt-3 min-h-11 rounded-xl border border-[#173f35]/20 px-4 text-sm font-semibold text-[#173f35]" onClick={() => { setBoxes((current) => [...current, { id: `box-${current.length + 1}`, weightLb: "", lengthIn: "", widthIn: "", heightIn: "" }]); invalidatePirate(); }} type="button">Add box</button>
+        <button className="mt-3 min-h-11 rounded-xl border border-[#173f35]/20 px-4 text-sm font-semibold text-[#173f35]" onClick={() => { setBoxes((current) => [...current, { id: nextCompareBoxId(current.map((box) => box.id)), weightLb: "", lengthIn: "", widthIn: "", heightIn: "" }]); invalidatePirate(); }} type="button">Add box</button>
         {packageError || originError ? <p className="mt-3 text-sm text-[#7c5d1a]">{packageError || originError}</p> : null}
         {stale ? <p className="mt-3 rounded-xl bg-[#f3efe9] p-3 text-sm text-[#7c5d1a]">Package details changed. Refresh quotes before ranking them again.</p> : null}
         <form action={submitQuote} className="mt-4">

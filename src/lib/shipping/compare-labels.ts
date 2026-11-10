@@ -42,6 +42,13 @@ const ROUND = (value: number, places: number) => {
   return Math.round(value * factor) / factor;
 };
 
+export function nextCompareBoxId(ids: string[]) {
+  const used = new Set(ids);
+  let number = ids.length + 1;
+  while (used.has(`box-${number}`)) number += 1;
+  return `box-${number}`;
+}
+
 export function compareLabelsEligible(order: { fulfillment_method?: string | null; fulfillment_provider?: string | null }) {
   const method = String(order.fulfillment_method ?? "");
   const provider = String(order.fulfillment_provider ?? "").toLowerCase();
@@ -123,11 +130,12 @@ export function combineEasyshipBoxes(parts: Array<ReturnType<typeof mapEasyshipB
 type PricedBox = { boxId: string; quotes: PostageQuote[] };
 
 function completeTotal(boxIds: string[], rows: PricedBox[], key: string) {
-  if (rows.length !== boxIds.length) return null;
+  if (new Set(boxIds).size !== boxIds.length || rows.length !== boxIds.length) return null;
   let sum = 0;
   for (const boxId of boxIds) {
-    const box = rows.find((row) => row.boxId === boxId);
-    const matches = (box?.quotes ?? []).filter((quote) => equivalentServiceKey(quote.carrier, quote.service) === key);
+    const found = rows.filter((row) => row.boxId === boxId);
+    if (found.length !== 1) return null;
+    const matches = found[0].quotes.filter((quote) => equivalentServiceKey(quote.carrier, quote.service) === key);
     if (matches.length !== 1) return null;
     sum += matches[0].postage;
   }
@@ -181,7 +189,8 @@ export function formatShippingAddress(address: {
 }
 
 function csvCell(value: string | number) {
-  const text = String(value);
+  let text = String(value);
+  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
@@ -245,6 +254,7 @@ export function parseComparePackage(formData: FormData): { ok: true; shipFrom: C
   if (!Array.isArray(raw)) return { ok: false, error: "Enter the actual packed weight and dimensions for every box." };
   if (raw.length > 8) return { ok: false, error: "Compare at most 8 boxes for one order." };
   const boxes: CompareBox[] = [];
+  const seen = new Set<string>();
   for (const [index, row] of raw.entries()) {
     const record = row && typeof row === "object" ? row as Record<string, unknown> : {};
     const weightLb = parsePositive(record.weightLb);
@@ -254,8 +264,11 @@ export function parseComparePackage(formData: FormData): { ok: true; shipFrom: C
     if (weightLb == null || lengthIn == null || widthIn == null || heightIn == null) {
       return { ok: false, error: "Enter the actual packed weight and dimensions for every box." };
     }
+    const id = String(record.id || `box-${index + 1}`).slice(0, 40);
+    if (seen.has(id)) return { ok: false, error: "Each packed box needs its own id before it can be quoted." };
+    seen.add(id);
     boxes.push({
-      id: String(record.id || `box-${index + 1}`).slice(0, 40),
+      id,
       weightLb,
       lengthIn,
       widthIn,

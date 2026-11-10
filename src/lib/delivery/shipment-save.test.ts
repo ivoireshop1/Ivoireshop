@@ -37,4 +37,9 @@ test("mark as shipped stays a separate explicit action", () => {
   assert.match(source, /Save tracking/);
   assert.match(source, /intent="ship"/);
   assert.match(source, /Mark as shipped/);
+  const action = readFileSync(new URL("./actions.ts", import.meta.url), "utf8");
+  const start = action.indexOf("export async function saveOrderShipment");
+  const save = action.slice(start, action.indexOf("function normalizeStoredTracking", start));
+  assert.match(save, /intent === "ship" && !alreadyShipped && \["delivered", "cancelled"\]/);
+  assert.equal(save.includes("shipping_cost"), false);
 });

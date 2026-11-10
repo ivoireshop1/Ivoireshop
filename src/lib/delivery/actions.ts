@@ -685,10 +685,10 @@ export async function saveOrderShipment(_prev: ShipmentActionState | null, formD
   if (alreadyShipped && !correction && hadTracking && trackingChanged) {
     return { error: "Use Edit Tracking to change a saved tracking number." };
   }
-  if (!alreadyShipped && ["delivered", "cancelled"].includes(order.status)) {
+  const intent = shipmentSaveIntent(formData.get("intent"));
+  if (intent === "ship" && !alreadyShipped && ["delivered", "cancelled"].includes(order.status)) {
     return { error: "This order cannot be marked shipped." };
   }
-  const intent = shipmentSaveIntent(formData.get("intent"));
   const shippedAt = alreadyShipped
     ? String(order.shipped_at ?? "")
     : parseShipmentDate(String(formData.get("shipped_at") ?? ""));

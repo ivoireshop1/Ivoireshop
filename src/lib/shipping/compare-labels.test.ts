@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   combineEasyshipBoxes,
   compareLabelsEligible,
+  nextCompareBoxId,
   easyshipPurchaseReady,
   fullOrderComparison,
   isLowestKnown,
@@ -56,6 +57,13 @@ test("a quote request with a missing dimension is rejected before any provider c
   const parsed = parseComparePackage(form);
   assert.equal(parsed.ok, false);
   if (!parsed.ok) assert.match(parsed.error, /weight and dimensions/);
+  form.set("boxes_json", JSON.stringify([
+    { id: "box-1", weightLb: 2, lengthIn: 10, widthIn: 8, heightIn: 6 },
+    { id: "box-1", weightLb: 3, lengthIn: 10, widthIn: 8, heightIn: 6 },
+  ]));
+  const duplicate = parseComparePackage(form);
+  assert.equal(duplicate.ok, false);
+  assert.equal(nextCompareBoxId(["box-1", "box-3"]), "box-4");
 });
 
 test("missing package details block a quote", () => {
@@ -104,6 +112,15 @@ test("multi-box comparison waits until every box is priced and highlights the lo
   assert.equal(priority?.pirateTotal, null);
   assert.equal(priority?.easyshipTotal, 15);
   assert.equal(priority?.lowest, 15);
+  const duplicated = fullOrderComparison({
+    boxIds: ["box-1", "box-1"],
+    easyship: "unavailable",
+    pirate: [
+      { boxId: "box-1", quotes: [quote("box-1", "ups", "Ground", 11)] },
+      { boxId: "box-1", quotes: [quote("box-1", "ups", "Ground", 9)] },
+    ],
+  });
+  assert.equal(duplicated[0].pirateTotal, null);
 });
 
 test("an Easyship rejection leaves Pirate Ship totals usable", () => {
@@ -139,6 +156,8 @@ test("package CSV uses the confirmed boxes and does not carry secrets", () => {
     "",
   ].join("\n"));
   assert.doesNotMatch(csv, /Bearer |sk_live_|rk_live_|prod_|sand_/);
+  const formula = packageCsv([oneBox], { name: "=CMD()", address_line_1: "1 Main St", city: "Atlanta", state: "GA", postal_code: "30303", country: "US" });
+  assert.match(formula, /'=CMD\(\)/);
 });
 
 test("Easyship purchase stays off unless the verified single-box UPS flow matches the saved service", () => {
