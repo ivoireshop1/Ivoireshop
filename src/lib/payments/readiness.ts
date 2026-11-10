@@ -1,4 +1,4 @@
-import { getStripeConfig } from "./stripe-config";
+import { getStripeConfig, stripePublishableKeyMode, stripeSecretKeyMode } from "./stripe-config";
 import { hasPaymentAdminClient } from "./config";
 import { toPublicPaymentConfig, type PublicPaymentConfig } from "./customer-copy";
 import { createClient } from "@/src/lib/supabase/server";
@@ -97,11 +97,30 @@ export async function getPublicPaymentConfig(): Promise<PublicPaymentConfig> {
     taxBlocked,
     taxBlockedMessage: TAX_PAYMENT_BLOCKED_MESSAGE,
   });
-  return toPublicPaymentConfig({
+  const config = toPublicPaymentConfig({
     ready: payment.stripe.configured && payment.canRecord && !taxBlocked,
     mode: payment.stripe.mode,
     liveBlocked: payment.stripe.liveBlocked,
     taxBlocked,
     taxBlockedMessage: TAX_PAYMENT_BLOCKED_MESSAGE,
   });
+  const readiness = {
+    stripeReady: config.stripeReady,
+    secretPresent: stripe.secretPresent,
+    publishablePresent: stripe.publishablePresent,
+    secretMode: stripe.secretPresent ? stripeSecretKeyMode(stripe.secretKey) : null,
+    secretLength: stripe.secretPresent ? stripe.secretKey.length : 0,
+    secretHasLivePrefix: stripe.secretPresent ? stripe.secretKey.includes("sk_live_") : false,
+    secretHasRestrictedLivePrefix: stripe.secretPresent ? stripe.secretKey.includes("rk_live_") : false,
+    publishableMode: stripe.publishablePresent ? stripePublishableKeyMode(stripe.publishableKey) : null,
+    invalidKeyType: stripe.invalidKeyType,
+    modeMismatch: stripe.modeMismatch,
+    liveFlag: stripe.livePaymentsEnabled,
+    webhookPresent: stripe.webhookPresent,
+    paymentAdminClient: payment.canRecord,
+    taxBlocked,
+  };
+  if (config.stripeReady) console.info("[stripe-readiness]", readiness);
+  else console.warn("[stripe-readiness]", readiness);
+  return config;
 }

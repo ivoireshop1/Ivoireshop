@@ -17,7 +17,7 @@ import {
   internationalEligibility,
 } from "./shippo";
 import { easypostCredentials, quoteEasyPostShipment } from "./easypost";
-import { easyshipCredentials, easyshipCustomerError, easyshipQuoteErrorMessage, easyshipQuoteItems, quoteEasyshipRates } from "./easyship";
+import { easyshipCredentials, easyshipCustomerError, easyshipMonitorReason, easyshipQuoteErrorMessage, easyshipQuoteItems, quoteEasyshipRates } from "./easyship";
 import { customerFacingEasyPostAllowed, customerFacingEasyShipAllowed, customerFacingShippoAllowed, liveCarrierApiEnabled, parseShippingProvider } from "./provider";
 import { cartUsesEstimatedWeight, recordShippingMonitorEvent, recordShippingQuoteLog } from "./monitor";
 import { checkoutLiveQuotesBlocked, shippingLiveRatesEnabled, LIVE_RATES_DISABLED_MESSAGE } from "./live-rates-switch";
@@ -531,7 +531,7 @@ export async function quoteLiveCarrierOptions(input: {
     });
     if (!quoted.ok) {
       await recordShippingMonitorEvent("quote_failure", {
-        reason: quoted.rateLimited ? "easyship_rate_limited" : quoted.code,
+        reason: quoted.rateLimited ? "easyship_rate_limited" : easyshipMonitorReason(quoted.code),
         carriers: remaining,
         status: quoted.status ?? null,
       });

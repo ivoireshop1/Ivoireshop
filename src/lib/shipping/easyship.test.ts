@@ -16,6 +16,7 @@ import {
   quoteEasyshipRates,
   easyshipApiMessage,
   easyshipCustomerError,
+  easyshipMonitorReason,
 } from "./easyship.ts";
 import { parseShippingPackage, resolveCartParcel } from "./packages.ts";
 import { STEEL_SIX_CART, STEEL_SIX_SHIPPO_DESTINATION } from "./steel-six-cart.ts";
@@ -228,8 +229,26 @@ test("Easyship address and HTTP errors stay explicit", () => {
     apiMessage: "Bearer prod_secretvalue",
   }), /prod_secretvalue/);
   assert.equal(classifyEasyshipHttpStatus(429, {}), "rate_limited");
-  assert.match(easyshipQuoteErrorMessage("missing_scope"), /public\.rate:read/);
   assert.match(easyshipQuoteErrorMessage("invalid_parcel"), /never invented/);
+  const subscriptionBody = { error: { message: "Your subscription is not active. Please update your billing information to continue using advanced API features." } };
+  const scopeBody = { error: { message: "missing public.rate:read scope" } };
+  const unknownBody = { error: { message: "Forbidden" } };
+  assert.equal(classifyEasyshipHttpStatus(403, subscriptionBody), "subscription_inactive");
+  assert.equal(classifyEasyshipHttpStatus(403, scopeBody), "missing_scope");
+  assert.equal(classifyEasyshipHttpStatus(403, unknownBody), "forbidden");
+  assert.equal(easyshipMonitorReason("subscription_inactive"), "easyship_subscription_inactive");
+  assert.equal(easyshipMonitorReason("missing_scope"), "easyship_missing_scope");
+  assert.equal(easyshipMonitorReason("forbidden"), "easyship_forbidden");
+  for (const code of ["subscription_inactive", "missing_scope", "forbidden"] as const) {
+    const message = easyshipCustomerError({
+      error: easyshipQuoteErrorMessage(code),
+      apiMessage: easyshipApiMessage(subscriptionBody),
+    });
+    assert.match(message, /carrier rates are unavailable/i);
+    assert.match(message, /Store Pickup remains available/);
+    assert.match(message, /No substitute rate was invented/);
+    assert.doesNotMatch(message, /billing|subscription|public\.rate:read/i);
+  }
 });
 
 test("Easyship quote does not call the network when parcel or prices are missing", async () => {

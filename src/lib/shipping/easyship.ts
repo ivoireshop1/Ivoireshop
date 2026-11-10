@@ -12,7 +12,9 @@ export type EasyshipKeyMode = "sandbox" | "production" | "unknown";
 export type EasyshipQuoteErrorCode =
   | "not_configured"
   | "unrecognized_key"
+  | "subscription_inactive"
   | "missing_scope"
+  | "forbidden"
   | "unauthorized"
   | "invalid_parcel"
   | "missing_declared_value"
@@ -20,6 +22,9 @@ export type EasyshipQuoteErrorCode =
   | "invalid_content"
   | "rate_limited"
   | "request_failed";
+
+export const EASYSHIP_CARRIER_RATES_UNAVAILABLE_MESSAGE =
+  "UPS and USPS carrier rates are unavailable right now. Store Pickup remains available. No substitute rate was invented.";
 
 export function easyshipKeysRotated(env: NodeJS.ProcessEnv = process.env) {
   const raw = String(env.EASYSHIP_KEYS_ROTATED ?? "").trim().toLowerCase();
@@ -216,13 +221,42 @@ export function identifyEasyshipProvider(carrier: unknown): "ups" | "usps" | nul
   return null;
 }
 
+function mentionsMissingRateScope(text: string) {
+  return text.includes("public.rate:read");
+}
+
+function mentionsInactiveSubscription(text: string) {
+  return text.includes("subscription is not active")
+    || text.includes("subscription not active")
+    || text.includes("inactive subscription")
+    || (text.includes("subscription") && text.includes("billing"));
+}
+
 export function classifyEasyshipHttpStatus(status: number, body: unknown): EasyshipQuoteErrorCode {
   if (status === 429) return "rate_limited";
   if (status === 401) return "unauthorized";
   if (status === 422) return "invalid_content";
   const textValue = JSON.stringify(body ?? "").toLowerCase();
-  if (status === 403 || textValue.includes("scope") || textValue.includes("forbidden")) return "missing_scope";
+  if (status === 403) {
+    if (mentionsMissingRateScope(textValue)) return "missing_scope";
+    if (mentionsInactiveSubscription(textValue)) return "subscription_inactive";
+    return "forbidden";
+  }
+  if (textValue.includes("scope") || textValue.includes("forbidden")) return "missing_scope";
   return "request_failed";
+}
+
+export function easyshipMonitorReason(code: EasyshipQuoteErrorCode) {
+  switch (code) {
+    case "subscription_inactive":
+      return "easyship_subscription_inactive";
+    case "missing_scope":
+      return "easyship_missing_scope";
+    case "forbidden":
+      return "easyship_forbidden";
+    default:
+      return code;
+  }
 }
 
 export function easyshipApiMessage(body: unknown) {
@@ -243,9 +277,14 @@ export function easyshipApiMessage(body: unknown) {
   return raw ? sanitizeProviderError(raw) : "";
 }
 
+function customerDetailIsPrivate(detail: string) {
+  return /subscription|billing|public\.rate:read/i.test(detail);
+}
+
 export function easyshipCustomerError(input: { error: string; apiMessage?: string }) {
   const detail = sanitizeProviderError(String(input.apiMessage ?? "").trim());
   if (!detail || detail === "The request body content is not valid." || input.error.includes(detail)) return input.error;
+  if (input.error === EASYSHIP_CARRIER_RATES_UNAVAILABLE_MESSAGE || customerDetailIsPrivate(detail)) return input.error;
   return `${input.error} ${detail}`;
 }
 
@@ -255,8 +294,10 @@ export function easyshipQuoteErrorMessage(code: EasyshipQuoteErrorCode) {
       return "Live UPS/USPS quotes are enabled, but Easyship is not configured on this environment.";
     case "unrecognized_key":
       return "An Easyship key is present but the format is unrecognized. Expected a sand_ sandbox key or a prod_ production key.";
+    case "subscription_inactive":
     case "missing_scope":
-      return "Easyship rejected the rates request. Confirm the API connection includes the public.rate:read advanced scope. No substitute rate was invented.";
+    case "forbidden":
+      return EASYSHIP_CARRIER_RATES_UNAVAILABLE_MESSAGE;
     case "unauthorized":
       return "Easyship did not accept the configured key. Confirm EASYSHIP_API_KEY on this environment. No substitute rate was invented.";
     case "invalid_parcel":

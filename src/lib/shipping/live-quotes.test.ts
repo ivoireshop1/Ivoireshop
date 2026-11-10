@@ -165,6 +165,7 @@ test("checkout live quotes never call the AI gateway and still log parcel failur
   assert.match(source, /recordShippingQuoteLog/);
   assert.match(source, /status: packed\.code \?\? "missing_parcel"/);
   assert.match(source, /checkoutLiveQuotesBlocked\(settings\)/);
+  assert.match(source, /easyshipMonitorReason\(quoted\.code\)/);
   assert.match(source, /shippingLiveRatesEnabled/);
   assert.doesNotMatch(source, /if \(!shippingLiveRatesEnabled\(\)\)/);
   assert.match(source, /customerFacingShippoAllowed/);
