@@ -34,6 +34,66 @@ export function uberDispatchAllowed(env: NodeJS.ProcessEnv = process.env) {
   return creds.productionDispatchEnabled;
 }
 
+/** Quotes may be offered without authorizing paid courier booking. */
+export function uberQuotesAllowed(env: NodeJS.ProcessEnv = process.env) {
+  const creds = uberDirectCredentials(env);
+  return creds.configured && creds.environment !== "unidentified";
+}
+
+export type UberSettingsGate = {
+  enabled?: boolean | null;
+  showAtCheckout?: boolean | null;
+  productionDispatchDb?: boolean | null;
+  minMiles?: number | null;
+  maxMiles?: number | null;
+};
+
+export function explainUberCheckoutBlocker(
+  settings: UberSettingsGate,
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  if (settings.enabled !== true) return "Uber Direct is disabled in Admin → Delivery → Uber Direct.";
+  if (settings.showAtCheckout !== true) return "Uber Direct is hidden at checkout. Enable “Show Uber Direct at checkout” in Admin.";
+  const creds = uberDirectCredentials(env);
+  if (!creds.configured) {
+    return "Uber Direct credentials are not configured in the hosting environment (UBER_DIRECT_CUSTOMER_ID, UBER_DIRECT_CLIENT_ID, UBER_DIRECT_CLIENT_SECRET).";
+  }
+  if (creds.environment === "unidentified") {
+    return "Set UBER_DIRECT_ENVIRONMENT to sandbox or production before checkout can show Uber quotes.";
+  }
+  return null;
+}
+
+export function explainUberDispatchBlocker(
+  settings: UberSettingsGate,
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  const quoteBlock = explainUberCheckoutBlocker(settings, env);
+  if (quoteBlock) return quoteBlock;
+  if (!uberDispatchAllowed(env)) {
+    return "Paid Uber courier dispatch stays off until UBER_DIRECT_PRODUCTION_DISPATCH=founder-approved is set on the server for production (sandbox may book test jobs).";
+  }
+  if (uberDirectEnvironment(env) === "production" && settings.productionDispatchDb !== true) {
+    return "Production dispatch is still off in Admin. Quotes can show; real courier booking stays blocked.";
+  }
+  return null;
+}
+
+export function credentialStatusSummary(env: NodeJS.ProcessEnv = process.env) {
+  const creds = uberDirectCredentials(env);
+  return {
+    configured: creds.configured,
+    environment: creds.environment,
+    customerIdPresent: Boolean(creds.customerId),
+    clientIdPresent: Boolean(creds.clientId),
+    clientSecretPresent: Boolean(creds.clientSecret),
+    webhookSigningKeyPresent: Boolean(creds.webhookSigningKey),
+    productionDispatchEnv: creds.productionDispatchEnabled,
+    quotesAllowed: uberQuotesAllowed(env),
+    dispatchAllowed: uberDispatchAllowed(env),
+  };
+}
+
 function envText(env: NodeJS.ProcessEnv, name: string) {
   return String(env[name] ?? "").trim();
 }
@@ -169,7 +229,10 @@ export async function quoteUberDelivery(input: {
 }): Promise<{ option?: DeliveryOption; unavailable?: string }> {
   const env = input.env ?? process.env;
   const creds = uberDirectCredentials(env);
-  if (!creds.configured || creds.environment === "unidentified" || !uberDispatchAllowed(env)) {
+  // Quotes must not require paid-dispatch approval. Booking stays gated separately.
+  if (!uberQuotesAllowed(env)) {
+    if (!creds.configured) return { unavailable: "Uber Direct is not configured right now." };
+    if (creds.environment === "unidentified") return { unavailable: "Uber Direct environment is not identified." };
     return { unavailable: "Local delivery is not available right now." };
   }
   const host = uberApiHost(creds.environment);

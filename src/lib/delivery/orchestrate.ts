@@ -4,8 +4,9 @@ import { originFromSettings, originIsComplete } from "./origin";
 import { optionToSnapshot } from "./snapshot";
 import { quoteDoorDash } from "./providers/doordash";
 import { formatUberAddress, quoteUberDelivery } from "./providers/uber-direct";
-import { uberDirectCredentials, uberDirectEnvironment, uberDispatchAllowed } from "./credentials";
+import { explainUberCheckoutBlocker, uberDirectCredentials, uberDirectEnvironment } from "./credentials";
 import { sanitizeProviderError, type DeliveryOption } from "./types";
+import { recordUberQuoteEvent } from "./uber-events";
 import { parseCharge, manualCarrierOptions, parseRateMode } from "./manual";
 import { destinationReadyForCarrierQuotes, destinationReadyForLocalDelivery, incompleteCarrierQuoteMessage } from "./destination";
 import { taxSettingsFromRow, computeTaxLines, computeOrderTotalCents, moneyFromCents, safeUsdToCents, type TaxLine } from "@/src/lib/tax/totals";
@@ -108,13 +109,25 @@ export async function collectCheckoutOptions(input: {
     logDelivery("doordash", "quote", !quoted.error, quoted.error);
     options.push(...quoted.options.map((option) => ({ ...option, mode: "api" as const })));
   }
-  const uberSettings = (settings ?? {}) as { uber_direct_enabled?: boolean; uber_direct_show_at_checkout?: boolean; uber_direct_markup_cents?: number; uber_direct_production_dispatch?: boolean };
-  const uberOffered = uberSettings.uber_direct_enabled === true
-    && uberSettings.uber_direct_show_at_checkout !== false
-    && uberDispatchAllowed()
-    && (uberDirectEnvironment() !== "production" || uberSettings.uber_direct_production_dispatch === true);
+  const uberSettings = (settings ?? {}) as {
+    uber_direct_enabled?: boolean;
+    uber_direct_show_at_checkout?: boolean;
+    uber_direct_markup_cents?: number;
+    uber_direct_production_dispatch?: boolean;
+    uber_direct_min_miles?: number | null;
+    uber_direct_max_miles?: number | null;
+  };
+  const uberGate = {
+    enabled: uberSettings.uber_direct_enabled === true,
+    showAtCheckout: uberSettings.uber_direct_show_at_checkout === true,
+    productionDispatchDb: uberSettings.uber_direct_production_dispatch === true,
+    minMiles: uberSettings.uber_direct_min_miles ?? null,
+    maxMiles: uberSettings.uber_direct_max_miles ?? null,
+  };
+  // Customer quotes follow enable + show + credentials. Paid dispatch stays separately gated.
+  const uberQuoteBlocker = explainUberCheckoutBlocker(uberGate);
   let uberNote = "";
-  if (localReady && originIsComplete(origin) && uberOffered) {
+  if (!uberQuoteBlocker && localReady && originIsComplete(origin)) {
     const pickup = formatUberAddress(origin);
     const dropoff = formatUberAddress(input.destination);
     if (!pickup || !dropoff) {
@@ -126,9 +139,21 @@ export async function collectCheckoutOptions(input: {
         markupCents: Number(uberSettings.uber_direct_markup_cents ?? 0),
       });
       logDelivery("uber", "quote", Boolean(quoted.option), quoted.unavailable);
+      void recordUberQuoteEvent({
+        kind: quoted.option ? "quote_success" : "quote_failure",
+        message: quoted.option
+          ? `Quoted $${quoted.option.amount.toFixed(2)}${quoted.option.estimate ? ` · ${quoted.option.estimate}` : ""}`
+          : (quoted.unavailable ?? "Quote unavailable"),
+        feeCents: quoted.option?.uberFeeCents ?? null,
+        markupCents: quoted.option?.uberMarkupCents ?? null,
+        environment: uberDirectEnvironment(),
+        source: "checkout",
+      });
       if (quoted.option) options.push(quoted.option);
       else if (quoted.unavailable) uberNote = quoted.unavailable;
     }
+  } else if (uberSettings.uber_direct_enabled === true && uberQuoteBlocker) {
+    uberNote = uberQuoteBlocker;
   } else if (uberDirectCredentials().configured && uberDirectEnvironment() === "unidentified" && uberSettings.uber_direct_enabled) {
     uberNote = "Local delivery is unavailable until the Uber environment is identified.";
   }

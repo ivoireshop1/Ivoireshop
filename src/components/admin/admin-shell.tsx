@@ -19,6 +19,7 @@ const navigation = [
   { href: "/admin/messages", label: "Messages" },
   { href: "/admin/printing", label: "Printing" },
   { href: "/admin/delivery", label: "Delivery" },
+  { href: "/admin/delivery/uber", label: "Uber Direct" },
   { href: "/admin/payments", label: "Payments" },
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/reviews", label: "Reviews" },
@@ -68,6 +69,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 const current =
                   item.href === "/admin/products"
                     ? pathname === "/admin/products" || (pathname.startsWith("/admin/products/") && !pathname.startsWith("/admin/products/catalog-controls") && pathname !== "/admin/products/new" && !pathname.startsWith("/admin/products/new/"))
+                    : item.href === "/admin/delivery"
+                      ? pathname === "/admin/delivery"
                     : pathname === item.href || (item.href !== "/admin" && item.href !== "/" && pathname.startsWith(`${item.href}/`));
                 return (
                 <Link

@@ -38,18 +38,26 @@ export function uspsCredentials() {
 
 import {
   UBER_DIRECT_PRODUCTION_DISPATCH_FLAG,
+  credentialStatusSummary,
+  explainUberCheckoutBlocker,
+  explainUberDispatchBlocker,
   uberDirectCredentials,
   uberDirectEnvironment,
   uberDispatchAllowed,
+  uberQuotesAllowed,
 } from "./providers/uber-direct";
 
 export {
   UBER_DIRECT_PRODUCTION_DISPATCH_FLAG,
+  credentialStatusSummary,
+  explainUberCheckoutBlocker,
+  explainUberDispatchBlocker,
   uberDirectCredentials,
   uberDirectEnvironment,
   uberDispatchAllowed,
+  uberQuotesAllowed,
 };
-export type { UberEnvironment } from "./providers/uber-direct";
+export type { UberEnvironment, UberSettingsGate } from "./providers/uber-direct";
 
 export type ProviderId = "doordash" | "ups" | "usps" | "uber";
 

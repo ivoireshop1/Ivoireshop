@@ -4,12 +4,14 @@ import test from "node:test";
 import { isCheckoutEligibleShippingOption } from "./checkout-eligibility.ts";
 import {
   clearUberTokenCache,
+  explainUberCheckoutBlocker,
   formatUberAddress,
   getUberAccessToken,
   quoteUberDelivery,
   uberDirectEnvironment,
   uberDispatchAllowed,
   uberErrorMessage,
+  uberQuotesAllowed,
   verifyUberWebhookSignature,
 } from "./providers/uber-direct.ts";
 import { paidUberBookingBlocker, shouldApplyUberStatus, uberCustomerStage, uberIdempotencyKey } from "./uber-status.ts";
@@ -87,6 +89,26 @@ test("payment failure, fee mismatch, and disabled dispatch do not book a courier
   assert.equal(uberDispatchAllowed({ ...sandboxEnv, UBER_DIRECT_ENVIRONMENT: "production" }), false);
   assert.equal(uberDispatchAllowed({ ...sandboxEnv, UBER_DIRECT_ENVIRONMENT: "production", UBER_DIRECT_PRODUCTION_DISPATCH: "founder-approved" }), true);
   assert.equal(uberDirectEnvironment({}), "unidentified");
+});
+
+test("customer quotes stay allowed without production dispatch approval", async () => {
+  clearUberTokenCache();
+  const productionEnv = {
+    ...sandboxEnv,
+    UBER_DIRECT_ENVIRONMENT: "production",
+  } as NodeJS.ProcessEnv;
+  assert.equal(uberQuotesAllowed(productionEnv), true);
+  assert.equal(uberDispatchAllowed(productionEnv), false);
+  assert.match(explainUberCheckoutBlocker({ enabled: true, showAtCheckout: false }, productionEnv) ?? "", /hidden at checkout/i);
+  assert.equal(explainUberCheckoutBlocker({ enabled: true, showAtCheckout: true }, productionEnv), null);
+  const fetchImpl: typeof fetch = async (url) => {
+    if (String(url).includes("auth.uber.com")) return new Response(JSON.stringify({ access_token: "token-1", expires_in: 3600 }));
+    return new Response(JSON.stringify({ id: "dqt_prod", fee: 900, currency: "usd", expires: "2026-11-12T12:15:00Z", dropoff_eta: "2026-11-12T12:45:00Z", duration: 1500 }));
+  };
+  const quoted = await quoteUberDelivery({ pickup, dropoff, markupCents: 0, fetchImpl, now: Date.parse("2026-11-12T12:00:00Z"), env: productionEnv });
+  assert.equal(quoted.option?.uberFeeCents, 900);
+  assert.equal(quoted.unavailable, undefined);
+  clearUberTokenCache();
 });
 
 test("duplicate booking uses one idempotency key and stale webhook statuses do not move backward", () => {

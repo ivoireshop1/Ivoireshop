@@ -1,8 +1,7 @@
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
 import { formatOriginLines, originFromSettings, originIsComplete } from "@/src/lib/delivery/origin";
-import { doordashCredentials, uberDirectCredentials, uberDispatchAllowed } from "@/src/lib/delivery/credentials";
-import { UberDirectPanel } from "@/src/components/admin/uber-direct-panel";
+import { doordashCredentials, explainUberCheckoutBlocker, uberDirectCredentials, uberDispatchAllowed } from "@/src/lib/delivery/credentials";
 import { checkDeliveryProviders, carrierOrderCounts } from "@/src/lib/delivery/actions";
 import { ShippoSettingsForm } from "@/src/components/admin/shippo-settings-form";
 import { ShippingProviderForm } from "@/src/components/admin/shipping-provider-form";
@@ -76,18 +75,13 @@ export default async function AdminDeliveryPage() {
   const uspsHealth = healthBy.get("usps");
   const doorConfigured = doordashCredentials().configured;
   const uberCreds = uberDirectCredentials();
-  const { data: uberDeliveryRows } = await supabase.from("uber_deliveries").select("order_id, delivery_id, status, tracking_url, fee_cents, markup_cents, courier_name, last_error, environment").order("created_at", { ascending: false }).limit(40);
-  const uberOrderIds = (uberDeliveryRows ?? []).map((row) => row.order_id);
-  const { data: uberOrders } = uberOrderIds.length
-    ? await supabase.from("orders").select("id, payment_status, refunded_amount").in("id", uberOrderIds)
-    : { data: [] as Array<{ id: string; payment_status: string | null; refunded_amount: number | null }> };
-  const uberPayment = new Map((uberOrders ?? []).map((row) => [row.id, row]));
-  const uberDeliveries = (uberDeliveryRows ?? []).map((row) => ({
-    ...row,
-    payment_status: uberPayment.get(row.order_id)?.payment_status ?? null,
-    refunded_amount: uberPayment.get(row.order_id)?.refunded_amount ?? null,
-  }));
-  const uberHealth = healthBy.get("uber")?.status || (uberCreds.configured ? "Not checked" : "missing");
+  const uberHealthRow = healthBy.get("uber");
+  const uberHealth = uberHealthRow?.status || (uberCreds.configured ? "Not checked" : "missing");
+  const uberCheckoutBlocker = explainUberCheckoutBlocker({
+    enabled: settings?.uber_direct_enabled === true,
+    showAtCheckout: settings?.uber_direct_show_at_checkout === true,
+    productionDispatchDb: settings?.uber_direct_production_dispatch === true,
+  });
   const doorHealth = healthBy.get("doordash");
   const doorTitle = !doorConfigured
     ? "Not configured"
@@ -155,17 +149,32 @@ export default async function AdminDeliveryPage() {
         </section>
       </div>
 
-      <UberDirectPanel
-        configured={uberCreds.configured}
-        deliveries={uberDeliveries}
-        dispatchAllowed={uberDispatchAllowed() && (uberCreds.environment !== "production" || settings?.uber_direct_production_dispatch === true)}
-        enabled={settings?.uber_direct_enabled === true}
-        environment={uberCreds.environment}
-        health={uberHealth}
-        markupCents={Number(settings?.uber_direct_markup_cents ?? 0)}
-        productionDispatch={settings?.uber_direct_production_dispatch === true}
-        showAtCheckout={settings?.uber_direct_show_at_checkout === true}
-      />
+      <section className="rounded-2xl bg-white p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-[#173f35]">Uber Direct</h2>
+            <p className="mt-2 text-sm text-[#6b6b6b]">Local courier quotes at checkout. Paid dispatch stays separately protected.</p>
+          </div>
+          <Link className="min-h-11 rounded-xl bg-[#173f35] px-4 py-2 text-sm font-semibold text-white" href="/admin/delivery/uber">
+            Open Uber Direct
+          </Link>
+        </div>
+        <div className="mt-4 grid gap-2 text-sm text-[#173f35] sm:grid-cols-2 lg:grid-cols-4">
+          <p>Enabled: <strong>{settings?.uber_direct_enabled === true ? "Yes" : "No"}</strong></p>
+          <p>Show at checkout: <strong>{settings?.uber_direct_show_at_checkout === true ? "Yes" : "No"}</strong></p>
+          <p>Connection: <strong>{uberHealth}</strong></p>
+          <p>Environment: <strong>{uberCreds.environment}</strong></p>
+        </div>
+        <p className="mt-3 text-sm text-[#7c5d1a]">
+          {uberCheckoutBlocker
+            || (uberDispatchAllowed() && (uberCreds.environment !== "production" || settings?.uber_direct_production_dispatch === true)
+              ? "Quotes and dispatch readiness are both configured for this environment."
+              : "Quotes can be offered when enabled; paid production dispatch still needs founder approval.")}
+        </p>
+        {uberHealthRow?.last_check_at ? (
+          <p className="mt-1 text-xs text-[#6b6b6b]">Last connection check {new Date(uberHealthRow.last_check_at).toLocaleString()}{uberHealthRow.last_error ? ` · ${uberHealthRow.last_error}` : ""}</p>
+        ) : null}
+      </section>
 
       <section className="rounded-2xl bg-white p-5">
         <h2 className="font-semibold text-[#173f35]">Shipping monitor</h2>
