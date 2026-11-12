@@ -36,12 +36,19 @@ export function uspsCredentials() {
   };
 }
 
-export {
+import {
   UBER_DIRECT_PRODUCTION_DISPATCH_FLAG,
   uberDirectCredentials,
   uberDirectEnvironment,
   uberDispatchAllowed,
 } from "./providers/uber-direct";
+
+export {
+  UBER_DIRECT_PRODUCTION_DISPATCH_FLAG,
+  uberDirectCredentials,
+  uberDirectEnvironment,
+  uberDispatchAllowed,
+};
 export type { UberEnvironment } from "./providers/uber-direct";
 
 export type ProviderId = "doordash" | "ups" | "usps" | "uber";

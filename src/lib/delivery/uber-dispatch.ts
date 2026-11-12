@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { uberDirectCredentials, uberDirectEnvironment, uberDispatchAllowed } from "./credentials";
-import { formatUberAddress, createUberDelivery, cancelUberDelivery, getUberDelivery } from "./providers/uber-direct";
+import { formatUberAddress, createUberDelivery, cancelUberDelivery, getUberDelivery, quoteUberDelivery } from "./providers/uber-direct";
 import { paidUberBookingBlocker, shouldApplyUberStatus, uberIdempotencyKey } from "./uber-status";
 
 export { paidUberBookingBlocker, uberIdempotencyKey };
@@ -167,6 +167,47 @@ export async function refreshUberDeliveryRecord(orderId: string, input: { fetchI
     }).eq("order_id", orderId);
   }
   return { ok: true as const, delivery: live.delivery };
+}
+
+export async function retryUberDeliveryForOrder(orderId: string, input: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv } = {}) {
+  const admin = createAdminClient();
+  if (!admin) return { ok: false as const, error: "The server cannot record an Uber delivery." };
+  const { data: order } = await admin.from("orders").select("id, payment_status, fulfillment_provider, fulfillment_method, shipping_cost, is_demo, shipping_address, delivery_snapshot").eq("id", orderId).maybeSingle();
+  const row = order as OrderRow | null;
+  if (!row || row.fulfillment_provider !== "uber") return { ok: false as const, error: "This order is not an Uber delivery." };
+  const existing = await loadDelivery(admin, row.id);
+  if (existing?.delivery_id) return { ok: true as const, duplicate: true as const, deliveryId: existing.delivery_id };
+  const env = input.env ?? process.env;
+  const { data: settings } = await admin.from("store_settings").select("origin_address_line_1, origin_address_line_2, origin_city, origin_state, origin_postal_code, origin_country, uber_direct_markup_cents").eq("id", "default").maybeSingle() as { data: Record<string, string | number | null> | null };
+  const pickup = formatUberAddress({
+    address_line_1: settings?.origin_address_line_1 == null ? null : String(settings.origin_address_line_1),
+    address_line_2: settings?.origin_address_line_2 == null ? null : String(settings.origin_address_line_2),
+    city: settings?.origin_city == null ? null : String(settings.origin_city),
+    state: settings?.origin_state == null ? null : String(settings.origin_state),
+    postal_code: settings?.origin_postal_code == null ? null : String(settings.origin_postal_code),
+    country: settings?.origin_country == null ? null : String(settings.origin_country),
+  });
+  const dropoff = formatUberAddress(row.shipping_address ?? {});
+  if (!pickup || !dropoff) return fail(admin, row, "The pickup or delivery address must be complete before a new quote.");
+  const snapshot = row.delivery_snapshot ?? {};
+  const markupCents = Number(snapshot.uber_markup_cents ?? settings?.uber_direct_markup_cents ?? 0);
+  const quoted = await quoteUberDelivery({ pickup, dropoff, markupCents, fetchImpl: input.fetchImpl, env });
+  if (!quoted.option?.uberQuoteId || quoted.option.uberFeeCents == null) return fail(admin, row, quoted.unavailable ?? "Uber did not return a new quote. No courier was booked.");
+  const paidCents = Math.round(Number(row.shipping_cost ?? 0) * 100);
+  if (quoted.option.uberFeeCents + (quoted.option.uberMarkupCents ?? 0) !== paidCents) {
+    return fail(admin, row, "The new Uber quote does not match the paid delivery fee. No courier was booked.");
+  }
+  await admin.from("orders").update({
+    delivery_snapshot: {
+      ...snapshot,
+      uber_quote_id: quoted.option.uberQuoteId,
+      uber_expires_at: quoted.option.uberExpiresAt,
+      uber_fee_cents: quoted.option.uberFeeCents,
+      uber_markup_cents: quoted.option.uberMarkupCents,
+      dropoff_eta: quoted.option.dropoffEta,
+    },
+  }).eq("id", row.id);
+  return bookPaidUberDelivery(row.id, input);
 }
 
 export async function cancelUberDeliveryForOrder(orderId: string, input: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv } = {}) {

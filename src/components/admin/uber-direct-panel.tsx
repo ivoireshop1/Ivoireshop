@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { cancelUberOrderDelivery, checkUberDirectConnection, saveUberDirectSettings } from "@/src/lib/delivery/uber-actions";
+import { cancelUberOrderDelivery, checkUberDirectConnection, retryUberOrderDelivery, saveUberDirectSettings } from "@/src/lib/delivery/uber-actions";
 
 type DeliveryRow = {
   order_id: string;
@@ -77,7 +77,7 @@ export function UberDirectPanel({
                 <td>{row.courier_name || "—"}</td>
                 <td>{money(row.fee_cents)}{row.markup_cents ? ` + ${money(row.markup_cents)} markup` : ""}</td>
                 <td>{row.payment_status || "—"}{row.refunded_amount ? ` · refunded $${Number(row.refunded_amount).toFixed(2)}` : ""}</td>
-                <td>{row.tracking_url ? <a className="underline" href={row.tracking_url}>Track</a> : "—"}{row.delivery_id && row.status !== "delivered" && row.status !== "cancelled" ? <button className="ml-3 underline" onClick={() => cancelUberOrderDelivery(row.order_id)} type="button">Cancel</button> : null}</td>
+                <td>{row.tracking_url ? <a className="underline" href={row.tracking_url}>Track</a> : "—"}{row.delivery_id && row.status !== "delivered" && row.status !== "cancelled" ? <button className="ml-3 underline" onClick={() => cancelUberOrderDelivery(row.order_id)} type="button">Cancel</button> : null}{!row.delivery_id && row.status === "failed" ? <button className="ml-3 underline" onClick={() => retryUberOrderDelivery(row.order_id)} type="button">Retry</button> : null}</td>
               </tr>
             ))}
           </tbody>

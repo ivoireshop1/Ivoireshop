@@ -6,10 +6,9 @@ export async function POST(request: Request) {
   const rawBody = await request.text();
   const creds = uberDirectCredentials();
   if (!creds.webhookSigningKey) return Response.json({ ok: false }, { status: 503 });
-  const signature = request.headers.get("x-uber-signature") || request.headers.get("x-postmates-signature");
-  if (!verifyUberWebhookSignature(rawBody, signature, creds.webhookSigningKey)) {
-    return Response.json({ ok: false }, { status: 401 });
-  }
+  const uberSignature = verifyUberWebhookSignature(rawBody, request.headers.get("x-uber-signature"), creds.webhookSigningKey);
+  const postmatesSignature = verifyUberWebhookSignature(rawBody, request.headers.get("x-postmates-signature"), creds.webhookSigningKey);
+  if (!uberSignature && !postmatesSignature) return Response.json({ ok: false }, { status: 401 });
   let payload: Record<string, unknown> = {};
   try {
     const parsed = JSON.parse(rawBody);
@@ -18,6 +17,8 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ ok: false }, { status: 400 });
   }
+  const kind = String(payload.kind ?? payload.event_type ?? "");
+  if (kind.includes("refund") && !uberSignature) return Response.json({ ok: false }, { status: 401 });
   const result = await applyUberWebhook({ rawBody, payload });
   if (!result.ok) return Response.json({ ok: false }, { status: result.status });
   return Response.json({ ok: true });

@@ -7,7 +7,7 @@ import { createAdminClient } from "@/src/lib/supabase/admin";
 import { getGuestOrderConfirmation } from "@/src/lib/checkout/guest-order";
 import { uberDirectCredentials } from "./credentials";
 import { getUberAccessToken } from "./providers/uber-direct";
-import { cancelUberDeliveryForOrder, refreshUberDeliveryRecord } from "./uber-dispatch";
+import { cancelUberDeliveryForOrder, refreshUberDeliveryRecord, retryUberDeliveryForOrder } from "./uber-dispatch";
 import { uberCustomerStage, type UberCustomerStage } from "./uber-status";
 
 export async function saveUberDirectSettings(_prev: { error?: string; saved?: boolean } | null, formData: FormData) {
@@ -25,7 +25,7 @@ export async function saveUberDirectSettings(_prev: { error?: string; saved?: bo
   return { saved: true };
 }
 
-export async function checkUberDirectConnection() {
+export async function checkUberDirectConnection(_formData: FormData) {
   const { supabase } = await requireAdmin();
   const creds = uberDirectCredentials();
   const status = !creds.configured
@@ -41,7 +41,14 @@ export async function checkUberDirectConnection() {
     updated_at: new Date().toISOString(),
   });
   revalidatePath("/admin/delivery");
-  return { status };
+}
+
+export async function retryUberOrderDelivery(orderId: string) {
+  await requireAdmin();
+  const result = await retryUberDeliveryForOrder(orderId);
+  revalidatePath("/admin/delivery");
+  revalidatePath(`/admin/orders/${orderId}`);
+  return result;
 }
 
 export async function cancelUberOrderDelivery(orderId: string) {
