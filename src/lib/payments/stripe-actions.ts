@@ -48,12 +48,18 @@ async function authoritativeQuote(input: ReturnType<typeof validateCheckout> & {
   if (!input.request) return null;
   const request = input.request;
   const supabase = await createClient();
-  const { data: catalog } = await supabase
+  const { data: catalog, error: catalogError } = await supabase
     .from("products")
-    .select("id, price, selling_method, selling_unit, unit_increment, min_sell_qty, max_sell_qty, package_weight_lb, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in")
+    .select("id, price, selling_method, selling_unit, unit_increment, min_sell_qty, max_sell_qty, package_weight_lb, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in, item_weight_lb, shipping_package_id, weight_oz, packaging_weight_oz, weight_source, weight_confidence, dims")
     .in("id", request.items.map((item) => item.product_id));
+  if (catalogError) {
+    return { ok: false as const, message: "We couldn't confirm the products in your cart. Refresh checkout before paying.", stale: false };
+  }
   const byId = new Map((catalog ?? []).map((row) => [row.id, row]));
-  const products = request.items.map((item) => ({ quantity: item.quantity, ...byId.get(item.product_id) }));
+  if (request.items.some((item) => !byId.has(item.product_id))) {
+    return { ok: false as const, message: "A product in your cart is no longer available.", stale: false };
+  }
+  const products = request.items.map((item) => ({ quantity: item.quantity, ...byId.get(item.product_id)! }));
   const selectedId = request.deliveryOptionId || (request.fulfillmentMethod === "local_pickup" ? "pickup" : "store");
   if (selectedId === "ivoire" || selectedId.startsWith("ivoire:")) {
     return {
@@ -83,6 +89,9 @@ async function authoritativeQuote(input: ReturnType<typeof validateCheckout> & {
     },
     products,
   });
+  if (quotes.subtotal == null) {
+    return { ok: false as const, message: quotes.message || "A product price could not be confirmed. Refresh checkout before paying.", stale: false };
+  }
   let resolved = resolveSelectedShippingOption(quotes.options, selectedId, request.fulfillmentMethod, request.quotedShipping);
   // Bounded backoff (max 2) when Shippo omits the selected live carrier (often UPS 10429).
   if ("error" in resolved && resolved.stale && isLiveSelection && (shippoBusy(quotes.message) || carrierOmitted(quotes))) {
@@ -96,6 +105,9 @@ async function authoritativeQuote(input: ReturnType<typeof validateCheckout> & {
         },
         products,
       });
+      if (quotes.subtotal == null) {
+        return { ok: false as const, message: quotes.message || "A product price could not be confirmed. Refresh checkout before paying.", stale: false };
+      }
       resolved = resolveSelectedShippingOption(quotes.options, selectedId, request.fulfillmentMethod, request.quotedShipping);
       if (!("error" in resolved)) break;
       if (!(shippoBusy(quotes.message) || carrierOmitted(quotes))) break;
@@ -113,12 +125,20 @@ async function authoritativeQuote(input: ReturnType<typeof validateCheckout> & {
   }
   const selected = resolved.option;
   const breakdown = quotes.breakdowns[selected.id];
-  const quote = quoteFromAuthoritativeParts({
-    unitPrices: request.items.map((item) => ({ price: byId.get(item.product_id)?.price ?? 0, quantity: item.quantity })),
-    shippingAmount: breakdown?.shipping ?? selected.amount,
-    tax: quotes.tax,
-  });
-  return { ok: true as const, quotes, selected, quote };
+  try {
+    const quote = quoteFromAuthoritativeParts({
+      unitPrices: request.items.map((item) => ({ price: byId.get(item.product_id)?.price, quantity: item.quantity })),
+      shippingAmount: breakdown?.shipping ?? selected.amount,
+      tax: quotes.tax,
+    });
+    return { ok: true as const, quotes, selected, quote };
+  } catch (error) {
+    return {
+      ok: false as const,
+      message: error instanceof Error ? error.message : "A product price could not be confirmed. Refresh checkout before paying.",
+      stale: false,
+    };
+  }
 }
 
 export async function prepareStripePayment(input: {

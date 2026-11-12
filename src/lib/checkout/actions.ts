@@ -23,6 +23,11 @@ import {
   weightOptionCheckoutError,
   weightOptionsSchemaReady,
 } from "@/src/lib/catalog/weight-option-checkout";
+import {
+  CHECKOUT_PRODUCT_LOOKUP_ERROR,
+  CHECKOUT_PRODUCT_UNAVAILABLE,
+  merchandiseSubtotalCents,
+} from "@/src/lib/checkout/merchandise";
 
 export type PreResolvedCheckoutShipping = {
   selected: DeliveryOption;
@@ -48,7 +53,7 @@ export async function placeCheckoutOrder(
       return { success: false, error: STORE_CLOSED_MESSAGE, retrySame: false };
     }
     const productIds = request.items.map((item) => item.product_id);
-    const [{ data: catalog }, loadedOptions, schemaReady] = await Promise.all([
+    const [{ data: catalog, error: catalogError }, loadedOptions, schemaReady] = await Promise.all([
       supabase
         .from("products")
         .select("id, name, description, short_description, price, selling_method, selling_unit, unit_increment, min_sell_qty, max_sell_qty, package_weight_lb, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in, item_weight_lb, shipping_package_id, weight_oz, packaging_weight_oz, weight_source, weight_confidence, dims")
@@ -56,10 +61,21 @@ export async function placeCheckoutOrder(
       loadProductWeightOptions(supabase as never, productIds),
       weightOptionsSchemaReady(supabase as never),
     ]);
+    if (catalogError) {
+      logCheckoutFailure("product_lookup", catalogError);
+      return { success: false, error: CHECKOUT_PRODUCT_LOOKUP_ERROR, retrySame: false };
+    }
     const byId = new Map((catalog ?? []).map((row) => [row.id, row]));
+    if (productIds.some((id) => !byId.has(id))) {
+      return { success: false, error: CHECKOUT_PRODUCT_UNAVAILABLE, retrySame: false };
+    }
     const checkoutProducts = request.items.map((item) => (
       attachCheckoutWeightOption(byId.get(item.product_id) ?? { id: item.product_id, price: null }, item, loadedOptions.options)
     ));
+    const merchandise = merchandiseSubtotalCents(checkoutProducts);
+    if (!merchandise.ok) {
+      return { success: false, error: merchandise.error, retrySame: false };
+    }
     const checkoutItems = checkoutItemsForSellingMethod(request.items, checkoutProducts);
     const schemaError = requireWeightOptionSchema(checkoutItems, schemaReady && loadedOptions.schemaReady);
     if (schemaError) return { success: false, error: schemaError, retrySame: false };
@@ -109,6 +125,13 @@ export async function placeCheckoutOrder(
         },
         products: checkoutProducts,
       });
+      if (quotes.subtotal == null) {
+        return {
+          success: false,
+          error: quotes.message || "A product price could not be confirmed. Refresh checkout before paying.",
+          retrySame: false,
+        };
+      }
       const resolved = resolveSelectedShippingOption(quotes.options, selectedId, request.fulfillmentMethod, request.quotedShipping);
       if ("error" in resolved) {
         const busy = Boolean(quotes.message && /too many requests|10429|rate.?limit|briefly busy|temporarily busy|temporary carrier gap/i.test(quotes.message));

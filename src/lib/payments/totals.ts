@@ -1,3 +1,4 @@
+import { CHECKOUT_PRICE_UNCONFIRMED, CHECKOUT_SHIPPING_UNCONFIRMED, confirmedShippingCents, merchandiseSubtotalCents } from "../checkout/merchandise.ts";
 import { computeOrderTotalCents, computeTaxLines, moneyFromCents, safeUsdToCents, type TaxLine, type TaxSettings } from "../tax/totals.ts";
 
 export type QuoteCents = {
@@ -17,12 +18,12 @@ export function quoteFromAuthoritativeParts(input: {
   shippingAmount: number | string;
   tax: TaxSettings;
 }): QuoteCents {
+  const merchandise = merchandiseSubtotalCents(input.unitPrices);
+  if (!merchandise.ok) throw new Error(merchandise.error || CHECKOUT_PRICE_UNCONFIRMED);
+  const shippingCents = confirmedShippingCents(input.shippingAmount);
+  if (shippingCents == null) throw new Error(CHECKOUT_SHIPPING_UNCONFIRMED);
   // Round per line so fractional weight quantities (e.g. 2.5 lb) never produce half-cents for Stripe.
-  const subtotalCents = input.unitPrices.reduce(
-    (sum, row) => sum + Math.round(safeUsdToCents(row.price) * Number(row.quantity)),
-    0,
-  );
-  const shippingCents = safeUsdToCents(input.shippingAmount);
+  const subtotalCents = merchandise.subtotalCents;
   const taxLines = computeTaxLines({
     subtotalCents,
     discountCents: 0,

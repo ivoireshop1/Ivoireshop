@@ -50,6 +50,12 @@ import {
   loadProductWeightOptions,
   type CheckoutCartItem,
 } from "@/src/lib/catalog/weight-option-checkout";
+import type { ProductWeightOption } from "@/src/lib/catalog/weight-options";
+import {
+  CHECKOUT_PRODUCT_LOOKUP_ERROR,
+  CHECKOUT_PRODUCT_UNAVAILABLE,
+  merchandiseSubtotalCents,
+} from "@/src/lib/checkout/merchandise";
 
 type CheckoutProductRow = {
   id: string;
@@ -66,22 +72,58 @@ type CheckoutProductRow = {
   ship_height_in?: number | string | null;
   item_weight_lb?: number | string | null;
   shipping_package_id?: string | null;
+  weight_oz?: number | string | null;
+  packaging_weight_oz?: number | string | null;
+  weight_source?: string | null;
+  weight_confidence?: string | null;
+  dims?: unknown;
   category_id?: string | null;
   category_slug?: string | null;
 };
 
-async function loadCheckoutProducts(items: CheckoutCartItem[]) {
+type LoadedCheckoutProduct = CheckoutProductRow & {
+  quantity: number;
+  price: number | null;
+  weightOption?: ProductWeightOption | null;
+  category_slug?: string | null;
+};
+
+type LoadedCheckoutProducts =
+  | { ok: true; products: LoadedCheckoutProduct[] }
+  | { ok: false; error: string };
+
+function emptyLiveCarrierResult(message: string, quoteProvider: ReturnType<typeof parseShippingProvider> | null = null) {
+  return {
+    options: [] as Awaited<ReturnType<typeof quoteLiveCarrierOptions>>["options"],
+    expectedLiveCarriers: [] as Array<"ups" | "usps">,
+    temporaryBusy: false as const,
+    rateLimitedCarriers: undefined as Array<"ups" | "usps"> | undefined,
+    breakdowns: {} as Record<string, { shipping: number; tax: number; total: number; taxLines: ReturnType<typeof computeTaxLines> }>,
+    subtotal: null as number | null,
+    quoteProvider,
+    message,
+  };
+}
+
+async function loadCheckoutProducts(items: CheckoutCartItem[]): Promise<LoadedCheckoutProducts> {
   const supabase = await createClient();
   const ids = items.map((item) => item.product_id);
-  const [{ data: products }, loaded] = await Promise.all([
-    ids.length
-      ? supabase
-          .from("products")
-          .select("id, name, description, short_description, price, selling_method, selling_unit, unit_increment, min_sell_qty, max_sell_qty, package_weight_lb, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in, item_weight_lb, shipping_package_id, weight_oz, packaging_weight_oz, weight_source, weight_confidence, dims, category_id")
-          .in("id", ids)
-      : Promise.resolve({ data: [] as CheckoutProductRow[] }),
+  if (!ids.length) return { ok: true, products: [] };
+  const [{ data: products, error }, loaded] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, name, description, short_description, price, selling_method, selling_unit, unit_increment, min_sell_qty, max_sell_qty, package_weight_lb, ship_weight_lb, ship_length_in, ship_width_in, ship_height_in, item_weight_lb, shipping_package_id, weight_oz, packaging_weight_oz, weight_source, weight_confidence, dims, category_id")
+      .in("id", ids),
     loadProductWeightOptions(supabase as never, ids),
   ]);
+  if (error) {
+    console.error("[checkout] product lookup failed", { code: error.code, message: error.message });
+    return { ok: false, error: CHECKOUT_PRODUCT_LOOKUP_ERROR };
+  }
+  const foundIds = new Set((products ?? []).map((row) => row.id));
+  if (ids.some((id) => !foundIds.has(id))) {
+    return { ok: false, error: CHECKOUT_PRODUCT_UNAVAILABLE };
+  }
   const categoryIds = [...new Set((products ?? []).map((row) => row.category_id).filter((id): id is string => Boolean(id)))];
   const { data: categories } = categoryIds.length
     ? await supabase.from("categories").select("id, slug").in("id", categoryIds)
@@ -92,10 +134,13 @@ async function loadCheckoutProducts(items: CheckoutCartItem[]) {
     category_slug: row.category_id ? slugById.get(row.category_id) ?? null : null,
   }]));
   const attached = items.map((item) => {
-    const row = byId.get(item.product_id) ?? { id: item.product_id, price: null as number | null };
+    const row = byId.get(item.product_id);
+    if (!row) return attachCheckoutWeightOption({ id: item.product_id, price: null as number | null }, item, loaded.options);
     return attachCheckoutWeightOption(row, item, loaded.options);
   });
-  return attached;
+  const merchandise = merchandiseSubtotalCents(attached);
+  if (!merchandise.ok) return { ok: false, error: merchandise.error };
+  return { ok: true, products: attached };
 }
 
 export async function getCheckoutDeliveryOptions(input: {
@@ -105,10 +150,29 @@ export async function getCheckoutDeliveryOptions(input: {
   includeLiveCarriers?: boolean;
 }) {
   const started = Date.now();
-  const products = await loadCheckoutProducts(input.items);
+  const loaded = await loadCheckoutProducts(input.items);
+  if (!loaded.ok) {
+    console.info("[checkout-timing]", {
+      action: "getCheckoutDeliveryOptions",
+      includeLiveCarriers: input.includeLiveCarriers !== false,
+      ms: Date.now() - started,
+      optionCount: 0,
+      error: loaded.error,
+    });
+    return {
+      options: [],
+      breakdowns: {} as Record<string, { shipping: number; tax: number; total: number; taxLines: ReturnType<typeof computeTaxLines> }>,
+      subtotal: null as number | null,
+      tax: null,
+      origin: null,
+      expectedLiveCarriers: [] as Array<"ups" | "usps">,
+      quoteProvider: null,
+      message: loaded.error,
+    };
+  }
   const result = await collectCheckoutOptions({
     destination: input.address,
-    products,
+    products: loaded.products,
     includeLiveCarriers: input.includeLiveCarriers,
   });
   console.info("[checkout-timing]", {
@@ -129,23 +193,34 @@ export async function getCheckoutLiveCarrierOptions(input: {
   const supabase = await createClient();
   const { data: settings } = await supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle();
   const origin = originFromSettings(settings);
-  const products = await loadCheckoutProducts(input.items);
+  const loaded = await loadCheckoutProducts(input.items);
+  if (!loaded.ok) {
+    console.info("[checkout-timing]", {
+      action: "getCheckoutLiveCarrierOptions",
+      ms: Date.now() - started,
+      rates: 0,
+      error: loaded.error,
+    });
+    return emptyLiveCarrierResult(loaded.error, parseShippingProvider(settings?.shipping_provider));
+  }
   const packages = await loadShippingPackages(supabase as never);
   const live = await quoteLiveCarrierOptions({
     settings: settings as Record<string, unknown> | null,
     origin,
     destination: input.address,
-    products,
+    products: loaded.products,
     packages,
     defaultPackageId: typeof settings?.default_shipping_package_id === "string" ? settings.default_shipping_package_id : null,
   });
   const tax = taxSettingsFromRow(settings as Record<string, unknown> | null);
-  const subtotalCents = products.reduce((sum, product) => {
-    const qty = Number(product.quantity);
-    const price = Number(product.price);
-    if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(price) || price <= 0) return sum;
-    return sum + Math.round(price * qty * 100);
-  }, 0);
+  const merchandise = merchandiseSubtotalCents(loaded.products);
+  if (!merchandise.ok) {
+    return {
+      ...emptyLiveCarrierResult(merchandise.error, parseShippingProvider(settings?.shipping_provider)),
+      expectedLiveCarriers: live.expectedLiveCarriers,
+    };
+  }
+  const subtotalCents = merchandise.subtotalCents;
   const breakdowns: Record<string, { shipping: number; tax: number; total: number; taxLines: ReturnType<typeof computeTaxLines> }> = {};
   for (const option of live.options) {
     const shippingCents = safeUsdToCents(option.amount);

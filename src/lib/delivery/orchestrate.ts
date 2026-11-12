@@ -15,6 +15,7 @@ import { liveCarrierApiEnabled, parseShippingProvider } from "@/src/lib/shipping
 import { isCheckoutEligibleShippingOption } from "./checkout-eligibility";
 import { collectRateTableOptions } from "@/src/lib/shipping/rate-table";
 import { recordShippingMonitorEvent } from "@/src/lib/shipping/monitor";
+import { merchandiseSubtotalCents } from "@/src/lib/checkout/merchandise";
 
 function logDelivery(provider: string, operation: string, success: boolean, message?: string) {
   console.info("[delivery]", {
@@ -48,12 +49,28 @@ export async function collectCheckoutOptions(input: {
   /** When false, skip Shippo UPS/USPS so pickup/store options return immediately. */
   includeLiveCarriers?: boolean;
 }) {
+  const merchandise = merchandiseSubtotalCents(input.products);
   const supabase = await createClient();
   const [{ data: settings }, packages] = await Promise.all([
     supabase.from("store_settings").select("*").eq("id", STORE_SETTINGS_ID).maybeSingle(),
     loadShippingPackages(supabase as never),
   ]);
   const origin = originFromSettings(settings);
+  const tax = taxSettingsFromRow(settings);
+  if (!merchandise.ok) {
+    // Merchandise must be confirmed before any shipping quote. Never report a $0.00 product total.
+    return {
+      options: [],
+      breakdowns: {} as Record<string, { shipping: number; tax: number; total: number; taxLines: TaxLine[] }>,
+      subtotal: null as number | null,
+      tax,
+      origin: originIsComplete(origin) ? origin : null,
+      expectedLiveCarriers: [] as Array<"ups" | "usps">,
+      quoteProvider: parseShippingProvider(settings?.shipping_provider),
+      message: merchandise.error,
+    };
+  }
+  const subtotalCents = merchandise.subtotalCents;
   const options: DeliveryOption[] = [];
   if (settings?.pickup_enabled !== false && settings?.pickup_show_at_checkout !== false) {
     options.push({
@@ -80,13 +97,6 @@ export async function collectCheckoutOptions(input: {
     }
   }
 
-  const tax = taxSettingsFromRow(settings);
-  const subtotalCents = input.products.reduce((sum, product) => {
-    const qty = Number(product.quantity);
-    const price = Number(product.price);
-    if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(price) || price <= 0) return sum;
-    return sum + Math.round(price * qty * 100);
-  }, 0);
   const row = (settings ?? {}) as Record<string, unknown>;
   const liveCarriersWanted = liveCarrierApiEnabled(row) && (["ups", "usps"] as const).some((carrier) => (
     Boolean(row[`${carrier}_enabled`])

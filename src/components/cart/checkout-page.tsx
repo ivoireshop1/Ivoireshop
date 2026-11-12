@@ -391,6 +391,8 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
         if (result.origin) setLivePickupOrigin(result.origin);
         setExpectedLiveCarriers(Array.isArray(result.expectedLiveCarriers) ? result.expectedLiveCarriers : []);
         if (result.quoteProvider) setQuoteProvider(result.quoteProvider);
+        if (result.message) setQuoteMessage(result.message);
+        else if (result.subtotal != null) setQuoteMessage("");
         setDeliveryOptionId((current) => {
           if (current && (result.options.some((option) => option.id === current) || isLiveOptionId(current) || current.includes(":manual:"))) {
             return current;
