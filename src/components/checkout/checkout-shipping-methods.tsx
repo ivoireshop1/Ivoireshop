@@ -19,6 +19,7 @@ export function CheckoutShippingMethods({
   onChange,
   busy,
   pickupOrigin,
+  destinationLines,
   message,
   expectedLiveCarriers = [],
   temporaryBusyCarriers = [],
@@ -29,6 +30,7 @@ export function CheckoutShippingMethods({
   onChange: (option: DeliveryOption) => void;
   busy?: boolean;
   pickupOrigin?: StoreOrigin | null;
+  destinationLines?: string[];
   message?: string | null;
   /** Carriers enabled for live quotes — always show accordion even when the selected provider returns no rates. */
   expectedLiveCarriers?: Array<"ups" | "usps">;
@@ -40,16 +42,18 @@ export function CheckoutShippingMethods({
   const pickupLines = formatOriginLines(pickupOrigin ?? undefined);
   const baseId = useId();
 
-  const { ups, usps, other } = useMemo(() => {
+  const { ups, usps, other, uber } = useMemo(() => {
     const upsOpts: DeliveryOption[] = [];
     const uspsOpts: DeliveryOption[] = [];
     const otherOpts: DeliveryOption[] = [];
+    const uberOpts: DeliveryOption[] = [];
     for (const option of options) {
       if (option.provider === "ups") upsOpts.push(option);
       else if (option.provider === "usps") uspsOpts.push(option);
+      else if (option.provider === "uber") uberOpts.push(option);
       else otherOpts.push(option);
     }
-    return { ups: upsOpts, usps: uspsOpts, other: otherOpts };
+    return { ups: upsOpts, usps: uspsOpts, other: otherOpts, uber: uberOpts };
   }, [options]);
 
   const showUps = ups.length > 0 || expectedLiveCarriers.includes("ups");
@@ -108,6 +112,27 @@ export function CheckoutShippingMethods({
             onChange={onChange}
           />
         ) : null}
+
+        {uber.map((option) => {
+          const selected = value === option.id;
+          const fee = option.uberFeeCents == null ? null : `$${(option.uberFeeCents / 100).toFixed(2)}`;
+          const markup = option.uberMarkupCents ? `$${(option.uberMarkupCents / 100).toFixed(2)}` : null;
+          return (
+            <label className={`block cursor-pointer rounded-2xl border p-4 ${selected ? "border-[#173f35] bg-[#173f35] text-white" : "border-[#173f35]/15 bg-white text-[#173f35]"}`} key={option.id}>
+              <input checked={selected} className="sr-only" onChange={() => onChange(option)} type="radio" value={option.id} />
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b8964c]">Local Delivery — Powered by Uber</span>
+              <span className="mt-2 flex items-start justify-between gap-3">
+                <span>
+                  <span className="block text-lg font-semibold">Uber courier</span>
+                  <span className={`mt-1 block text-sm ${selected ? "text-white/80" : "text-[#6b6b6b]"}`}>{option.estimate}</span>
+                </span>
+                <span className="text-lg font-semibold tabular-nums">${option.amount.toFixed(2)}</span>
+              </span>
+              {fee ? <span className={`mt-3 block text-sm ${selected ? "text-white/80" : "text-[#6b6b6b]"}`}>Uber delivery fee {fee}{markup ? ` · Store service ${markup}` : ""}</span> : null}
+              {destinationLines?.length ? <span className={`mt-2 block whitespace-pre-line text-sm ${selected ? "text-white/80" : "text-[#6b6b6b]"}`}>{destinationLines.join("\n")}</span> : null}
+            </label>
+          );
+        })}
 
         {other.map((option) => {
           const copy = shippingMethodCopy(option);

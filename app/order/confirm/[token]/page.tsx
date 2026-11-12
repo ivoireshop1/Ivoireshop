@@ -6,6 +6,8 @@ import { viewOrderHref } from "@/src/lib/checkout/view-order-href";
 import { OrderConfirmationExperience } from "@/src/components/checkout/order-confirmation-experience";
 import { RememberGuestOrder } from "@/src/components/checkout/remember-guest-order";
 import { ShipmentTrackingPanel } from "@/src/components/orders/shipment-tracking-panel";
+import { UberDeliveryTracker } from "@/src/components/orders/uber-delivery-tracker";
+import { readUberProgress } from "@/src/lib/delivery/uber-actions";
 import { SiteHeader } from "@/src/components/layout/site-header";
 import { Footer } from "@/src/components/layout/footer";
 import { pickupLocationForOrder } from "@/src/components/store/pickup-location-block";
@@ -78,6 +80,7 @@ export default async function GuestOrderConfirmationPage({ params }: { params: P
             </div>
           </section>
         ) : null}
+        {String(order.fulfillment_provider ?? "") === "uber" ? <UberDeliveryTracker guestToken={token} initial={await readUberProgress(orderId)} orderId={orderId} /> : null}
         <ShipmentTrackingPanel
           order={{
             fulfillment_method: String(order.fulfillment_method),

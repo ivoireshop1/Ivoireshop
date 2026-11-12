@@ -9,6 +9,8 @@ import { PickupLocationBlock, pickupLocationForOrder } from "@/src/components/st
 import { OrderMoneyBreakdown } from "@/src/components/orders/order-money-breakdown";
 import { paymentStatusLabel } from "@/src/lib/orders/status";
 import { ShipmentTrackingPanel } from "@/src/components/orders/shipment-tracking-panel";
+import { UberDeliveryTracker } from "@/src/components/orders/uber-delivery-tracker";
+import { readUberProgress } from "@/src/lib/delivery/uber-actions";
 import { OrderLine } from "@/src/components/orders/order-line";
 import { LiveOrderTimeline } from "@/src/components/orders/live-order-timeline";
 import { LiveOrderStatusLine } from "@/src/components/orders/live-order-status-line";
@@ -89,6 +91,7 @@ export default async function CustomerOrderPage({ params }: { params: Promise<{ 
           ) : null}
         </div>
         <ShipmentTrackingPanel order={order} />
+        {order.fulfillment_provider === "uber" ? <UberDeliveryTracker initial={await readUberProgress(order.id)} orderId={order.id} /> : null}
         {order.fulfillment_method === "local_pickup" ? (
           <div className="mt-6">
             <p className="font-semibold text-forest-green">Fulfillment</p>

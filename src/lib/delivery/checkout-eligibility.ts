@@ -21,6 +21,6 @@ export function isCheckoutEligibleShippingOption(option: Pick<DeliveryOption, "p
   if (option.provider === "ups" || option.provider === "usps") {
     return option.rateMode === "live_api";
   }
-  if (option.provider === "doordash") return true;
+  if (option.provider === "doordash" || option.provider === "uber") return true;
   return false;
 }

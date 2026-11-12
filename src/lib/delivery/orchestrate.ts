@@ -3,6 +3,8 @@ import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
 import { originFromSettings, originIsComplete } from "./origin";
 import { optionToSnapshot } from "./snapshot";
 import { quoteDoorDash } from "./providers/doordash";
+import { formatUberAddress, quoteUberDelivery } from "./providers/uber-direct";
+import { uberDirectCredentials, uberDirectEnvironment, uberDispatchAllowed } from "./credentials";
 import { sanitizeProviderError, type DeliveryOption } from "./types";
 import { parseCharge, manualCarrierOptions, parseRateMode } from "./manual";
 import { destinationReadyForCarrierQuotes, destinationReadyForLocalDelivery, incompleteCarrierQuoteMessage } from "./destination";
@@ -96,6 +98,30 @@ export async function collectCheckoutOptions(input: {
     logDelivery("doordash", "quote", !quoted.error, quoted.error);
     options.push(...quoted.options.map((option) => ({ ...option, mode: "api" as const })));
   }
+  const uberSettings = (settings ?? {}) as { uber_direct_enabled?: boolean; uber_direct_show_at_checkout?: boolean; uber_direct_markup_cents?: number; uber_direct_production_dispatch?: boolean };
+  const uberOffered = uberSettings.uber_direct_enabled === true
+    && uberSettings.uber_direct_show_at_checkout !== false
+    && uberDispatchAllowed()
+    && (uberDirectEnvironment() !== "production" || uberSettings.uber_direct_production_dispatch === true);
+  let uberNote = "";
+  if (localReady && originIsComplete(origin) && uberOffered) {
+    const pickup = formatUberAddress(origin);
+    const dropoff = formatUberAddress(input.destination);
+    if (!pickup || !dropoff) {
+      uberNote = "Enter a complete US delivery address to see an Uber price.";
+    } else {
+      const quoted = await quoteUberDelivery({
+        pickup,
+        dropoff,
+        markupCents: Number(uberSettings.uber_direct_markup_cents ?? 0),
+      });
+      logDelivery("uber", "quote", Boolean(quoted.option), quoted.unavailable);
+      if (quoted.option) options.push(quoted.option);
+      else if (quoted.unavailable) uberNote = quoted.unavailable;
+    }
+  } else if (uberDirectCredentials().configured && uberDirectEnvironment() === "unidentified" && uberSettings.uber_direct_enabled) {
+    uberNote = "Local delivery is unavailable until the Uber environment is identified.";
+  }
   const quoteCountry = input.destination.country?.trim() || origin.country?.trim() || "US";
   // Manual/store UPS/USPS rates stay gated; production must never substitute them for live quotes.
   options.push(...manualCarrierOptions(settings as Record<string, unknown> | null, quoteCountry, moneyFromCents(subtotalCents)));
@@ -149,7 +175,7 @@ export async function collectCheckoutOptions(input: {
     });
   }
   options.push(...table.options);
-  let checkoutMessage: string | undefined = [carrierPrompt, live.message, table.message].filter(Boolean).join(" ") || undefined;
+  let checkoutMessage: string | undefined = [carrierPrompt, live.message, table.message, uberNote].filter(Boolean).join(" ") || undefined;
   if (liveCarriersWanted && destReady && !hasLiveCarrier && !live.temporaryBusy) {
     const unavailable =
       "Live UPS/USPS rates are unavailable for this address and package right now."

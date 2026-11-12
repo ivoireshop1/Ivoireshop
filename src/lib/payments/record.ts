@@ -130,6 +130,12 @@ export async function applyVerifiedPayment(input: {
     const order = (data as RecordedOrder | null) ?? { ...existing, payment_status: "paid" };
     const emailSent = await sendPaidConfirmation(order);
     await recordPaymentNotification(supabase, order.id, "paid", emailSent);
+    try {
+      const { bookPaidUberDelivery } = await import("@/src/lib/delivery/uber-dispatch");
+      await bookPaidUberDelivery(order.id);
+    } catch (error) {
+      console.warn("[uber-direct]", error instanceof Error ? error.message.slice(0, 180) : "booking failed");
+    }
     return { order, duplicate: false, emailSent };
   }
 

@@ -996,6 +996,7 @@ export function CheckoutPage({ storeOpen, payments, pickupOrigin = null, demoEna
               message={quoteMessage}
               options={options}
               quoteProvider={quoteProvider}
+              destinationLines={[address.addressLine1, address.addressLine2, [address.city, address.state, address.postalCode].filter(Boolean).join(", "), address.country].filter(Boolean)}
               pickupOrigin={livePickupOrigin}
               temporaryBusyCarriers={temporaryBusyCarriers}
               value={deliveryOptionId}

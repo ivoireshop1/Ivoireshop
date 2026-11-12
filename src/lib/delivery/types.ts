@@ -1,6 +1,6 @@
 export type DeliveryOption = {
   id: string;
-  provider: "pickup" | "store" | "doordash" | "ups" | "usps" | "ivoire";
+  provider: "pickup" | "store" | "doordash" | "uber" | "ups" | "usps" | "ivoire";
   fulfillmentMethod: "delivery" | "local_pickup";
   label: string;
   amount: number;
@@ -16,7 +16,12 @@ export type DeliveryOption = {
   easypostRateId?: string | null;
   easypostShipmentId?: string | null;
   easyshipRateId?: string | null;
-  quoteSource?: "shippo" | "easypost" | "easyship" | "rate_table";
+  quoteSource?: "shippo" | "easypost" | "easyship" | "rate_table" | "uber";
+  uberQuoteId?: string | null;
+  uberExpiresAt?: string | null;
+  uberFeeCents?: number | null;
+  uberMarkupCents?: number | null;
+  dropoffEta?: string | null;
   currency?: string;
   testRate?: boolean;
   etaDays?: number | null;

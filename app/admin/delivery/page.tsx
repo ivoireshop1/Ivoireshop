@@ -1,7 +1,8 @@
 import { requireAdmin } from "@/src/lib/auth/guards";
 import { STORE_SETTINGS_ID } from "@/src/lib/store/constants";
 import { formatOriginLines, originFromSettings, originIsComplete } from "@/src/lib/delivery/origin";
-import { doordashCredentials } from "@/src/lib/delivery/credentials";
+import { doordashCredentials, uberDirectCredentials, uberDispatchAllowed } from "@/src/lib/delivery/credentials";
+import { UberDirectPanel } from "@/src/components/admin/uber-direct-panel";
 import { checkDeliveryProviders, carrierOrderCounts } from "@/src/lib/delivery/actions";
 import { ShippoSettingsForm } from "@/src/components/admin/shippo-settings-form";
 import { ShippingProviderForm } from "@/src/components/admin/shipping-provider-form";
@@ -74,6 +75,19 @@ export default async function AdminDeliveryPage() {
   const upsHealth = healthBy.get("ups");
   const uspsHealth = healthBy.get("usps");
   const doorConfigured = doordashCredentials().configured;
+  const uberCreds = uberDirectCredentials();
+  const { data: uberDeliveryRows } = await supabase.from("uber_deliveries").select("order_id, delivery_id, status, tracking_url, fee_cents, markup_cents, courier_name, last_error, environment").order("created_at", { ascending: false }).limit(40);
+  const uberOrderIds = (uberDeliveryRows ?? []).map((row) => row.order_id);
+  const { data: uberOrders } = uberOrderIds.length
+    ? await supabase.from("orders").select("id, payment_status, refunded_amount").in("id", uberOrderIds)
+    : { data: [] as Array<{ id: string; payment_status: string | null; refunded_amount: number | null }> };
+  const uberPayment = new Map((uberOrders ?? []).map((row) => [row.id, row]));
+  const uberDeliveries = (uberDeliveryRows ?? []).map((row) => ({
+    ...row,
+    payment_status: uberPayment.get(row.order_id)?.payment_status ?? null,
+    refunded_amount: uberPayment.get(row.order_id)?.refunded_amount ?? null,
+  }));
+  const uberHealth = healthBy.get("uber")?.status || (uberCreds.configured ? "Not checked" : "missing");
   const doorHealth = healthBy.get("doordash");
   const doorTitle = !doorConfigured
     ? "Not configured"
@@ -140,6 +154,18 @@ export default async function AdminDeliveryPage() {
           </p>
         </section>
       </div>
+
+      <UberDirectPanel
+        configured={uberCreds.configured}
+        deliveries={uberDeliveries}
+        dispatchAllowed={uberDispatchAllowed() && (uberCreds.environment !== "production" || settings?.uber_direct_production_dispatch === true)}
+        enabled={settings?.uber_direct_enabled === true}
+        environment={uberCreds.environment}
+        health={uberHealth}
+        markupCents={Number(settings?.uber_direct_markup_cents ?? 0)}
+        productionDispatch={settings?.uber_direct_production_dispatch === true}
+        showAtCheckout={settings?.uber_direct_show_at_checkout === true}
+      />
 
       <section className="rounded-2xl bg-white p-5">
         <h2 className="font-semibold text-[#173f35]">Shipping monitor</h2>

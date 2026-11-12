@@ -36,10 +36,19 @@ export function uspsCredentials() {
   };
 }
 
-export type ProviderId = "doordash" | "ups" | "usps";
+export {
+  UBER_DIRECT_PRODUCTION_DISPATCH_FLAG,
+  uberDirectCredentials,
+  uberDirectEnvironment,
+  uberDispatchAllowed,
+} from "./providers/uber-direct";
+export type { UberEnvironment } from "./providers/uber-direct";
+
+export type ProviderId = "doordash" | "ups" | "usps" | "uber";
 
 export function providerCredentialState(provider: ProviderId) {
   if (provider === "doordash") return doordashCredentials().configured;
+  if (provider === "uber") return uberDirectCredentials().configured && uberDirectEnvironment() !== "unidentified";
   if (provider === "ups") return upsCredentials().configured;
   return uspsCredentials().configured;
 }
